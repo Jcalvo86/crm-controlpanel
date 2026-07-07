@@ -1,170 +1,344 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Panel de Control - CRM Autónomo (Firebase)</title>
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
+  <title>Glosaurio — Panel CRM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+  <link rel="stylesheet" href="../style.css">
+  <style>
+    .crm-layout { display: grid; grid-template-columns: 1fr; gap: 24px; }
+    @media (min-width: 1024px) { .crm-layout { grid-template-columns: 420px 1fr; } }
+    .tab-btn { padding: 10px 20px; border-radius: 10px; font-family: 'Inter', sans-serif; font-size: 0.875rem; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; }
+    .tab-btn.active { background: var(--primary-container); color: var(--on-primary-container); }
+    .tab-btn:not(.active) { background: transparent; color: var(--on-surface-variant); }
+    .tab-btn:not(.active):hover { background: var(--surface-container-high); color: var(--on-surface); }
+    .spin { animation: spin 1s linear infinite; display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-overlay { position: absolute; inset: 0; background: color-mix(in srgb, var(--surface) 70%, transparent); backdrop-filter: blur(4px); border-radius: 24px; display: flex; align-items: center; justify-content: center; z-index: 10; }
+  </style>
 
-  <!-- ================= VISTA DE AUTENTICACIÓN (LOGIN) ================= -->
-  <div id="auth-view" class="auth-container">
-    <div class="auth-card">
-      <div class="brand">
-        <h1>Sueño <span>Travel</span></h1>
-        <p>Panel de Administración</p>
-      </div>
-      <form id="login-form">
-        <div class="form-group">
-          <label for="login-email">Correo Electrónico</label>
-          <input type="email" id="login-email" class="form-control" placeholder="admin@ejemplo.com" required autocomplete="email">
-        </div>
-        <div class="form-group">
-          <label for="login-password">Contraseña</label>
-          <input type="password" id="login-password" class="form-control" placeholder="••••••••" required autocomplete="current-password">
-        </div>
-        <button type="submit" class="btn" id="login-btn">
-          <span>Entrar</span>
-        </button>
-      </form>
+  <script src="adapters/adapter-interface.js"></script>
+  <script src="adapters/supabase-adapter.js"></script>
+  <script src="adapters/firebase-adapter.js"></script>
+  <script src="data-source-config.js"></script>
+  <script src="modules/module-registry.js"></script>
+</head>
+
+<body class="font-body-md antialiased" style="background: var(--background); color: var(--on-surface);">
+<div class="bg-grain"></div>
+
+<!-- Navigation -->
+<header class="nav-shell">
+  <div class="container-main flex items-center justify-between h-[72px]">
+    <div class="flex items-center gap-4">
+      <a href="../index.html" class="btn-icon" title="Ver Glosario">
+        <span class="material-symbols-outlined text-sm">arrow_back</span>
+      </a>
+      <a href="../index.html" class="font-headline-md" style="color: var(--primary); text-decoration: none; letter-spacing: -0.02em;">Glosaurio</a>
+      <span class="chip chip-neutral">Admin Panel</span>
+      <!-- Provider indicator -->
+      <div id="provider-badge" class="chip chip-tertiary" style="font-size: 0.7rem;"></div>
+    </div>
+    <div class="flex items-center gap-3">
+      <a href="setup.html" class="btn-secondary hide-mobile" style="padding: 8px 16px; font-size: 0.8rem;">
+        <span class="material-symbols-outlined text-sm">settings</span>
+        Configuración
+      </a>
+      <button id="btn-theme" class="btn-icon" title="Cambiar tema">
+        <span class="material-symbols-outlined" id="theme-icon">light_mode</span>
+      </button>
     </div>
   </div>
+</header>
 
-  <!-- ================= VISTA DEL DASHBOARD (PANEL) ================= -->
-  <div id="dashboard-view" class="dashboard" style="display: none;">
-    <!-- Sidebar -->
-    <aside class="sidebar">
-      <div>
-        <div class="brand" style="margin-bottom: 20px; text-align: left;">
-          <h1 style="font-size: 1.5rem;">Sueño <span>CRM</span></h1>
-          <p style="font-size: 0.8rem;">Panel de Gestión (Firebase)</p>
-        </div>
-        <ul class="sidebar-menu">
-          <li class="sidebar-item">
-            <a href="#" class="sidebar-link active" data-tab="blogs">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-              </svg>
-              <span>Blogs</span>
-            </a>
-          </li>
-          <li class="sidebar-item">
-            <a href="#" class="sidebar-link" data-tab="gallery">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375 0 11-.75 0 .375 0 01.75 0z" />
-              </svg>
-              <span>Fotos</span>
-            </a>
-          </li>
-          <li class="sidebar-item">
-            <a href="#" class="sidebar-link" data-tab="products">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375 0 11-.75 0 .375 0 01.75 0zm7.5 0a.375 0 11-.75 0 .375 0 01.75 0z" />
-              </svg>
-              <span>Productos</span>
-            </a>
-          </li>
-        </ul>
+<main class="pt-[72px]">
+  <div class="container-main py-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+    <!-- ─── CMS LEFT SIDEBAR: ACTIVE MODULES ───────────────── -->
+    <aside class="lg:col-span-3 space-y-6">
+      <div class="glass-panel p-5">
+        <p class="font-caption uppercase tracking-wider mb-4" style="color: var(--outline);">Tipos de Contenido</p>
+        <nav class="space-y-1" id="cms-modules-nav">
+          <!-- Active modules will be injected here as buttons -->
+        </nav>
       </div>
 
-      <button id="logout-btn" class="btn btn-secondary btn-sm" style="display: flex; gap: 8px; justify-content: center; width: 100%;">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 16px; height: 16px;">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
-        </svg>
-        <span>Cerrar Sesión</span>
-      </button>
+      <div class="glass-panel p-5">
+        <h3 class="font-headline-sm mb-2" style="color: var(--on-surface);">Fuente Activa</h3>
+        <div id="provider-badge-sidebar" class="font-body-md" style="color: var(--on-surface-variant);">--</div>
+      </div>
     </aside>
 
-    <!-- Contenido Principal -->
-    <main class="main-content">
-      <!-- Encabezado de Sección Dinámico -->
-      <div class="header-panel">
+    <!-- ─── CMS MAIN WORKSPACE ─────────────────────────────── -->
+    <div class="lg:col-span-9 space-y-6" id="cms-workspace">
+
+      <!-- Header -->
+      <div class="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 id="section-title">Blogs</h2>
-          <p id="section-desc" style="color: var(--text-secondary); margin-top: 5px;">Administra los artículos publicados en tu web.</p>
+          <h1 class="font-headline-lg mb-1" id="workspace-title" style="color: var(--on-surface);">Cargando módulo...</h1>
+          <p class="font-body-md" id="workspace-description" style="color: var(--on-surface-variant);">...</p>
         </div>
-        <button id="add-item-btn" class="btn btn-sm" style="width: auto; padding: 10px 20px; display: flex; gap: 8px; align-items: center;">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 18px; height: 18px;">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-          <span id="add-btn-text">Nuevo Blog</span>
-        </button>
+        <div class="flex gap-3 flex-wrap">
+          <!-- Template & Import tools -->
+          <button id="btn-download-template" class="btn-secondary" title="Descargar plantilla vacía para rellenar con IA">
+            <span class="material-symbols-outlined text-sm">file_download</span>
+            Plantilla IA
+          </button>
+          <button id="btn-import-json" class="btn-secondary" title="Cargar JSON relleno">
+            <span class="material-symbols-outlined text-sm">upload_file</span>
+            Importar JSON
+          </button>
+          <!-- Hidden file input -->
+          <input type="file" id="import-file-input" accept=".json" class="hidden">
+        </div>
       </div>
 
-      <!-- Grid de Contenido -->
-      <div id="content-list" class="content-grid">
-        <!-- Los elementos cargados por JS irán aquí -->
-      </div>
-    </main>
-  </div>
-
-  <!-- ================= FORMULARIO MODAL (CREAR / EDITAR) ================= -->
-  <div id="item-modal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 id="modal-title">Agregar Artículo</h3>
-        <button class="close-btn" id="close-modal">&times;</button>
-      </div>
-      <form id="item-form">
-        <input type="hidden" id="item-id">
-        <div class="modal-body">
-          
-          <!-- Vista previa y subida de imagen -->
-          <div class="form-group">
-            <label>Imagen Destacada</label>
-            <div id="image-preview" class="image-preview">
-              <div class="image-preview-placeholder" id="image-placeholder">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375 0 11-.75 0 .375 0 01.75 0z" />
-                </svg>
-                <span>Hacer clic para subir imagen</span>
+      <!-- ═══════════════════════════ VIEW: LISTA ═══════════════════════════ -->
+      <div id="crm-list-view">
+        <!-- Filtros + Buscar + Nuevo -->
+        <div class="glass-panel p-6 mb-6">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+            <div class="flex gap-2 p-1 rounded-xl w-fit" style="background: var(--surface-container-high);">
+              <button class="tab-btn active" data-tab="all" id="tab-all">
+                Todos <span id="count-all" class="ml-1 chip chip-neutral" style="font-size: 0.65rem; padding: 1px 7px;">0</span>
+              </button>
+              <button class="tab-btn" data-tab="published" id="tab-published">
+                Publicados <span id="count-pub" class="ml-1 chip chip-tertiary" style="font-size: 0.65rem; padding: 1px 7px;">0</span>
+              </button>
+              <button class="tab-btn" data-tab="draft" id="tab-draft">
+                Borradores <span id="count-draft" class="ml-1 chip chip-neutral" style="font-size: 0.65rem; padding: 1px 7px;">0</span>
+              </button>
+            </div>
+            <!-- Export -->
+            <div class="relative" id="export-wrapper">
+              <button id="btn-export-toggle" class="btn-secondary flex items-center gap-2" title="Exportar datos">
+                <span class="material-symbols-outlined text-sm">download</span>
+                Exportar
+                <span class="material-symbols-outlined text-sm">expand_more</span>
+              </button>
+              <div id="export-menu" class="hidden absolute right-0 top-full mt-2 z-20 glass-panel p-3 min-w-[220px] space-y-1">
+                <p class="font-caption uppercase tracking-widest mb-2 px-2" style="color: var(--outline);">Formato</p>
+                <button class="btn-export-format w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg transition-colors hover:bg-[var(--surface-container-high)]" data-format="json">
+                  <span class="text-lg">{ }</span>
+                  <div><p class="font-label-md" style="color: var(--on-surface);">JSON</p><p class="font-caption" style="color: var(--outline);">Estructurado, para APIs</p></div>
+                </button>
+                <button class="btn-export-format w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg transition-colors hover:bg-[var(--surface-container-high)]" data-format="xml">
+                  <span class="text-lg">&lt;/&gt;</span>
+                  <div><p class="font-label-md" style="color: var(--on-surface);">XML</p><p class="font-caption" style="color: var(--outline);">Compatible con cualquier IA</p></div>
+                </button>
+                <button class="btn-export-format w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg transition-colors hover:bg-[var(--surface-container-high)]" data-format="markdown">
+                  <span class="text-lg">MD</span>
+                  <div><p class="font-label-md" style="color: var(--on-surface);">Markdown</p><p class="font-caption" style="color: var(--outline);">Legible por humanos y AI</p></div>
+                </button>
+                <hr style="border-color: var(--outline-variant); margin: 8px 0;">
+                <p class="font-caption uppercase tracking-widest mb-1 px-2" style="color: var(--outline);">Alcance</p>
+                <label class="flex items-center gap-3 px-3 py-2 cursor-pointer">
+                  <input type="radio" name="export-scope" value="visible" checked id="scope-visible" style="accent-color: var(--primary);">
+                  <span class="font-body-md" style="color: var(--on-surface);">Solo visibles (filtrados)</span>
+                </label>
+                <label class="flex items-center gap-3 px-3 py-2 cursor-pointer">
+                  <input type="radio" name="export-scope" value="all" id="scope-all" style="accent-color: var(--primary);">
+                  <span class="font-body-md" style="color: var(--on-surface);">Todos los términos</span>
+                </label>
               </div>
             </div>
-            <input type="file" id="image-file" class="hidden-file-input" accept="image/*">
-            <input type="hidden" id="image-url">
           </div>
-
-          <!-- Campos dinámicos y fijos -->
-          <div class="form-group">
-            <label for="item-title">Título / Nombre</label>
-            <input type="text" id="item-title" class="form-control" required placeholder="Introduce el título">
+          <!-- Search row -->
+          <div class="flex gap-3 flex-wrap">
+            <div class="relative flex-grow">
+              <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2" style="color: var(--outline);">search</span>
+              <input id="crm-search" type="text" placeholder="Buscar..." class="form-input w-full" style="padding-left: 44px;">
+            </div>
+            <button id="btn-new-term" class="btn-primary">
+              <span class="material-symbols-outlined text-sm">add</span>
+              <span id="btn-new-term-label">Nuevo Registro</span>
+            </button>
           </div>
-
-          <!-- Campo de resumen (para Blog/Producto) -->
-          <div class="form-group" id="group-resumen">
-            <label for="item-resumen">Descripción Corta / Resumen</label>
-            <input type="text" id="item-resumen" class="form-control" placeholder="Introduce una breve descripción">
-          </div>
-
-          <!-- Campo de contenido (para Blog/Producto) -->
-          <div class="form-group" id="group-contenido">
-            <label for="item-content">Contenido / Descripción Detallada</label>
-            <textarea id="item-content" class="form-control" rows="6" placeholder="Escribe el contenido detallado aquí..."></textarea>
-          </div>
-
-          <!-- Campo de precio (solo para Producto) -->
-          <div class="form-group" id="group-precio" style="display: none;">
-            <label for="item-price">Precio (€)</label>
-            <input type="number" id="item-price" class="form-control" min="0" step="0.01" placeholder="99.99">
-          </div>
-
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" id="cancel-modal" style="width: auto;">Cancelar</button>
-          <button type="submit" class="btn" id="save-item-btn" style="width: auto;">Guardar</button>
+
+        <!-- Table -->
+        <div class="glass-panel overflow-hidden relative" id="table-wrapper">
+          <div id="table-loading" class="loading-overlay hidden">
+            <span class="material-symbols-outlined text-4xl spin" style="color: var(--primary);">sync</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="crm-table">
+              <thead id="crm-thead">
+                <!-- Columns dynamically rendered -->
+              </thead>
+              <tbody id="crm-tbody"></tbody>
+            </table>
+            <div id="table-empty" class="hidden text-center py-12" style="color: var(--on-surface-variant);">
+              <span class="material-symbols-outlined text-4xl block mb-3" style="color: var(--outline);">inbox</span>
+              <p class="font-body-md">No hay datos en esta sección.</p>
+              <button id="btn-empty-new" class="btn-primary mt-4 mx-auto" style="display: inline-flex;">
+                <span class="material-symbols-outlined text-sm">add</span> <span id="btn-empty-new-label">Crear Registro</span>
+              </button>
+            </div>
+          </div>
         </div>
-      </form>
+        <p id="table-info" class="font-caption mt-3 text-right" style="color: var(--outline);"></p>
+      </div>
+
+      <!-- ═══════════════════════════ VIEW: EDITOR ═══════════════════════════ -->
+      <div id="crm-form-view" class="hidden">
+        <!-- Editor header (back + chip + actions) -->
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+          <div class="flex items-center gap-3">
+            <button id="btn-back-to-list" class="btn-icon" title="Volver al listado">
+              <span class="material-symbols-outlined text-sm">arrow_back</span>
+            </button>
+            <span id="editor-mode-chip" class="chip chip-neutral">Nuevo</span>
+          </div>
+          <div class="flex gap-3">
+            <button id="btn-draft" class="btn-secondary">
+              <span class="material-symbols-outlined text-sm">save</span>
+              Guardar Borrador
+            </button>
+            <button id="btn-publish" class="btn-primary">
+              <span class="material-symbols-outlined text-sm">publish</span>
+              <span id="publish-label">Publicar</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Editing Banner -->
+        <div id="edit-banner" class="hidden glass-panel p-4 flex items-center justify-between gap-4 mb-5" style="border-left: 4px solid var(--secondary);">
+          <div>
+            <p class="font-label-md" style="color: var(--secondary);">✏️ Modo Edición</p>
+            <p id="edit-banner-name" class="font-body-md" style="color: var(--on-surface-variant);"></p>
+          </div>
+          <button id="btn-cancel-edit" class="btn-secondary" style="padding: 8px 14px; font-size: 0.8rem;">
+            Cancelar
+          </button>
+        </div>
+
+        <!-- Genric Dynamic Fields will be injected here -->
+        <div id="crm-form-fields" class="space-y-6"></div>
+      </div>
+
+      <!-- ═══════════════════════════ VIEW: CATEGORÍAS ═══════════════════════ -->
+      <div id="crm-categories-view" class="hidden space-y-6">
+        <div class="flex items-center gap-3 mb-4">
+          <h2 class="font-headline-sm" style="color: var(--on-surface);">Gestión de Categorías</h2>
+          <span class="chip chip-neutral">Configuración Global</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+          <!-- Formulario Nueva Categoría -->
+          <div class="md:col-span-5 glass-panel p-6 space-y-4 h-fit">
+            <h3 class="font-label-md" style="color: var(--primary);">Crear Categoría</h3>
+            
+            <div>
+              <label class="font-label-md block mb-2" style="color: var(--on-surface-variant);">Asociar a Módulo *</label>
+              <div class="relative">
+                <select id="cat-f-module" class="form-select pr-10">
+                  <!-- Active modules will be dynamically loaded here -->
+                </select>
+                <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" style="color: var(--outline); font-size: 18px;">expand_more</span>
+              </div>
+            </div>
+
+            <div>
+              <label class="font-label-md block mb-2" style="color: var(--on-surface-variant);">Nombre de Categoría *</label>
+              <input id="cat-f-name" type="text" class="form-input" placeholder="Ej: Inteligencia Artificial">
+            </div>
+
+            <div>
+              <label class="font-label-md block mb-2" style="color: var(--on-surface-variant);">Emoji / Icono</label>
+              <input id="cat-f-icon" type="text" class="form-input" placeholder="Ej: 🤖" value="📌" style="max-width: 80px; text-align: center;">
+            </div>
+
+            <button id="btn-save-category" class="btn-primary w-full justify-center">
+              <span class="material-symbols-outlined text-sm">save</span> Guardar Categoría
+            </button>
+          </div>
+
+          <!-- Tabla de Categorías Existentes -->
+          <div class="md:col-span-7 glass-panel p-6">
+            <h3 class="font-label-md mb-4" style="color: var(--primary);">Categorías Definidas</h3>
+            
+            <div class="overflow-x-auto">
+              <table class="crm-table">
+                <thead>
+                  <tr>
+                    <th>Icono</th>
+                    <th>Nombre</th>
+                    <th>Módulo</th>
+                    <th style="text-align: right;">Eliminar</th>
+                  </tr>
+                </thead>
+                <tbody id="crm-categories-tbody">
+                  <!-- Categories will be injected here -->
+                </tbody>
+              </table>
+              <div id="categories-empty" class="hidden text-center py-8" style="color: var(--on-surface-variant);">
+                <span class="material-symbols-outlined text-4xl block mb-2" style="color: var(--outline);">category</span>
+                <p class="font-body-md">No hay categorías. Crea la primera a la izquierda.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
+</main>
 
-  <!-- Notificaciones Flotantes -->
-  <div id="toast" class="notification">
-    <div id="toast-message">Operación realizada con éxito</div>
+<div id="toast" role="alert"></div>
+
+<!-- Import Preview Modal -->
+<div id="import-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);">
+  <div class="glass-card p-8 max-w-lg w-full max-h-[80vh] overflow-y-auto">
+    <h2 class="font-headline-sm mb-2" style="color: var(--on-surface);">Vista previa de importación</h2>
+    <p id="import-summary" class="font-body-md mb-6" style="color: var(--on-surface-variant);"></p>
+
+    <!-- Terms preview list -->
+    <div id="import-preview-list" class="space-y-2 mb-6 max-h-48 overflow-y-auto pr-2"></div>
+
+    <!-- Conflict mode -->
+    <div class="glass-panel p-4 mb-6">
+      <p class="font-label-md mb-3" style="color: var(--on-surface-variant);">Si ya existe un término con el mismo título:</p>
+      <div class="flex flex-col gap-2">
+        <label class="flex items-center gap-3 cursor-pointer">
+          <input type="radio" name="import-conflict" value="skip" checked style="accent-color: var(--primary);">
+          <span class="font-body-md" style="color: var(--on-surface);">Omitir duplicados</span>
+        </label>
+        <label class="flex items-center gap-3 cursor-pointer">
+          <input type="radio" name="import-conflict" value="overwrite" style="accent-color: var(--primary);">
+          <span class="font-body-md" style="color: var(--on-surface);">Reemplazar existentes</span>
+        </label>
+        <label class="flex items-center gap-3 cursor-pointer">
+          <input type="radio" name="import-conflict" value="add" style="accent-color: var(--primary);">
+          <span class="font-body-md" style="color: var(--on-surface);">Agregar como nuevo (puede duplicar)</span>
+        </label>
+      </div>
+    </div>
+
+    <div id="import-progress" class="hidden mb-4">
+      <div class="flex items-center gap-3 mb-2">
+        <span class="material-symbols-outlined spin" style="color: var(--primary); font-size: 20px;">sync</span>
+        <span id="import-progress-text" class="font-body-md" style="color: var(--on-surface-variant);">Importando...</span>
+      </div>
+      <div class="w-full rounded-full h-2" style="background: var(--surface-container-high);">
+        <div id="import-progress-bar" class="h-2 rounded-full transition-all" style="background: var(--primary); width: 0%;"></div>
+      </div>
+    </div>
+
+    <div class="flex gap-3 justify-end">
+      <button id="btn-import-cancel" class="btn-secondary">Cancelar</button>
+      <button id="btn-import-confirm" class="btn-primary">
+        <span class="material-symbols-outlined text-sm">upload</span>
+        Importar
+      </button>
+    </div>
   </div>
+</div>
 
-  <!-- Archivos de lógica y configuración local -->
-  <script src="crm-config.js"></script>
-  <script type="module" src="crm.js"></script>
+<script src="crm-app.js"></script>
 </body>
 </html>

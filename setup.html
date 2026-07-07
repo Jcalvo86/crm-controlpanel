@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Glosaurio — Configuración de Fuente de Datos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+  <link rel="stylesheet" href="../style.css">
+  <style>
+    .step-indicator { transition: all 0.3s ease; }
+    .step-content   { display: none; }
+    .step-content.active { display: block; }
+    .provider-card  {
+      cursor: pointer;
+      border: 2px solid var(--outline-variant);
+      border-radius: 20px;
+      padding: 28px;
+      transition: all 0.25s ease;
+      background: var(--surface-container-low);
+    }
+    .provider-card:hover { border-color: var(--primary); transform: translateY(-3px); }
+    .provider-card.selected { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 8%, var(--surface-container-low)); }
+    .sql-block { background: var(--surface-container-lowest); border-radius: 12px; padding: 20px; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; line-height: 1.7; color: var(--secondary-fixed-dim, #4edea3); border: 1px solid var(--outline-variant); overflow-x: auto; white-space: pre; }
+    :root:not(.dark) .sql-block { color: var(--primary); }
+    .guide-callout { background: color-mix(in srgb, var(--primary) 8%, transparent); border: 1px solid color-mix(in srgb, var(--primary) 25%, transparent); border-radius: 12px; padding: 16px; }
+    .status-ok    { color: var(--tertiary); }
+    .status-error { color: var(--error); }
+    .spin { animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+
+  <!-- Adapters (must load before config) -->
+  <script src="adapters/adapter-interface.js"></script>
+  <script src="adapters/supabase-adapter.js"></script>
+  <script src="adapters/firebase-adapter.js"></script>
+  <script src="data-source-config.js"></script>
+</head>
+
+<body class="font-body-md antialiased" style="background: var(--background); color: var(--on-surface); min-height: 100vh;">
+<div class="bg-grain"></div>
+
+<!-- Header -->
+<header class="nav-shell">
+  <div class="container-main flex items-center justify-between h-[72px]">
+    <a href="../index.html" class="flex items-center gap-3 font-headline-md" style="color: var(--primary); text-decoration: none; letter-spacing: -0.02em;">
+      <span class="material-symbols-outlined icon-fill">psychiatry</span>
+      Glosaurio
+    </a>
+    <div class="flex items-center gap-3">
+      <span class="chip chip-neutral">Configuración</span>
+      <button id="btn-theme" class="btn-icon" title="Cambiar tema">
+        <span class="material-symbols-outlined" id="theme-icon">light_mode</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- Wizard Container -->
+<main class="pt-[72px]">
+  <div class="container-main py-16 max-w-3xl">
+
+    <!-- Page Title -->
+    <div class="text-center mb-12">
+      <p class="font-caption uppercase tracking-[0.2em] mb-3" style="color: var(--primary); opacity: 0.8;">Panel CRM</p>
+      <h1 class="font-headline-lg mb-3" style="color: var(--on-surface);">Configura tu fuente de datos</h1>
+      <p class="font-body-lg" style="color: var(--on-surface-variant);">Elige dónde almacenarás los términos de Glosaurio. Puedes cambiar esto en cualquier momento.</p>
+    </div>
+    <!-- Step Indicators -->
+    <div class="flex items-center justify-center gap-0 mb-12 flex-wrap" id="step-indicators">
+      <div class="step-indicator flex items-center gap-2" data-step="1">
+        <div id="dot-1" class="w-9 h-9 rounded-full flex items-center justify-center font-label-md text-sm transition-all" style="background: var(--primary-container); color: var(--on-primary-container);">1</div>
+        <span class="font-label-md text-sm" style="color: var(--on-surface-variant);">Proveedor</span>
+      </div>
+      <div class="w-10 h-0.5 mx-2 bg-outline-variant" style="background: var(--outline-variant);"></div>
+      <div class="step-indicator flex items-center gap-2" data-step="2">
+        <div id="dot-2" class="w-9 h-9 rounded-full flex items-center justify-center font-label-md text-sm" style="background: var(--surface-container-high); color: var(--on-surface-variant);">2</div>
+        <span class="font-label-md text-sm" style="color: var(--on-surface-variant);">Credenciales</span>
+      </div>
+      <div class="w-10 h-0.5 mx-2 bg-outline-variant" style="background: var(--outline-variant);"></div>
+      <div class="step-indicator flex items-center gap-2" data-step="3">
+        <div id="dot-3" class="w-9 h-9 rounded-full flex items-center justify-center font-label-md text-sm" style="background: var(--surface-container-high); color: var(--on-surface-variant);">3</div>
+        <span class="font-label-md text-sm" style="color: var(--on-surface-variant);">Conexión</span>
+      </div>
+      <div class="w-10 h-0.5 mx-2 bg-outline-variant" style="background: var(--outline-variant);"></div>
+      <div class="step-indicator flex items-center gap-2" data-step="4">
+        <div id="dot-4" class="w-9 h-9 rounded-full flex items-center justify-center font-label-md text-sm" style="background: var(--surface-container-high); color: var(--on-surface-variant);">4</div>
+        <span class="font-label-md text-sm" style="color: var(--on-surface-variant);">Módulos</span>
+      </div>
+      <div class="w-10 h-0.5 mx-2 bg-outline-variant" style="background: var(--outline-variant);"></div>
+      <div class="step-indicator flex items-center gap-2" data-step="5">
+        <div id="dot-5" class="w-9 h-9 rounded-full flex items-center justify-center font-label-md text-sm" style="background: var(--surface-container-high); color: var(--on-surface-variant);">5</div>
+        <span class="font-label-md text-sm" style="color: var(--on-surface-variant);">Activar</span>
+      </div>
+    </div>
+
+    <!-- ─── STEP 1: Choose Provider ─────────────────────── -->
+    <div id="step-1" class="step-content active">
+      <div class="glass-card p-8 mb-6">
+        <h2 class="font-headline-sm mb-2" style="color: var(--on-surface);">¿Con qué servicio quieres empezar?</h2>
+        <p class="font-body-md mb-8" style="color: var(--on-surface-variant);">Puedes migrar entre servicios en cualquier momento desde esta pantalla.</p>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <!-- Supabase -->
+          <div id="card-supabase" class="provider-card" data-provider="supabase">
+            <span class="text-4xl block mb-4">🟢</span>
+            <h3 class="font-headline-sm mb-1" style="color: var(--on-surface);">Supabase</h3>
+            <p class="font-body-sm" style="color: var(--on-surface-variant);">Base de datos PostgreSQL en la nube rápida y robusta.</p>
+          </div>
+          <!-- Firebase -->
+          <div id="card-firebase" class="provider-card" data-provider="firebase">
+            <span class="text-4xl block mb-4">🔥</span>
+            <h3 class="font-headline-sm mb-1" style="color: var(--on-surface);">Firebase</h3>
+            <p class="font-body-sm" style="color: var(--on-surface-variant);">Base de datos NoSQL Firestore estructurada y sin schemas.</p>
+          </div>
+          <!-- LocalStorage -->
+          <div id="card-localStorage" class="provider-card" data-provider="localStorage">
+            <span class="text-4xl block mb-4">💾</span>
+            <h3 class="font-headline-sm mb-1" style="color: var(--on-surface);">Local</h3>
+            <p class="font-body-sm" style="color: var(--on-surface-variant);">Persistencia directa en navegador sin servidor externo.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="text-right">
+        <button id="btn-step1-next" class="btn-primary" disabled style="opacity: 0.4;">
+          Siguiente <span class="material-symbols-outlined text-sm">arrow_forward</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ─── STEP 2: Credentials ─────────────────────────────────── -->
+    <div id="step-2" class="step-content">
+      <!-- SUPABASE FORM -->
+      <div id="form-supabase" class="hidden">
+        <div class="glass-card p-8 mb-6">
+          <h2 class="font-headline-sm mb-6" style="color: var(--on-surface);">Credenciales de Supabase</h2>
+          <div class="space-y-4">
+            <div>
+              <label class="font-label-md block mb-2" style="color: var(--on-surface-variant);">URL del Proyecto</label>
+              <input id="sb-url" type="text" class="form-input" placeholder="https://xxx.supabase.co">
+            </div>
+            <div>
+              <label class="font-label-md block mb-2" style="color: var(--on-surface-variant);">Anon Key (Client Public Key)</label>
+              <input id="sb-key" type="text" class="form-input" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+            </div>
+            <div class="hidden">
+              <label class="font-label-md block mb-2" style="color: var(--on-surface-variant);">Tabla por defecto</label>
+              <input id="sb-table" type="text" class="form-input" placeholder="terms" value="terms">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FIREBASE FORM -->
+      <div id="form-firebase" class="hidden">
+        <div class="glass-card p-8 mb-6">
+          <h2 class="font-headline-sm mb-6" style="color: var(--on-surface);">Credenciales de Firebase</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="font-label-md block mb-2" style="color: var(--on-surface-variant);">API Key</label>
+              <input id="fb-apikey" type="text" class="form-input" placeholder="AIzaSy...">
+            </div>
+            <div>
+              <label class="font-label-md block mb-2" style="color: var(--on-surface-variant);">Project ID</label>
+              <input id="fb-projectid" type="text" class="form-input" placeholder="mi-proyecto-123">
+            </div>
+            <div>
+              <label class="font-label-md block mb-2" style="color: var(--on-surface-variant);">Auth Domain (opcional)</label>
+              <input id="fb-authdomain" type="text" class="form-input" placeholder="mi-proyecto.firebaseapp.com">
+            </div>
+            <div class="hidden">
+              <label class="font-label-md block mb-2" style="color: var(--on-surface-variant);">Colección</label>
+              <input id="fb-collection" type="text" class="form-input" placeholder="terms" value="terms">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-between">
+        <button id="btn-step2-back" class="btn-secondary">
+          <span class="material-symbols-outlined text-sm">arrow_back</span> Volver
+        </button>
+        <button id="btn-step2-next" class="btn-primary">
+          Siguiente <span class="material-symbols-outlined text-sm">arrow_forward</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ─── STEP 3: Test Connection ──────────────────────── -->
+    <div id="step-3" class="step-content">
+      <div class="glass-card p-8 mb-6 text-center">
+        <h2 class="font-headline-sm mb-6" style="color: var(--on-surface);">Verificar conexión</h2>
+
+        <div id="test-idle">
+          <span class="material-symbols-outlined text-6xl block mb-4" style="color: var(--outline);">cable</span>
+          <p class="font-body-lg mb-6" style="color: var(--on-surface-variant);">Haz clic para verificar que las credenciales son correctas.</p>
+          <button id="btn-test" class="btn-primary mx-auto">
+            <span class="material-symbols-outlined text-sm">wifi_tethering</span>
+            Probar conexión
+          </button>
+        </div>
+
+        <div id="test-loading" class="hidden">
+          <span class="material-symbols-outlined text-6xl block mb-4 spin" style="color: var(--primary);">sync</span>
+          <p class="font-body-lg" style="color: var(--on-surface-variant);">Conectando...</p>
+        </div>
+
+        <div id="test-result" class="hidden">
+          <span id="test-icon" class="text-6xl block mb-4"></span>
+          <p id="test-message" class="font-headline-sm mb-6"></p>
+          <button id="btn-retest" class="btn-secondary mx-auto">
+            <span class="material-symbols-outlined text-sm">refresh</span> Intentar de nuevo
+          </button>
+        </div>
+      </div>
+
+      <div class="flex justify-between">
+        <button id="btn-step3-back" class="btn-secondary">
+          <span class="material-symbols-outlined text-sm">arrow_back</span> Volver
+        </button>
+        <button id="btn-step3-next" class="btn-primary" disabled style="opacity: 0.4;">
+          Siguiente <span class="material-symbols-outlined text-sm">arrow_forward</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ─── STEP 4: Activate Modules ─────────────────────── -->
+    <div id="step-4" class="step-content">
+      <div class="glass-card p-8 mb-6">
+        <h2 class="font-headline-sm mb-2" style="color: var(--on-surface);">Activa tus Módulos de Contenido</h2>
+        <p class="font-body-md mb-6" style="color: var(--on-surface-variant);">Selecciona qué tipos de contenido gestionará este CMS en tu proyecto.</p>
+
+        <div class="space-y-4" id="modules-selection-container">
+          <!-- Terms Card -->
+          <label class="flex items-start gap-4 p-5 rounded-2xl border-2 border-outline-variant hover:border-primary cursor-pointer transition-all bg-[var(--surface-container-low)]">
+            <input type="checkbox" id="mod-terms" value="terms" checked class="mt-1 rounded text-primary focus:ring-primary" style="accent-color: var(--primary);">
+            <div class="flex-1">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="material-symbols-outlined" style="color: var(--primary);">menu_book</span>
+                <span class="font-headline-sm" style="color: var(--on-surface);">📚 Términos / Glosario</span>
+              </div>
+              <p class="font-body-sm" style="color: var(--on-surface-variant);">Guarda metodologías, variables, descripciones y templates de prompt. (Recomendado)</p>
+            </div>
+          </label>
+
+          <!-- Blog Card -->
+          <label class="flex items-start gap-4 p-5 rounded-2xl border-2 border-outline-variant hover:border-primary cursor-pointer transition-all bg-[var(--surface-container-low)]">
+            <input type="checkbox" id="mod-blog" value="blog" class="mt-1 rounded text-primary focus:ring-primary" style="accent-color: var(--primary);">
+            <div class="flex-1">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="material-symbols-outlined" style="color: var(--primary);">edit_note</span>
+                <span class="font-headline-sm" style="color: var(--on-surface);">📝 Blog / Artículos</span>
+              </div>
+              <p class="font-body-sm" style="color: var(--on-surface-variant);">Escribe artículos, posts, tutoriales e historias con tags y soporte markdown.</p>
+            </div>
+          </label>
+
+          <!-- Products Card -->
+          <label class="flex items-start gap-4 p-5 rounded-2xl border-2 border-outline-variant hover:border-primary cursor-pointer transition-all bg-[var(--surface-container-low)]">
+            <input type="checkbox" id="mod-products" value="products" class="mt-1 rounded text-primary focus:ring-primary" style="accent-color: var(--primary);">
+            <div class="flex-1">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="material-symbols-outlined" style="color: var(--primary);">inventory_2</span>
+                <span class="font-headline-sm" style="color: var(--on-surface);">🛍️ Productos / Catálogo</span>
+              </div>
+              <p class="font-body-sm" style="color: var(--on-surface-variant);">Configura stock, precios, descripciones y catálogo de productos.</p>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- SQL Configuration dynamically built -->
+      <div id="supabase-sql-setup-card" class="hidden glass-panel p-6 mb-6">
+        <h3 class="font-headline-sm mb-2" style="color: var(--on-surface);">Base de datos SQL (Supabase)</h3>
+        <p class="font-body-md mb-4" style="color: var(--on-surface-variant);">
+          Debes crear las tablas en la consola SQL de tu Supabase. Copia el siguiente código SQL y ejecútalo en la consola de Supabase:
+        </p>
+        <div class="relative">
+          <button id="btn-copy-sql" class="absolute top-4 right-4 btn-secondary" style="padding: 6px 12px; font-size: 0.75rem;">
+            Copiar SQL
+          </button>
+          <pre id="sql-block" class="sql-block max-h-72 overflow-y-auto">-- El SQL se inyectará aquí...</pre>
+        </div>
+      </div>
+
+      <div class="flex justify-between">
+        <button id="btn-step4-back" class="btn-secondary">
+          <span class="material-symbols-outlined text-sm">arrow_back</span> Volver
+        </button>
+        <button id="btn-step4-next" class="btn-primary">
+          Siguiente <span class="material-symbols-outlined text-sm">arrow_forward</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ─── STEP 5: Activate & Finish ────────────────────── -->
+    <div id="step-5" class="step-content">
+      <div class="glass-card p-8 mb-6 text-center">
+        <span class="text-6xl block mb-4">🎉</span>
+        <h2 class="font-headline-lg mb-3" style="color: var(--primary);">¡CMS Configurado!</h2>
+        <p id="success-msg" class="font-body-lg mb-8" style="color: var(--on-surface-variant);"></p>
+
+        <!-- Seed option -->
+        <div id="seed-section" class="hidden glass-panel p-6 text-left mb-6">
+          <h3 class="font-headline-sm mb-2" style="color: var(--on-surface);">¿Cargar datos de ejemplo?</h3>
+          <p class="font-body-md mb-4" style="color: var(--on-surface-variant);">La base de datos de Glosario está vacía. Puedes cargar los términos predeterminados para empezar.</p>
+          <button id="btn-seed" class="btn-secondary w-full justify-center">
+            <span class="material-symbols-outlined text-sm">upload</span>
+            Cargar datos de prueba
+          </button>
+        </div>
+
+        <div class="flex gap-3 justify-center flex-wrap">
+          <a href="index.html" class="btn-primary">
+            <span class="material-symbols-outlined text-sm">admin_panel_settings</span>
+            Ir al CMS Panel
+          </a>
+          <a href="../index.html" class="btn-secondary">
+            <span class="material-symbols-outlined text-sm">home</span>
+            Ir al Glosario
+          </a>
+        </div>
+      </div>
+
+      <!-- Current config display -->
+      <div class="glass-panel p-6">
+        <h3 class="font-label-md uppercase tracking-wider mb-4" style="color: var(--on-surface-variant);">Configuración activa</h3>
+        <div id="active-config-display" class="font-body-md space-y-2" style="color: var(--on-surface);"></div>
+        <button id="btn-reset" class="btn-secondary mt-4 text-sm" style="color: var(--error); border-color: color-mix(in srgb, var(--error) 30%, transparent); padding: 8px 16px;">
+          <span class="material-symbols-outlined text-sm">delete_forever</span>
+          Limpiar configuración
+        </button>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- Toast -->
+<div id="toast" role="alert"></div>
+
+<script>
+// ─── State ─────────────────────────────────────────────────
+const S = { step: 1, provider: null, testPassed: false };
+
+// ─── Theme ─────────────────────────────────────────────────
+function initTheme() {
+  const isDark = localStorage.getItem('glosaurio_theme') !== 'light';
+  document.documentElement.classList.toggle('dark', isDark);
+  document.getElementById('theme-icon').textContent = isDark ? 'light_mode' : 'dark_mode';
+}
+document.getElementById('btn-theme').addEventListener('click', () => {
+  const isDark = document.documentElement.classList.toggle('dark');
+  document.getElementById('theme-icon').textContent = isDark ? 'light_mode' : 'dark_mode';
+  localStorage.setItem('glosaurio_theme', isDark ? 'dark' : 'light');
+});
+
+// ─── Steps ─────────────────────────────────────────────────
+function goToStep(n) {
+  S.step = n;
+  document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
+  document.getElementById(`step-${n}`).classList.add('active');
+  // Update dots
+  for (let i = 1; i <= 5; i++) {
+    const dot = document.getElementById(`dot-${i}`);
+    if (i < n) {
+      dot.style.background = 'var(--tertiary)';
+      dot.style.color = 'var(--on-tertiary)';
+      dot.textContent = '✓';
+    } else if (i === n) {
+      dot.style.background = 'var(--primary-container)';
+      dot.style.color = 'var(--on-primary-container)';
+      dot.textContent = i;
+    } else {
+      dot.style.background = 'var(--surface-container-high)';
+      dot.style.color = 'var(--on-surface-variant)';
+      dot.textContent = i;
+    }
+  }
+}
+
+// ─── Step 1: Provider Selection ────────────────────────────
+document.querySelectorAll('.provider-card').forEach(card => {
+  card.addEventListener('click', () => {
+    document.querySelectorAll('.provider-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+    S.provider = card.dataset.provider;
+    document.getElementById('btn-step1-next').disabled = false;
+    document.getElementById('btn-step1-next').style.opacity = '1';
+  });
+});
+
+document.getElementById('btn-step1-next').addEventListener('click', () => {
+  if (!S.provider) return;
+  // Show correct form
+  ['supabase', 'firebase', 'localStorage'].forEach(p => {
+    document.getElementById(`form-${p}`)?.classList.toggle('hidden', p !== S.provider);
+  });
+  goToStep(2);
+});
+
+// ─── Step 2: Credentials ───────────────────────────────────
+document.getElementById('btn-step2-back').addEventListener('click', () => goToStep(1));
+document.getElementById('btn-step2-next').addEventListener('click', () => {
+  S.testPassed = false;
+  document.getElementById('test-idle').classList.remove('hidden');
+  document.getElementById('test-loading').classList.add('hidden');
+  document.getElementById('test-result').classList.add('hidden');
+  document.getElementById('btn-step3-next').disabled = true;
+  document.getElementById('btn-step3-next').style.opacity = '0.4';
+  goToStep(3);
+});
+
+// ─── Step 3: Test Connection ───────────────────────────────
+document.getElementById('btn-step3-back').addEventListener('click', () => goToStep(2));
+document.getElementById('btn-retest').addEventListener('click', () => {
+  document.getElementById('test-idle').classList.remove('hidden');
+  document.getElementById('test-loading').classList.add('hidden');
+  document.getElementById('test-result').classList.add('hidden');
+  document.getElementById('btn-step3-next').disabled = true;
+  document.getElementById('btn-step3-next').style.opacity = '0.4';
+});
+
+document.getElementById('btn-test').addEventListener('click', async () => {
+  document.getElementById('test-idle').classList.add('hidden');
+  document.getElementById('test-loading').classList.remove('hidden');
+  document.getElementById('test-result').classList.add('hidden');
+
+  let adapter;
+  if (S.provider === 'supabase') {
+    adapter = new window.Glosaurio.SupabaseAdapter({
+      url:     document.getElementById('sb-url').value.trim(),
+      anonKey: document.getElementById('sb-key').value.trim()
+    });
+  } else if (S.provider === 'firebase') {
+    adapter = new window.Glosaurio.FirebaseAdapter({
+      apiKey:     document.getElementById('fb-apikey').value.trim(),
+      projectId:  document.getElementById('fb-projectid').value.trim()
+    });
+  } else {
+    adapter = new window.Glosaurio.LocalStorageAdapter();
+  }
+
+  const result = await adapter.testConnection();
+  document.getElementById('test-loading').classList.add('hidden');
+  document.getElementById('test-result').classList.remove('hidden');
+  document.getElementById('test-icon').textContent = result.ok ? '✅' : '❌';
+  document.getElementById('test-message').textContent = result.message;
+  document.getElementById('test-message').className = result.ok ? 'font-headline-sm mb-6 status-ok' : 'font-headline-sm mb-6 status-error';
+
+  if (result.ok) {
+    S.testPassed = true;
+    S.testedAdapter = adapter;
+    document.getElementById('btn-step3-next').disabled = false;
+    document.getElementById('btn-step3-next').style.opacity = '1';
+  }
+});
+
+// ─── SQL Generator for Modules ─────────────────────────────
+const SQL_SCRIPTS = {
+  categories: `CREATE TABLE IF NOT EXISTS public.cms_categories (
+  id          uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  name        text NOT NULL,
+  icon        text DEFAULT '📌',
+  module      text NOT NULL, -- 'terms', 'blog', 'products'
+  created_at  timestamptz DEFAULT now()
+);
+
+-- RLS & Policies
+ALTER TABLE public.cms_categories ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "public_read_categories" ON public.cms_categories FOR SELECT USING (true);
+CREATE POLICY "anon_all_categories" ON public.cms_categories FOR ALL USING (true) WITH CHECK (true);`,
+
+  terms: `CREATE TABLE IF NOT EXISTS public.terms (
+  id          uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  title       text NOT NULL,
+  category    text NOT NULL,
+  description text DEFAULT '',
+  steps       jsonb DEFAULT '[]',
+  problems    text[] DEFAULT '{}',
+  benefits    text[] DEFAULT '{}',
+  tools       text[] DEFAULT '{}',
+  results     text DEFAULT '',
+  metrics     text DEFAULT '',
+  prompt      text DEFAULT '',
+  prompt_vars text[] DEFAULT '{}',
+  vibe_score  integer DEFAULT 5,
+  is_draft    boolean DEFAULT false,
+  created_at  timestamptz DEFAULT now(),
+  updated_at  timestamptz DEFAULT now()
+);
+
+-- RLS & Policies
+ALTER TABLE public.terms ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "public_read_terms" ON public.terms FOR SELECT USING (is_draft = false);
+CREATE POLICY "anon_all_terms" ON public.terms FOR ALL USING (true) WITH CHECK (true);`,
+
+  blog: `CREATE TABLE IF NOT EXISTS public.cms_posts (
+  id          uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  title       text NOT NULL,
+  slug        text NOT NULL UNIQUE,
+  author      text NOT NULL,
+  category    text NOT NULL,
+  summary     text NOT NULL,
+  content     text DEFAULT '',
+  cover_image text DEFAULT '',
+  tags        text[] DEFAULT '{}',
+  read_time   integer DEFAULT 5,
+  is_draft    boolean DEFAULT true,
+  created_at  timestamptz DEFAULT now(),
+  updated_at  timestamptz DEFAULT now()
+);
+
+-- RLS & Policies
+ALTER TABLE public.cms_posts ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "public_read_posts" ON public.cms_posts FOR SELECT USING (is_draft = false);
+CREATE POLICY "anon_all_posts" ON public.cms_posts FOR ALL USING (true) WITH CHECK (true);`,
+
+  products: `CREATE TABLE IF NOT EXISTS public.cms_products (
+  id            uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  name          text NOT NULL,
+  sku           text NOT NULL UNIQUE,
+  price         numeric NOT NULL,
+  compare_price numeric,
+  description   text DEFAULT '',
+  status        text DEFAULT 'active',
+  stock         integer DEFAULT 0,
+  image_url     text DEFAULT '',
+  features      text[] DEFAULT '{}',
+  is_draft      boolean DEFAULT true,
+  created_at    timestamptz DEFAULT now(),
+  updated_at    timestamptz DEFAULT now()
+);
+
+-- RLS & Policies
+ALTER TABLE public.cms_products ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "public_read_products" ON public.cms_products FOR SELECT USING (is_draft = false);
+CREATE POLICY "anon_all_products" ON public.cms_products FOR ALL USING (true) WITH CHECK (true);`
+};
+
+function updateSQLDisplay() {
+  if (S.provider !== 'supabase') {
+    document.getElementById('supabase-sql-setup-card').classList.add('hidden');
+    return;
+  }
+
+  document.getElementById('supabase-sql-setup-card').classList.remove('hidden');
+  const activeSqls = [SQL_SCRIPTS.categories]; // Siempre incluir la tabla de categorías
+
+  if (document.getElementById('mod-terms').checked) activeSqls.push(SQL_SCRIPTS.terms);
+  if (document.getElementById('mod-blog').checked) activeSqls.push(SQL_SCRIPTS.blog);
+  if (document.getElementById('mod-products').checked) activeSqls.push(SQL_SCRIPTS.products);
+
+  const block = document.getElementById('sql-block');
+  if (activeSqls.length === 1) { // Solo categories
+    block.textContent = '-- Selecciona al menos un módulo para ver el script SQL.';
+  } else {
+    block.textContent = activeSqls.join('\n\n-- ───────────────────────────────────────────────\n\n');
+  }
+}
+
+// ─── Step 3 -> Step 4 Transition ─────────────────────────────
+document.getElementById('btn-step3-next').addEventListener('click', () => {
+  if (!S.testPassed) return;
+
+  // Toggle SQL view and render
+  updateSQLDisplay();
+
+  // Attach dynamic triggers to module checkboxes
+  ['mod-terms', 'mod-blog', 'mod-products'].forEach(id => {
+    document.getElementById(id).onchange = updateSQLDisplay;
+  });
+
+  goToStep(4);
+});
+
+// ─── Step 4 -> Step 5 Transition ─────────────────────────────
+document.getElementById('btn-step4-back').addEventListener('click', () => goToStep(3));
+
+document.getElementById('btn-step4-next').addEventListener('click', () => {
+  // Collect active modules
+  const activeModules = [];
+  if (document.getElementById('mod-terms').checked) activeModules.push('terms');
+  if (document.getElementById('mod-blog').checked) activeModules.push('blog');
+  if (document.getElementById('mod-products').checked) activeModules.push('products');
+
+  if (activeModules.length === 0) {
+    showToast('⚠️ Debes activar al menos 1 módulo de contenido.');
+    return;
+  }
+
+  // Build config object
+  let config = { provider: S.provider, activeModules };
+  if (S.provider === 'supabase') {
+    config.supabase = {
+      url:     document.getElementById('sb-url').value.trim(),
+      anonKey: document.getElementById('sb-key').value.trim()
+    };
+  } else if (S.provider === 'firebase') {
+    config.firebase = {
+      apiKey:     document.getElementById('fb-apikey').value.trim(),
+      projectId:  document.getElementById('fb-projectid').value.trim(),
+      authDomain: document.getElementById('fb-authdomain').value.trim()
+    };
+  }
+
+  window.DataSourceConfig.saveConfig(config);
+
+  // Success UI
+  const providerNames = { supabase: 'Supabase (PostgreSQL)', firebase: 'Firebase (Firestore)', localStorage: 'Local Storage' };
+  document.getElementById('success-msg').textContent =
+    `Tu CMS ahora está conectado a ${providerNames[S.provider]} con ${activeModules.length} módulo(s) activo(s).`;
+
+  // Show seed option only for cloud providers
+  if (S.provider !== 'localStorage') {
+    document.getElementById('seed-section').classList.remove('hidden');
+  } else {
+    document.getElementById('seed-section').classList.add('hidden');
+  }
+
+  // Config display
+  const cfg = window.DataSourceConfig.getConfig();
+  const displayEl = document.getElementById('active-config-display');
+  displayEl.innerHTML = `
+    <div class="flex justify-between"><span style="color:var(--on-surface-variant)">Proveedor</span><strong>${cfg.provider}</strong></div>
+    <div class="flex justify-between"><span style="color:var(--on-surface-variant)">Módulos Activos</span><strong>${cfg.activeModules.join(', ')}</strong></div>
+    ${cfg.supabase ? `<div class="flex justify-between"><span style="color:var(--on-surface-variant)">URL</span><code class="font-code text-sm">${cfg.supabase.url}</code></div>` : ''}
+    ${cfg.firebase ? `<div class="flex justify-between"><span style="color:var(--on-surface-variant)">Proyecto</span><strong>${cfg.firebase.projectId}</strong></div>` : ''}
+  `;
+
+  goToStep(5);
+});
+
+// ─── Step 5 Actions ──────────────────────────────────────────
+document.getElementById('btn-seed').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-seed');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="material-symbols-outlined text-sm spin">sync</span> Cargando...';
+  try {
+    await window.DataSource.seedTerms(window.Glosaurio.SEED_TERMS);
+    btn.innerHTML = '✅ Datos de prueba cargados';
+    btn.style.color = 'var(--tertiary)';
+    showToast('✅ 4 términos de ejemplo cargados en tu base de datos');
+  } catch (err) {
+    btn.disabled = false;
+    btn.innerHTML = '❌ Error — Intentar de nuevo';
+    showToast('❌ ' + err.message);
+    console.error(err);
+  }
+});
+
+document.getElementById('btn-reset').addEventListener('click', () => {
+  if (!confirm('¿Eliminar la configuración del CMS? Volverás al modo local.')) return;
+  window.DataSourceConfig.clearConfig();
+  showToast('🔄 Configuración eliminada. Usando localStorage.');
+  setTimeout(() => location.reload(), 1200);
+});
+
+// ─── SQL Copy ──────────────────────────────────────────────
+document.getElementById('btn-copy-sql').addEventListener('click', () => {
+  const sql = document.getElementById('sql-block').textContent;
+  navigator.clipboard.writeText(sql).then(() => showToast('📋 SQL copiado al portapapeles'));
+});
+
+// ─── Toast ─────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// ─── Init ─────────────────────────────────────────────────
+initTheme();
+
+// Pre-fill fields if config exists
+const existing = window.DataSourceConfig.getConfig();
+if (existing) {
+  S.provider = existing.provider;
+  document.getElementById(`card-${existing.provider}`)?.classList.add('selected');
+
+  if (existing.supabase) {
+    document.getElementById('sb-url').value = existing.supabase.url || '';
+    document.getElementById('sb-key').value = existing.supabase.anonKey || '';
+  }
+  if (existing.firebase) {
+    document.getElementById('fb-apikey').value = existing.firebase.apiKey || '';
+    document.getElementById('fb-projectid').value = existing.firebase.projectId || '';
+    document.getElementById('fb-authdomain').value = existing.firebase.authDomain || '';
+  }
+
+  // Pre-check active modules if step-4 is re-entered
+  if (existing.activeModules) {
+    ['terms', 'blog', 'products'].forEach(m => {
+      const el = document.getElementById(`mod-${m}`);
+      if (el) el.checked = existing.activeModules.includes(m);
+    });
+  }
+
+  // Show config summary at top
+  const banner = document.createElement('div');
+  banner.className = 'glass-panel p-4 mb-8 flex items-center justify-between gap-4';
+  banner.style.cssText = 'border-left: 4px solid var(--tertiary);';
+  banner.innerHTML = `
+    <div>
+      <p class="font-label-md" style="color: var(--tertiary);">✅ CMS ya configurado en modo: <strong>${existing.provider}</strong></p>
+      <p class="font-body-md" style="color: var(--on-surface-variant);">Módulos activos: ${existing.activeModules ? existing.activeModules.join(', ') : 'Ninguno'}.</p>
+    </div>
+    <a href="index.html" class="btn-primary shrink-0" style="padding: 10px 18px; font-size: 0.8rem;">Ir al CMS →</a>
+  `;
+  document.querySelector('main .container-main').insertBefore(banner, document.querySelector('main .container-main').children[1]);
+}
+</script>
+</body>
+</html>
