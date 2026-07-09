@@ -40,7 +40,6 @@ window.Glosaurio.CMS_MODULES = {
       { id: 'tools', label: 'Herramientas Asociadas', type: 'tags', placeholder: 'Separadas por coma. Ej: Figma, VS Code' },
       { id: 'promptVars', label: 'Variables del Prompt', type: 'tags', placeholder: 'Variables entre corchetes. Ej: marca, sector' },
       { id: 'prompt', label: 'Prompt Template', type: 'code', placeholder: 'Actúa como experto en...' },
-      { id: 'vibeScore', label: 'Vibe Score', type: 'range', min: 1, max: 10, default: 7 },
       { id: 'isDraft', label: 'Estado de Borrador', type: 'boolean', default: true }
     ]
   },
