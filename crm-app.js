@@ -991,6 +991,214 @@ function showToast(msg) {
 }
 
 // ─────────────────────────────────────────────────────────────
+//  TEMPLATE DOWNLOAD & JSON IMPORT
+// ─────────────────────────────────────────────────────────────
+document.getElementById('btn-download-template')?.addEventListener('click', () => {
+  const moduleDef = window.Glosaurio.CMS_MODULES[CRM.activeModule];
+  if (!moduleDef) return;
+
+  const template = {};
+  moduleDef.schema.forEach(field => {
+    if (field.id === 'isDraft') {
+      template[field.id] = field.default !== undefined ? field.default : true;
+    } else if (field.type === 'steps') {
+      template[field.id] = [
+        { label: 'Paso 1: Título de ejemplo', detail: 'Descripción detallada de este paso.' }
+      ];
+    } else if (field.type === 'lines' || field.type === 'tags') {
+      template[field.id] = field.type === 'lines' ? ['Ejemplo 1', 'Ejemplo 2'] : ['Etiqueta1', 'Etiqueta2'];
+    } else if (field.type === 'number' || field.type === 'range') {
+      template[field.id] = field.default !== undefined ? field.default : 0;
+    } else if (field.type === 'boolean') {
+      template[field.id] = field.default !== undefined ? field.default : false;
+    } else {
+      template[field.id] = field.placeholder || 'Texto de ejemplo';
+    }
+  });
+
+  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify([template], null, 2));
+  const downloadAnchor = document.createElement('a');
+  downloadAnchor.setAttribute("href", dataStr);
+  downloadAnchor.setAttribute("download", `plantilla_${CRM.activeModule}.json`);
+  document.body.appendChild(downloadAnchor);
+  downloadAnchor.click();
+  downloadAnchor.remove();
+});
+
+const fileInput = document.getElementById('import-file-input');
+document.getElementById('btn-import-json')?.addEventListener('click', () => {
+  fileInput?.click();
+});
+
+function showImportConfirmationModal(items, moduleDef) {
+  return new Promise((resolve) => {
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-opacity duration-300';
+    modal.id = 'import-confirm-modal';
+    
+    const activeModuleCategories = (CRM.categories || [])
+      .filter(c => c.module === CRM.activeModule)
+      .map(c => c.name);
+
+    const availableCategories = [...new Set(activeModuleCategories)];
+    if (availableCategories.length === 0) {
+      availableCategories.push('Diseño & Marca', 'Vibe Coding', 'Gestión', 'Automatización', 'Tech');
+    }
+
+    const titleField = moduleDef.titleField || 'title';
+    const itemsHtml = items.map((item, index) => {
+      const title = item[titleField] || item.title || item.name || 'Sin título';
+      const category = item.category || availableCategories[0] || 'Diseño & Marca';
+      
+      const optionsHtml = availableCategories.map(cat => 
+        `<option value="${cat}" ${cat === category ? 'selected' : ''}>${cat}</option>`
+      ).join('');
+
+      return `
+        <div class="flex items-center justify-between p-3 rounded-lg border border-[var(--outline-variant)] bg-[var(--surface-container-high)] gap-4">
+          <div class="flex items-center gap-3">
+            <input type="checkbox" class="item-select-checkbox w-4 h-4 rounded text-[var(--primary)] border-[var(--outline)] focus:ring-[var(--primary)]" data-index="${index}" checked>
+            <span class="font-semibold text-sm truncate max-w-[180px] text-[var(--on-surface)]" title="${title}">${title}</span>
+          </div>
+          <select class="item-category-select text-xs p-1.5 rounded-lg border border-[var(--outline-variant)] bg-[var(--surface-container-highest)] text-[var(--on-surface)] focus:ring-[var(--primary)]" data-index="${index}">
+            ${optionsHtml}
+          </select>
+        </div>
+      `;
+    }).join('');
+
+    modal.innerHTML = `
+      <div class="glass-panel w-full max-w-lg p-6 rounded-2xl shadow-2xl border border-[var(--outline-variant)] bg-[var(--surface)] text-[var(--on-surface)] animate-in fade-in zoom-in duration-200 flex flex-col max-h-[85vh]">
+        <div class="flex items-center justify-between mb-4 border-b border-[var(--outline-variant)] pb-3">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-amber-500">warning</span>
+            <h3 class="font-headline-sm text-lg font-bold text-[var(--on-surface)]">Confirmar Importación</h3>
+          </div>
+          <button id="modal-close" class="btn-icon text-[var(--on-surface-variant)] hover:text-[var(--on-surface)]">
+            <span class="material-symbols-outlined text-xl">close</span>
+          </button>
+        </div>
+        
+        <p class="font-body-md text-sm text-[var(--on-surface-variant)] mb-4">
+          Se han detectado <strong>${items.length}</strong> registros listos para importar. Selecciona los que deseas importar y ajusta sus categorías si lo prefieres:
+        </p>
+        
+        <div class="flex-1 overflow-y-auto space-y-2 mb-6 max-h-[40vh] pr-1">
+          ${itemsHtml}
+        </div>
+        
+        <div class="flex items-center justify-end gap-3 border-t border-[var(--outline-variant)] pt-4">
+          <button id="modal-btn-cancel" class="btn-secondary px-4 py-2 text-sm font-semibold rounded-xl border border-[var(--outline-variant)] hover:bg-[var(--surface-container-high)]">
+            Cancelar
+          </button>
+          <button id="modal-btn-confirm" class="btn-primary px-4 py-2 text-sm font-semibold rounded-xl text-white bg-[var(--primary)] hover:bg-[var(--primary-hover)]">
+            Importar ahora
+          </button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    const closeModal = (result) => {
+      modal.classList.add('opacity-0');
+      setTimeout(() => {
+        modal.remove();
+        resolve(result);
+      }, 200);
+    };
+
+    modal.querySelector('#modal-close').onclick = () => closeModal(null);
+    modal.querySelector('#modal-btn-cancel').onclick = () => closeModal(null);
+    
+    modal.querySelector('#modal-btn-confirm').onclick = () => {
+      const selectedItems = [];
+      const checkboxes = modal.querySelectorAll('.item-select-checkbox');
+      const selects = modal.querySelectorAll('.item-category-select');
+
+      checkboxes.forEach((cb) => {
+        if (cb.checked) {
+          const index = parseInt(cb.getAttribute('data-index'));
+          const item = { ...items[index] };
+          const select = Array.from(selects).find(s => parseInt(s.getAttribute('data-index')) === index);
+          if (select) {
+            item.category = select.value;
+          }
+          selectedItems.push(item);
+        }
+      });
+
+      closeModal(selectedItems);
+    };
+    
+    modal.onclick = (e) => {
+      if (e.target === modal) closeModal(null);
+    };
+  });
+}
+
+fileInput?.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = async event => {
+    try {
+      let data = JSON.parse(event.target.result);
+      // Si el JSON está envuelto (ej: { contentType, data: [...] }) extraemos el array
+      if (data && !Array.isArray(data) && Array.isArray(data.data)) {
+        data = data.data;
+      }
+      const itemsToImport = Array.isArray(data) ? data : [data];
+      
+      const moduleDef = window.Glosaurio.CMS_MODULES[CRM.activeModule];
+      if (!moduleDef) throw new Error('Módulo activo no válido');
+
+      // Validar previamente para no mostrar el modal con datos erróneos
+      const validatedItems = [];
+      for (const item of itemsToImport) {
+        const cleanItem = {};
+        moduleDef.schema.forEach(field => {
+          const snakeId = field.id.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+          const value = item[field.id] !== undefined ? item[field.id] : item[snakeId];
+
+          if (value !== undefined) {
+            cleanItem[field.id] = value;
+          } else if (field.required) {
+            throw new Error(`El campo requerido "${field.label}" (se esperaba la clave "${field.id}") está ausente. Claves encontradas en tu archivo: [${Object.keys(item).join(', ')}]`);
+          }
+        });
+        validatedItems.push(cleanItem);
+      }
+
+      // Pedir confirmación con el modal
+      const confirmedItems = await showImportConfirmationModal(validatedItems, moduleDef);
+      if (!confirmedItems || confirmedItems.length === 0) {
+        showToast('⏹️ Importación cancelada o sin elementos seleccionados');
+        return;
+      }
+
+      showToast(`⏳ Importando ${confirmedItems.length} registros...`);
+
+      let importedCount = 0;
+      for (const cleanItem of confirmedItems) {
+        await window.DataSource.createItem(moduleDef.collection, cleanItem);
+        importedCount++;
+      }
+
+      showToast(`✅ ¡Importados ${importedCount} registros con éxito!`);
+      await loadItems();
+    } catch (err) {
+      console.error(err);
+      showToast(`❌ Error al importar: ${err.message}`);
+    } finally {
+      fileInput.value = '';
+    }
+  };
+  reader.readAsText(file);
+});
+
+// ─────────────────────────────────────────────────────────────
 //  INIT CMS WORKSPACE
 // ─────────────────────────────────────────────────────────────
 async function init() {

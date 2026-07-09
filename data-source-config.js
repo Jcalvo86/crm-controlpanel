@@ -22,8 +22,9 @@
     getConfig() {
       try {
         const raw = localStorage.getItem(CONFIG_KEY);
-        return raw ? JSON.parse(raw) : null;
-      } catch { return null; }
+        if (raw) return JSON.parse(raw);
+      } catch {}
+      return window.GLOSAURIO_DEFAULT_CONFIG || null;
     },
 
     saveConfig(config) {
@@ -56,7 +57,11 @@
       return;
     }
 
-    if (config.provider === 'supabase' && config.supabase?.url && config.supabase?.anonKey) {
+    if (config.provider === 'supabase' && 
+        config.supabase?.url && 
+        config.supabase?.anonKey &&
+        !config.supabase.url.includes('PLACEHOLDER') &&
+        !config.supabase.anonKey.includes('PLACEHOLDER')) {
       window.DataSource = new window.Glosaurio.SupabaseAdapter(config.supabase);
       return;
     }
