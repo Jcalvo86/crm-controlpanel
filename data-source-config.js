@@ -20,11 +20,23 @@
 
   const Config = {
     getConfig() {
+      let local = null;
       try {
         const raw = localStorage.getItem(CONFIG_KEY);
-        if (raw) return JSON.parse(raw);
+        if (raw) local = JSON.parse(raw);
       } catch {}
-      return window.GLOSAURIO_DEFAULT_CONFIG || null;
+
+      const fileConfig = window.CRM_CONFIG || window.GLOSAURIO_DEFAULT_CONFIG || null;
+
+      if (!local) return fileConfig;
+      
+      // Merge local config (db credentials) with file config (modules + branding)
+      return {
+        ...fileConfig,
+        ...local,
+        branding: { ...(fileConfig?.branding || {}), ...(local?.branding || {}) },
+        activeModules: local?.activeModules || fileConfig?.activeModules
+      };
     },
 
     saveConfig(config) {
@@ -86,4 +98,21 @@
   const provider = Config.getProvider();
   const emoji = { supabase: '🟢', firebase: '🔥', localStorage: '💾' }[provider] || '❓';
   console.log(`%c${emoji} DataSource activo: ${provider}`, 'color: #b4c5ff; font-weight: bold;');
+
+  // Aplicar branding dinámicamente al cargar el DOM
+  document.addEventListener('DOMContentLoaded', () => {
+    const config = Config.getConfig();
+    if (config && config.branding) {
+      const branding = config.branding;
+      const appNameEl = document.getElementById('app-name');
+      const logoImgEl = document.getElementById('logo-img');
+      const backLinkEl = document.getElementById('back-link');
+      const homeLinkEl = document.getElementById('home-link');
+
+      if (appNameEl && branding.appName) appNameEl.textContent = branding.appName;
+      if (logoImgEl && branding.logoUrl) logoImgEl.src = branding.logoUrl;
+      if (backLinkEl && branding.backUrl) backLinkEl.href = branding.backUrl;
+      if (homeLinkEl && branding.backUrl) homeLinkEl.href = branding.backUrl;
+    }
+  });
 })();

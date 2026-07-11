@@ -37,7 +37,7 @@
   <script src="adapters/adapter-interface.js"></script>
   <script src="adapters/supabase-adapter.js"></script>
   <script src="adapters/firebase-adapter.js"></script>
-  <script src="../supabase-config.js"></script>
+  <script src="crm-config.js"></script>
   <script src="data-source-config.js"></script>
 </head>
 
@@ -47,9 +47,9 @@
 <!-- Header -->
 <header class="nav-shell">
   <div class="container-main flex items-center justify-between h-[72px]">
-    <a href="../index.html" class="flex items-center gap-3 font-headline-md" style="color: var(--primary); text-decoration: none; letter-spacing: -0.02em;">
-      <img src="../favicon.png" alt="Alexandria Logo" class="w-8 h-8 rounded-lg object-cover">
-      Alexandria
+    <a id="home-link" href="../index.html" class="flex items-center gap-3 font-headline-md" style="color: var(--primary); text-decoration: none; letter-spacing: -0.02em;">
+      <img id="logo-img" src="../favicon.png" alt="Logo" class="w-8 h-8 rounded-lg object-cover">
+      <span id="app-name">CRM</span>
     </a>
     <div class="flex items-center gap-3">
       <span class="chip chip-neutral">Configuración</span>

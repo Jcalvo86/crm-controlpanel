@@ -25,7 +25,7 @@
   <script src="adapters/adapter-interface.js"></script>
   <script src="adapters/supabase-adapter.js"></script>
   <script src="adapters/firebase-adapter.js"></script>
-  <script src="../supabase-config.js"></script>
+  <script src="crm-config.js"></script>
   <script src="data-source-config.js"></script>
   <script src="modules/module-registry.js"></script>
 </head>
@@ -37,12 +37,12 @@
 <header class="nav-shell">
   <div class="container-main flex items-center justify-between h-[72px]">
     <div class="flex items-center gap-4">
-      <a href="../index.html" class="btn-icon" title="Ver Glosario">
+      <a id="back-link" href="../index.html" class="btn-icon" title="Volver al Sitio">
         <span class="material-symbols-outlined text-sm">arrow_back</span>
       </a>
-      <a href="../index.html" class="flex items-center gap-2 font-headline-md" style="color: var(--primary); text-decoration: none; letter-spacing: -0.02em;">
-        <img src="../favicon.png" alt="Alexandria Logo" class="w-8 h-8 rounded-lg object-cover">
-        Alexandria
+      <a id="home-link" href="../index.html" class="flex items-center gap-2 font-headline-md" style="color: var(--primary); text-decoration: none; letter-spacing: -0.02em;">
+        <img id="logo-img" src="../favicon.png" alt="Logo" class="w-8 h-8 rounded-lg object-cover">
+        <span id="app-name">CRM</span>
       </a>
       <span class="chip chip-neutral">Admin Panel</span>
       <!-- Provider indicator -->

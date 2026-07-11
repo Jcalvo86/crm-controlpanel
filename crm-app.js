@@ -89,8 +89,9 @@ function renderSidebarModules() {
   const container = document.getElementById('cms-modules-nav');
   if (!container) return;
 
-  const cfg = window.DataSourceConfig.getConfig() || { activeModules: ['terms'] };
-  CRM.activeModulesList = cfg.activeModules || ['terms'];
+  const cfg = window.DataSourceConfig.getConfig() || {};
+  const defaultModules = Object.keys(window.Glosaurio.CMS_MODULES || {});
+  CRM.activeModulesList = cfg.activeModules || defaultModules;
 
   let html = CRM.activeModulesList.map(modKey => {
     const m = window.Glosaurio.CMS_MODULES[modKey];
@@ -1205,14 +1206,13 @@ async function init() {
   initTheme();
   updateProviderBadges();
 
-  const cfg = window.DataSourceConfig.getConfig() || { activeModules: ['terms'] };
-  const activeModules = cfg.activeModules || ['terms'];
+  const cfg = window.DataSourceConfig.getConfig() || {};
+  const defaultModules = Object.keys(window.Glosaurio.CMS_MODULES || {});
+  const activeModules = cfg.activeModules || defaultModules;
 
   // Switch al primer módulo activo disponible
   if (activeModules.length > 0) {
     await switchModule(activeModules[0]);
-  } else {
-    await switchModule('terms');
   }
 }
 
