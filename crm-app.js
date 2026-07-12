@@ -25,19 +25,7 @@ const CRM = {
 // ─────────────────────────────────────────────────────────────
 //  THEME
 // ─────────────────────────────────────────────────────────────
-function initTheme() {
-  CRM.isDark = localStorage.getItem('glosaurio_theme') !== 'light';
-  document.documentElement.classList.toggle('dark', CRM.isDark);
-  const icon = document.getElementById('theme-icon');
-  if (icon) icon.textContent = CRM.isDark ? 'light_mode' : 'dark_mode';
-}
-
-document.getElementById('btn-theme')?.addEventListener('click', () => {
-  CRM.isDark = !CRM.isDark;
-  document.documentElement.classList.toggle('dark', CRM.isDark);
-  document.getElementById('theme-icon').textContent = CRM.isDark ? 'light_mode' : 'dark_mode';
-  localStorage.setItem('glosaurio_theme', CRM.isDark ? 'dark' : 'light');
-});
+CRM.isDark = localStorage.getItem('glosaurio_theme') !== 'light';
 
 // ─────────────────────────────────────────────────────────────
 //  VIEW NAVIGATION

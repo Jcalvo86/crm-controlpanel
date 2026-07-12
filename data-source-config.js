@@ -16,6 +16,10 @@
  */
 
 (function () {
+  // Inicialización inmediata de tema para evitar flashes blancos
+  const isDark = localStorage.getItem('glosaurio_theme') !== 'light';
+  document.documentElement.classList.toggle('dark', isDark);
+
   const CONFIG_KEY = 'glosaurio_datasource_config';
 
   const Config = {
@@ -99,8 +103,9 @@
   const emoji = { supabase: '🟢', firebase: '🔥', localStorage: '💾' }[provider] || '❓';
   console.log(`%c${emoji} DataSource activo: ${provider}`, 'color: #b4c5ff; font-weight: bold;');
 
-  // Aplicar branding dinámicamente al cargar el DOM
+  // Aplicar branding y tema dinámicamente al cargar el DOM
   document.addEventListener('DOMContentLoaded', () => {
+    // 1. Branding
     const config = Config.getConfig();
     if (config && config.branding) {
       const branding = config.branding;
@@ -114,5 +119,27 @@
       if (backLinkEl && branding.backUrl) backLinkEl.href = branding.backUrl;
       if (homeLinkEl && branding.backUrl) homeLinkEl.href = branding.backUrl;
     }
+
+    // 2. Control de tema (Light/Dark mode)
+    const activeDark = document.documentElement.classList.contains('dark');
+    const themeIcon = document.getElementById('theme-icon');
+    if (themeIcon) {
+      themeIcon.textContent = activeDark ? 'light_mode' : 'dark_mode';
+    }
+
+    document.getElementById('btn-theme')?.addEventListener('click', () => {
+      const currentDark = document.documentElement.classList.contains('dark');
+      const nextDark = !currentDark;
+      document.documentElement.classList.toggle('dark', nextDark);
+      
+      const icon = document.getElementById('theme-icon');
+      if (icon) icon.textContent = nextDark ? 'light_mode' : 'dark_mode';
+      localStorage.setItem('glosaurio_theme', nextDark ? 'dark' : 'light');
+      
+      // Sincronizar estado con CRM si está definido en crm-app.js
+      if (window.CRM) {
+        window.CRM.isDark = nextDark;
+      }
+    });
   });
 })();

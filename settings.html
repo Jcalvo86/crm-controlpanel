@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CMS Andreia — Configuración del Sistema</title>
+  <link rel="icon" type="image/png" href="../favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+  <link rel="stylesheet" href="../style.css">
+  
+  <script src="adapters/adapter-interface.js"></script>
+  <script src="adapters/supabase-adapter.js"></script>
+  <script src="adapters/firebase-adapter.js"></script>
+  <script src="crm-config.js"></script>
+  <script src="data-source-config.js"></script>
+</head>
+
+<body class="font-body-md antialiased" style="background: var(--background); color: var(--on-surface);">
+<div class="bg-grain"></div>
+
+<!-- Navigation -->
+<header class="nav-shell">
+  <div class="container-main flex items-center justify-between h-[72px]">
+    <div class="flex items-center gap-4">
+      <a id="back-link" href="index.html" class="btn-icon" title="Volver al Panel">
+        <span class="material-symbols-outlined text-sm">arrow_back</span>
+      </a>
+      <a id="home-link" href="index.html" class="flex items-center gap-2 font-headline-md" style="color: var(--primary); text-decoration: none; letter-spacing: -0.02em;">
+        <img id="logo-img" src="../favicon.png" alt="Logo" class="w-8 h-8 rounded-lg object-cover">
+        <span id="app-name">CMS Andreia</span>
+      </a>
+      <span class="chip chip-neutral">Configuración</span>
+    </div>
+  </div>
+</header>
+
+<main class="pt-[72px]">
+  <div class="container-main py-16 max-w-3xl">
+    
+    <!-- Header -->
+    <div class="text-center mb-10">
+      <h1 class="font-headline-lg mb-3" style="color: var(--on-surface);">Configuración del Sistema</h1>
+      <p class="font-body-lg" style="color: var(--on-surface-variant);">Revisa el estado de la conexión de datos de tu CMS y gestiona los parámetros globales.</p>
+    </div>
+
+    <!-- Status Card -->
+    <div id="status-card" class="glass-panel p-8 mb-8 relative overflow-hidden">
+      <!-- Background glow -->
+      <div id="status-glow" class="absolute -right-16 -top-16 w-36 h-36 rounded-full blur-3xl opacity-20 pointer-events-none"></div>
+      
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div class="flex items-start gap-4">
+          <div id="status-icon-wrapper" class="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl" style="background: var(--surface-container-high);">
+            💾
+          </div>
+          <div>
+            <div class="flex items-center gap-3 mb-1">
+              <h2 id="status-title" class="font-headline-sm" style="color: var(--on-surface);">Modo de Datos</h2>
+              <span id="status-badge" class="chip">Cargando...</span>
+            </div>
+            <p id="status-desc" class="font-body-md" style="color: var(--on-surface-variant);">Verificando configuración de base de datos...</p>
+          </div>
+        </div>
+        <div id="status-action" class="shrink-0">
+          <!-- Button injected dynamically -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Config Details Grid -->
+    <div id="config-details-section" class="hidden space-y-6 mb-8">
+      <div class="glass-panel p-6">
+        <h3 class="font-label-md mb-4" style="color: var(--primary);">Parámetros de la Base de Datos</h3>
+        <div class="divide-y divide-[var(--outline)]" id="details-list">
+          <!-- Details dynamic rows -->
+        </div>
+      </div>
+      
+      <div class="glass-panel p-6">
+        <h3 class="font-label-md mb-4" style="color: var(--primary);">Módulos de Contenido</h3>
+        <div class="flex gap-2 flex-wrap" id="modules-list">
+          <!-- Modules badges -->
+        </div>
+      </div>
+
+      <div class="glass-panel p-6">
+        <h3 class="font-label-md mb-4" style="color: var(--primary);">Identidad Visual y Branding</h3>
+        <div class="divide-y divide-[var(--outline)]" id="branding-list">
+          <!-- Branding details -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Warning / Actions -->
+    <div class="flex flex-col sm:flex-row gap-4 justify-between items-center glass-panel p-6">
+      <div>
+        <p class="font-label-md" style="color: var(--on-surface);">Asistente de Configuración</p>
+        <p class="font-body-sm" style="color: var(--on-surface-variant);">¿Deseas migrar tu proveedor de datos o reconfigurar las credenciales?</p>
+      </div>
+      <div class="flex gap-3 w-full sm:w-auto">
+        <button id="btn-reset" class="btn-secondary text-sm border-red-900/35 hover:bg-red-950/20 hover:text-red-400 w-full sm:w-auto">
+          Restablecer
+        </button>
+        <a href="setup.html" class="btn-primary text-sm w-full sm:w-auto text-center">
+          <span class="material-symbols-outlined text-sm">settings</span>
+          Reconfigurar
+        </a>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<div id="toast" role="alert"></div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const config = window.DataSourceConfig.getConfig();
+    const isConfigured = window.DataSourceConfig.isConfigured();
+    const provider = window.DataSourceConfig.getProvider();
+
+    // Elements
+    const statusIcon = document.getElementById('status-icon-wrapper');
+    const statusTitle = document.getElementById('status-title');
+    const statusBadge = document.getElementById('status-badge');
+    const statusDesc = document.getElementById('status-desc');
+    const statusGlow = document.getElementById('status-glow');
+    const statusAction = document.getElementById('status-action');
+    const detailsSection = document.getElementById('config-details-section');
+    const detailsList = document.getElementById('details-list');
+    const modulesList = document.getElementById('modules-list');
+    const brandingList = document.getElementById('branding-list');
+    const btnReset = document.getElementById('btn-reset');
+
+    if (!config) {
+      statusDesc.textContent = 'No se ha detectado ninguna configuración.';
+      return;
+    }
+
+    // Provider branding styling
+    const providerStyles = {
+      firebase: {
+        emoji: '🔥',
+        name: 'Firebase Firestore',
+        color: '#ff9100',
+        badgeClass: 'chip-tertiary',
+        desc: 'Conectado a la base de datos Firestore de Google. Sincronización en tiempo real activa.',
+        details: [
+          { label: 'Project ID', value: config.firebase?.projectId || '--' },
+          { label: 'Colección por Defecto', value: config.firebase?.collection || 'cms_terms' },
+          { label: 'Auth Domain', value: config.firebase?.authDomain || 'No configurado' }
+        ]
+      },
+      supabase: {
+        emoji: '🟢',
+        name: 'Supabase Database',
+        color: '#10b981',
+        badgeClass: 'chip-tertiary',
+        desc: 'Conectado a la base de datos PostgreSQL de Supabase en la nube.',
+        details: [
+          { label: 'URL del Proyecto', value: config.supabase?.url || '--' },
+          { label: 'Tabla por Defecto', value: config.supabase?.table || 'cms_terms' }
+        ]
+      },
+      localStorage: {
+        emoji: '💾',
+        name: 'Modo Local (Navegador)',
+        color: '#477998',
+        badgeClass: 'chip-neutral',
+        desc: 'Tus datos se guardan únicamente en el almacenamiento local de tu navegador web. Los cambios no se sincronizarán con un servidor externo.',
+        details: []
+      }
+    };
+
+    const style = providerStyles[provider] || providerStyles.localStorage;
+
+    // Apply values
+    statusIcon.textContent = style.emoji;
+    statusBadge.textContent = isConfigured ? 'Activo' : 'Local';
+    statusBadge.className = `chip ${style.badgeClass}`;
+    statusDesc.textContent = style.desc;
+    statusGlow.style.background = style.color;
+    statusTitle.textContent = style.name;
+
+    // Injects primary navigation action in status block
+    if (isConfigured) {
+      statusAction.innerHTML = `
+        <a href="index.html" class="btn-primary flex items-center gap-2">
+          <span>Ir al CMS</span>
+          <span class="material-symbols-outlined text-sm">arrow_forward</span>
+        </a>
+      `;
+    } else {
+      statusAction.innerHTML = `
+        <a href="setup.html" class="btn-primary flex items-center gap-2">
+          <span>Configurar Servidor</span>
+          <span class="material-symbols-outlined text-sm">arrow_forward</span>
+        </a>
+      `;
+    }
+
+    // Details logic
+    if (isConfigured && style.details.length > 0) {
+      detailsSection.classList.remove('hidden');
+      
+      // Render DB params
+      detailsList.innerHTML = style.details.map(det => `
+        <div class="py-3 flex justify-between items-center gap-4">
+          <span class="font-body-md" style="color: var(--on-surface-variant);">${det.label}</span>
+          <strong class="font-mono text-sm overflow-hidden text-ellipsis whitespace-nowrap" style="color: var(--on-surface); max-width: 70%;">${det.value}</strong>
+        </div>
+      `).join('');
+    } else {
+      // In local mode we show less detail, but still modules and branding
+      detailsSection.classList.remove('hidden');
+      detailsList.innerHTML = `
+        <div class="py-3 flex justify-between items-center gap-4">
+          <span class="font-body-md" style="color: var(--on-surface-variant);">Origen de Datos</span>
+          <strong class="font-body-md" style="color: var(--on-surface);">LocalStorage (Navegador)</strong>
+        </div>
+      `;
+    }
+
+    // Render active modules
+    const modules = config.activeModules || [];
+    if (modules.length > 0) {
+      const moduleNames = { blog: '📝 Blog / Artículos', products: '🛍️ Productos / Catálogo', terms: '📚 Términos / Glosario' };
+      modulesList.innerHTML = modules.map(m => `
+        <span class="chip chip-neutral font-body-sm">${moduleNames[m] || m}</span>
+      `).join('');
+    } else {
+      modulesList.innerHTML = `<span class="font-body-sm" style="color: var(--on-surface-variant);">Ninguno</span>`;
+    }
+
+    // Render branding details
+    if (config.branding) {
+      const brand = config.branding;
+      brandingList.innerHTML = `
+        <div class="py-3 flex justify-between items-center gap-4">
+          <span class="font-body-md" style="color: var(--on-surface-variant);">Nombre de la Aplicación</span>
+          <strong class="font-body-md" style="color: var(--on-surface);">${brand.appName || '--'}</strong>
+        </div>
+        <div class="py-3 flex justify-between items-center gap-4">
+          <span class="font-body-md" style="color: var(--on-surface-variant);">Ruta del Logotipo</span>
+          <strong class="font-mono text-sm overflow-hidden text-ellipsis whitespace-nowrap" style="color: var(--on-surface); max-width: 70%;">${brand.logoUrl || '--'}</strong>
+        </div>
+      `;
+    }
+
+    // Reset button functionality
+    btnReset.addEventListener('click', () => {
+      if (confirm('¿Estás seguro de que quieres restablecer la configuración de base de datos? Se borrarán los datos guardados en LocalStorage y se revertirá a la configuración de archivo.')) {
+        window.DataSourceConfig.clearConfig();
+        showToast('Configuración restablecida correctamente.');
+        setTimeout(() => window.location.reload(), 1200);
+      }
+    });
+
+    // Toast helper
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      if (toast) {
+        toast.textContent = message;
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 3000);
+      }
+    }
+  });
+</script>
+</body>
+</html>
