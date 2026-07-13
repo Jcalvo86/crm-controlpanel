@@ -1194,6 +1194,61 @@ async function init() {
   initTheme();
   updateProviderBadges();
 
+  // Probar conexión a Base de Datos
+  const btnTestDb = document.getElementById('btn-test-db');
+  if (btnTestDb) {
+    btnTestDb.addEventListener('click', async () => {
+      const statusEl = document.getElementById('db-test-status');
+      const iconEl = document.getElementById('db-test-icon');
+      const textEl = document.getElementById('db-test-text');
+      
+      if (!statusEl || !iconEl || !textEl) return;
+
+      // Reset & Set loading state
+      statusEl.classList.remove('hidden', 'bg-green-500/10', 'text-green-400', 'border-green-500/20', 'bg-red-500/10', 'text-red-400', 'border-red-500/20');
+      statusEl.classList.add('bg-[var(--surface-container-high)]', 'text-[var(--on-surface-variant)]');
+      statusEl.innerHTML = '<span class="material-symbols-outlined text-[14px] spin mr-1" style="vertical-align: middle;">sync</span> Conectando...';
+      statusEl.classList.remove('hidden');
+      
+      iconEl.textContent = 'sync';
+      iconEl.classList.add('spin');
+      btnTestDb.disabled = true;
+      btnTestDb.style.opacity = '0.6';
+      textEl.textContent = 'Probando';
+
+      try {
+        const collection = CRM.activeModule && CRM.activeModule !== 'categories' 
+          ? (window.Glosaurio?.CMS_MODULES[CRM.activeModule]?.collection || 'terms')
+          : 'terms';
+          
+        const result = await window.DataSource.testConnection(collection);
+        
+        statusEl.classList.remove('bg-[var(--surface-container-high)]', 'text-[var(--on-surface-variant)]');
+        
+        if (result.ok) {
+          statusEl.classList.add('bg-green-500/10', 'text-green-400', 'border', 'border-green-500/20');
+          statusEl.innerHTML = `✅ ${result.message}`;
+          showToast('🟢 Conexión exitosa verificada.');
+        } else {
+          statusEl.classList.add('bg-red-500/10', 'text-red-400', 'border', 'border-red-500/20');
+          statusEl.innerHTML = `❌ ${result.message}`;
+          showToast('🔴 Error en la conexión.');
+        }
+      } catch (err) {
+        statusEl.classList.remove('bg-[var(--surface-container-high)]', 'text-[var(--on-surface-variant)]');
+        statusEl.classList.add('bg-red-500/10', 'text-red-400', 'border', 'border-red-500/20');
+        statusEl.innerHTML = `❌ Error: ${err.message}`;
+        showToast('🔴 Error al conectar.');
+      } finally {
+        iconEl.textContent = 'network_ping';
+        iconEl.classList.remove('spin');
+        btnTestDb.disabled = false;
+        btnTestDb.style.opacity = '1';
+        textEl.textContent = 'Probar';
+      }
+    });
+  }
+
   const cfg = window.DataSourceConfig.getConfig() || {};
   const defaultModules = Object.keys(window.Glosaurio.CMS_MODULES || {});
   const activeModules = cfg.activeModules || defaultModules;
