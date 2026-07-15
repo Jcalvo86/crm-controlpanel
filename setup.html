@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Alexandria — Configuración de Fuente de Datos</title>
+  <title>CMS Andreia — Configuración de Fuente de Datos</title>
   <link rel="icon" type="image/png" href="../favicon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
@@ -37,7 +37,7 @@
   <script src="adapters/adapter-interface.js"></script>
   <script src="adapters/supabase-adapter.js"></script>
   <script src="adapters/firebase-adapter.js"></script>
-  <script src="../supabase-config.js"></script>
+  <script src="crm-config.js"></script>
   <script src="data-source-config.js"></script>
 </head>
 
@@ -47,9 +47,9 @@
 <!-- Header -->
 <header class="nav-shell">
   <div class="container-main flex items-center justify-between h-[72px]">
-    <a href="../index.html" class="flex items-center gap-3 font-headline-md" style="color: var(--primary); text-decoration: none; letter-spacing: -0.02em;">
-      <img src="../favicon.png" alt="Alexandria Logo" class="w-8 h-8 rounded-lg object-cover">
-      Alexandria
+    <a id="home-link" href="../index.html" class="flex items-center gap-3 font-headline-md" style="color: var(--primary); text-decoration: none; letter-spacing: -0.02em;">
+      <img id="logo-img" src="../favicon.png" alt="Logo" class="w-8 h-8 rounded-lg object-cover">
+      <span id="app-name">CRM</span>
     </a>
     <div class="flex items-center gap-3">
       <span class="chip chip-neutral">Configuración</span>
@@ -316,9 +316,9 @@
         </div>
 
         <div class="flex gap-3 justify-center flex-wrap">
-          <a href="index.html" class="btn-primary">
-            <span class="material-symbols-outlined text-sm">admin_panel_settings</span>
-            Ir al CMS Panel
+          <a href="settings.html" class="btn-primary">
+            <span class="material-symbols-outlined text-sm">settings</span>
+            Ver Configuración
           </a>
           <a href="../index.html" class="btn-secondary">
             <span class="material-symbols-outlined text-sm">home</span>
@@ -348,17 +348,7 @@
 // ─── State ─────────────────────────────────────────────────
 const S = { step: 1, provider: null, testPassed: false };
 
-// ─── Theme ─────────────────────────────────────────────────
-function initTheme() {
-  const isDark = localStorage.getItem('glosaurio_theme') !== 'light';
-  document.documentElement.classList.toggle('dark', isDark);
-  document.getElementById('theme-icon').textContent = isDark ? 'light_mode' : 'dark_mode';
-}
-document.getElementById('btn-theme').addEventListener('click', () => {
-  const isDark = document.documentElement.classList.toggle('dark');
-  document.getElementById('theme-icon').textContent = isDark ? 'light_mode' : 'dark_mode';
-  localStorage.setItem('glosaurio_theme', isDark ? 'dark' : 'light');
-});
+
 
 // ─── Steps ─────────────────────────────────────────────────
 function goToStep(n) {

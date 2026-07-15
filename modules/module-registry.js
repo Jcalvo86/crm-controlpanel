@@ -75,17 +75,26 @@ window.Glosaurio.CMS_MODULES = {
   // ── 🛍️ MÓDULO PRODUCTOS ───────────────────────────────────────
   products: {
     id: 'products',
-    label: 'Productos / Servicios',
-    icon: 'inventory_2',
-    description: 'Catálogo dinámico de artículos, precios, descripciones y stock.',
+    label: 'Viajes / Productos',
+    icon: 'travel_explore',
+    description: 'Catálogo dinámico de viajes, itinerarios, precios y destinos.',
     collection: 'cms_products',
     titleField: 'name',
     schema: [
-      { id: 'name', label: 'Nombre del Producto', type: 'text', required: true, placeholder: 'Ej: Suscripción Anual AI Partner' },
-      { id: 'sku', label: 'Código SKU / Identificador', type: 'text', required: true, placeholder: 'Ej: AI-PRO-ANNUAL' },
-      { id: 'price', label: 'Precio', type: 'number', required: true, placeholder: 'Ej: 99.99' },
-      { id: 'comparePrice', label: 'Precio Anterior (Oferta)', type: 'number', placeholder: 'Ej: 149.99' },
-      { id: 'description', label: 'Descripción detallada', type: 'textarea', rows: 4, placeholder: 'Detalles técnicos, características...' },
+      { id: 'name', label: 'Nombre del Viaje', type: 'text', required: true, placeholder: 'Ej: Egipto: El Legado de los Faraones' },
+      { id: 'subtitle', label: 'Subtítulo / Lema', type: 'text', placeholder: 'Ej: Un viaje de 10 días a través del tiempo...' },
+      { id: 'sku', label: 'Código SKU / Identificador', type: 'text', required: true, placeholder: 'Ej: EGI-LEGADO-10D' },
+      { id: 'price', label: 'Precio base', type: 'number', required: true, placeholder: 'Ej: 2990' },
+      { id: 'comparePrice', label: 'Precio Anterior (Oferta)', type: 'number', placeholder: 'Ej: 3490' },
+      { id: 'imageUrl', label: 'Imagen de Portada (URL)', type: 'text', placeholder: 'https://ejemplo.com/portada.jpg' },
+      { id: 'overview', label: 'Descripción general (La Magia del Destino)', type: 'textarea', rows: 4, placeholder: 'Egipto no es solo un destino; es un portal...' },
+      { id: 'duration', label: 'Duración (Días)', type: 'number', placeholder: 'Ej: 10' },
+      { id: 'itineraryJson', label: 'Itinerario JSON', type: 'textarea', rows: 6, placeholder: '[\n  {"day": "Día 01", "title": "Llegada", "desc": "Detalle...", "info": "Mena House"}\n]' },
+      { id: 'bestSeason', label: 'Mejor Época', type: 'text', placeholder: 'Ej: Octubre a Abril' },
+      { id: 'currency', label: 'Moneda y Pagos', type: 'text', placeholder: 'Ej: Libra Egipcia (EGP) y Tarjetas' },
+      { id: 'visa', label: 'Visado', type: 'text', placeholder: 'Ej: Visa gestionada a la llegada' },
+      { id: 'mapUrl', label: 'URL de Imagen de Mapa', type: 'text', placeholder: 'https://ejemplo.com/mapa.jpg' },
+      { id: 'galleryUrls', label: 'Galería de fotos (Una URL por línea)', type: 'lines', placeholder: 'https://ejemplo.com/foto1.jpg' },
       {
         id: 'status',
         label: 'Estado de Disponibilidad',
@@ -93,13 +102,9 @@ window.Glosaurio.CMS_MODULES = {
         required: true,
         options: [
           { value: 'active', label: '🟢 Activo / Visible' },
-          { value: 'outOfStock', label: '🔴 Sin Stock' },
           { value: 'hidden', label: '⚪ Oculto' }
         ]
       },
-      { id: 'stock', label: 'Stock Disponible', type: 'number', placeholder: 'Ej: 150' },
-      { id: 'imageUrl', label: 'Imagen del Producto (URL)', type: 'text', placeholder: 'https://ejemplo.com/producto.jpg' },
-      { id: 'features', label: 'Características destacadas', type: 'lines', placeholder: 'Una ventaja/característica por línea...' },
       { id: 'isDraft', label: 'Borrador', type: 'boolean', default: true }
     ]
   }
