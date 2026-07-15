@@ -481,6 +481,7 @@ CREATE POLICY "anon_all_categories" ON public.cms_categories FOR ALL USING (true
   title       text NOT NULL,
   category    text NOT NULL,
   description text DEFAULT '',
+  video_url   text DEFAULT '',
   steps       jsonb DEFAULT '[]',
   problems    text[] DEFAULT '{}',
   benefits    text[] DEFAULT '{}',

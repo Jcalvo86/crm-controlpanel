@@ -26,6 +26,7 @@ window.Glosaurio.CMS_MODULES = {
         required: true
       },
       { id: 'description', label: 'Descripción Corta', type: 'textarea', required: true, rows: 3, placeholder: 'Descripción concisa para la tarjeta...' },
+      { id: 'videoUrl', label: 'Enlace a Video (URL)', type: 'url', placeholder: 'Ej: https://www.youtube.com/watch?v=...' },
       {
         id: 'steps',
         label: 'Proceso Paso a Paso',
