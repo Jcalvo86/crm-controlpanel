@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 // Reusable REST Adapters inside the component structure
 class SupabaseRESTService {
@@ -23,40 +23,39 @@ class SupabaseRESTService {
 
   async getItems(collection) {
     const res = await fetch(`${this.url}/rest/v1/${collection}?select=*&order=created_at.desc`, {
-      headers: this._headers({ 'Prefer': '' })
+      headers: this._headers()
     });
-    if (!res.ok) throw new Error(`Fetch error: ${res.status}`);
+    if (!res.ok) throw new Error('Error al obtener datos');
     return await res.json();
   }
 
-  async createItem(collection, data) {
+  async createItem(collection, item) {
     const res = await fetch(`${this.url}/rest/v1/${collection}`, {
       method: 'POST',
       headers: this._headers(),
-      body: JSON.stringify(data)
+      body: JSON.stringify(item)
     });
-    if (!res.ok) throw new Error(`Create error: ${res.status} - ${await res.text()}`);
-    const rows = await res.json();
-    return rows[0];
+    if (!res.ok) throw new Error('Error al crear el registro');
+    return await res.json();
   }
 
-  async updateItem(collection, id, data) {
+  async updateItem(collection, id, item) {
     const res = await fetch(`${this.url}/rest/v1/${collection}?id=eq.${id}`, {
       method: 'PATCH',
       headers: this._headers(),
-      body: JSON.stringify(data)
+      body: JSON.stringify(item)
     });
-    if (!res.ok) throw new Error(`Update error: ${res.status}`);
-    const rows = await res.json();
-    return rows[0];
+    if (!res.ok) throw new Error('Error al actualizar el registro');
+    return await res.json();
   }
 
   async deleteItem(collection, id) {
     const res = await fetch(`${this.url}/rest/v1/${collection}?id=eq.${id}`, {
       method: 'DELETE',
-      headers: this._headers({ 'Prefer': '' })
+      headers: this._headers()
     });
-    if (!res.ok) throw new Error(`Delete error: ${res.status}`);
+    if (!res.ok) throw new Error('Error al eliminar el registro');
+    return await res.json();
   }
 
   // REST Auth actions
@@ -81,6 +80,74 @@ class SupabaseRESTService {
   }
 }
 
+function HoldToConfirmButton({ onConfirm, children, className, style, title, duration = 2000 }) {
+  const [holding, setHolding] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const timerRef = useRef(null);
+  const intervalRef = useRef(null);
+  const startTimeRef = useRef(null);
+
+  const startHold = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setHolding(true);
+    setProgress(0);
+    startTimeRef.current = Date.now();
+
+    intervalRef.current = setInterval(() => {
+      const elapsed = Date.now() - startTimeRef.current;
+      const pct = Math.min((elapsed / duration) * 100, 100);
+      setProgress(pct);
+    }, 50);
+
+    timerRef.current = setTimeout(() => {
+      clearInterval(intervalRef.current);
+      setProgress(100);
+      setHolding(false);
+      onConfirm();
+    }, duration);
+  };
+
+  const cancelHold = (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    setHolding(false);
+    setProgress(0);
+  };
+
+  return (
+    <button
+      onMouseDown={startHold}
+      onMouseUp={cancelHold}
+      onMouseLeave={cancelHold}
+      onTouchStart={startHold}
+      onTouchEnd={cancelHold}
+      className={`${className || ''} relative overflow-hidden`}
+      style={{ ...style, position: 'relative' }}
+      title={holding ? `Mantén presionado (${Math.round((duration - (progress * duration / 100)) / 1000)}s)...` : title}
+      type="button"
+    >
+      {holding && (
+        <div 
+          className="absolute left-0 bottom-0 top-0 pointer-events-none transition-all duration-75"
+          style={{ 
+            width: `${progress}%`, 
+            background: 'color-mix(in_srgb, var(--error) 25%, transparent)',
+            borderRight: '2px solid var(--error)'
+          }}
+        />
+      )}
+      <span className="relative z-10 flex items-center justify-center gap-1 w-full h-full">
+        {children}
+      </span>
+    </button>
+  );
+}
+
 export default function CRMControlPanel({ config }) {
   const [session, setSession] = useState(null);
   const [email, setEmail] = useState('');
@@ -94,18 +161,74 @@ export default function CRMControlPanel({ config }) {
   const [activeModule, setActiveModule] = useState(config.activeModules?.[0] || 'terms');
   const [searchTerm, setSearchTerm] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     category: 'Diseño & Marca',
     description: '',
-    vibeScore: 5,
-    tools: '',
+    tools: [],
     isDraft: false,
     prompt: '',
     problems: '',
-    benefits: ''
+    benefits: '',
+    steps: [{ label: '', detail: '' }],
+    results: '',
+    metrics: '',
+    promptVars: ''
   });
   const [selectedId, setSelectedId] = useState(null);
+  const [expandedSections, setExpandedSections] = useState({
+    identity: true,
+    steps: true,
+    problems: true,
+    metrics: true,
+    prompt: true
+  });
+
+  const toggleSection = (section) => {
+    setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
+
+  const [activePanels, setActivePanels] = useState({
+    steps: false,
+    problems: false,
+    metrics: false,
+    prompt: false
+  });
+
+  // Dynamic step management helpers
+  const handleStepChange = (index, field, value) => {
+    const nextSteps = [...(formData.steps || [])];
+    nextSteps[index] = { ...nextSteps[index], [field]: value };
+    setFormData({ ...formData, steps: nextSteps });
+  };
+
+  const addStep = () => {
+    setFormData({
+      ...formData,
+      steps: [...(formData.steps || []), { label: '', detail: '' }]
+    });
+  };
+
+  const removeStep = (index) => {
+    const nextSteps = [...(formData.steps || [])];
+    nextSteps.splice(index, 1);
+    setFormData({ ...formData, steps: nextSteps });
+  };
+
+  const addTool = (tool) => {
+    const trimmed = tool.trim();
+    if (!trimmed) return;
+    const toolsArr = Array.isArray(formData.tools) ? formData.tools : [];
+    if (toolsArr.includes(trimmed)) return;
+    setFormData({ ...formData, tools: [...toolsArr, trimmed] });
+  };
+
+  const removeTool = (index) => {
+    const toolsArr = Array.isArray(formData.tools) ? [...formData.tools] : [];
+    toolsArr.splice(index, 1);
+    setFormData({ ...formData, tools: toolsArr });
+  };
 
   // Initialize service
   const service = config.provider === 'supabase' 
@@ -152,12 +275,15 @@ export default function CRMControlPanel({ config }) {
         title: item.title,
         category: item.category,
         description: item.description,
-        vibeScore: item.vibe_score || item.vibeScore,
         tools: Array.isArray(item.tools) ? item.tools : [],
         isDraft: item.is_draft || item.isDraft || false,
         prompt: item.prompt || '',
+        promptVars: Array.isArray(item.prompt_vars) ? item.prompt_vars : (Array.isArray(item.promptVars) ? item.promptVars : []),
         problems: Array.isArray(item.problems) ? item.problems : [],
-        benefits: Array.isArray(item.benefits) ? item.benefits : []
+        benefits: Array.isArray(item.benefits) ? item.benefits : [],
+        steps: Array.isArray(item.steps) ? item.steps : [],
+        results: item.results || '',
+        metrics: item.metrics || ''
       }));
       setItems(mapped);
     } catch (e) {
@@ -192,18 +318,22 @@ export default function CRMControlPanel({ config }) {
   };
 
   // CRUD actions
-  const handleSave = async (e) => {
-    e.preventDefault();
+  const handleSave = async (e, draftOverride = null) => {
+    if (e) e.preventDefault();
+    const finalDraftStatus = draftOverride !== null ? draftOverride : formData.isDraft;
     const formattedData = {
       title: formData.title,
       category: formData.category,
       description: formData.description,
-      vibe_score: parseInt(formData.vibeScore),
-      is_draft: formData.isDraft,
+      is_draft: finalDraftStatus,
       prompt: formData.prompt,
-      tools: typeof formData.tools === 'string' ? formData.tools.split(',').map(x => x.trim()).filter(Boolean) : formData.tools,
+      tools: formData.tools || [],
       problems: typeof formData.problems === 'string' ? formData.problems.split('\n').map(x => x.trim()).filter(Boolean) : formData.problems,
-      benefits: typeof formData.benefits === 'string' ? formData.benefits.split('\n').map(x => x.trim()).filter(Boolean) : formData.benefits
+      benefits: typeof formData.benefits === 'string' ? formData.benefits.split('\n').map(x => x.trim()).filter(Boolean) : formData.benefits,
+      steps: formData.steps || [],
+      results: formData.results || '',
+      metrics: formData.metrics || '',
+      prompt_vars: typeof formData.promptVars === 'string' ? formData.promptVars.split(',').map(x => x.trim()).filter(Boolean) : formData.promptVars
     };
 
     try {
@@ -212,10 +342,10 @@ export default function CRMControlPanel({ config }) {
         if (isEditing) {
           const idx = localItems.findIndex(i => i.id === selectedId);
           if (idx !== -1) {
-            localItems[idx] = { ...localItems[idx], ...formData, id: selectedId };
+            localItems[idx] = { ...localItems[idx], ...formData, id: selectedId, isDraft: finalDraftStatus };
           }
         } else {
-          const newItem = { ...formData, id: `term-${Date.now()}` };
+          const newItem = { ...formData, id: `term-${Date.now()}`, isDraft: finalDraftStatus };
           localItems.unshift(newItem);
         }
         localStorage.setItem(`glosaurio_${activeModule}`, JSON.stringify(localItems));
@@ -232,16 +362,20 @@ export default function CRMControlPanel({ config }) {
       // Reset Form
       setIsEditing(false);
       setSelectedId(null);
+      setShowForm(false);
       setFormData({
         title: '',
         category: 'Diseño & Marca',
         description: '',
-        vibeScore: 5,
-        tools: '',
+        tools: [],
         isDraft: false,
         prompt: '',
         problems: '',
-        benefits: ''
+        benefits: '',
+        steps: [{ label: '', detail: '' }],
+        results: '',
+        metrics: '',
+        promptVars: ''
       });
     } catch (err) {
       alert(`Error al guardar: ${err.message}`);
@@ -255,17 +389,40 @@ export default function CRMControlPanel({ config }) {
       title: item.title || '',
       category: item.category || 'Diseño & Marca',
       description: item.description || '',
-      vibeScore: item.vibeScore || 5,
-      tools: (item.tools || []).join(', '),
+      tools: item.tools || [],
       isDraft: item.isDraft || false,
       prompt: item.prompt || '',
       problems: (item.problems || []).join('\n'),
-      benefits: (item.benefits || []).join('\n')
+      benefits: (item.benefits || []).join('\n'),
+      steps: (item.steps && item.steps.length > 0) ? item.steps : [{ label: '', detail: '' }],
+      results: item.results || '',
+      metrics: item.metrics || '',
+      promptVars: (item.promptVars || []).join(', ')
     });
+
+    const hasSteps = !!(item.steps && item.steps.length > 0 && item.steps.some(s => (s.label || '').trim() || (s.detail || '').trim()));
+    const hasProblems = !!((item.problems && item.problems.length > 0) || (item.benefits && item.benefits.length > 0));
+    const hasMetrics = !!((item.results && item.results.trim()) || (item.metrics && item.metrics.trim()));
+    const hasPrompt = !!(item.prompt && item.prompt.trim());
+
+    setActivePanels({
+      steps: hasSteps,
+      problems: hasProblems,
+      metrics: hasMetrics,
+      prompt: hasPrompt
+    });
+
+    setExpandedSections({
+      identity: true,
+      steps: hasSteps,
+      problems: hasProblems,
+      metrics: hasMetrics,
+      prompt: hasPrompt
+    });
+    setShowForm(true);
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('¿Estás seguro de eliminar este término?')) return;
     try {
       if (config.provider === 'localStorage') {
         const filtered = items.filter(i => i.id !== id);
@@ -278,6 +435,147 @@ export default function CRMControlPanel({ config }) {
     } catch (err) {
       alert(`Error al eliminar: ${err.message}`);
     }
+  };
+
+  const handleDownloadTemplate = () => {
+    const template = {
+      title: "Ejemplo de Término",
+      category: "Diseño & Marca",
+      description: "Una descripción breve pero concisa del término.",
+      steps: [
+        {
+          label: "Paso 1: Inicialización",
+          detail: "Detalles del primer paso de implementación."
+        }
+      ],
+      problems: [
+        "Problema de ejemplo 1",
+        "Problema de ejemplo 2"
+      ],
+      benefits: [
+        "Beneficio de ejemplo 1",
+        "Beneficio de ejemplo 2"
+      ],
+      tools: [
+        "Figma",
+        "React"
+      ],
+      results: "Entregable final esperado.",
+      metrics: "Métricas para medir el impacto.",
+      prompt: "Actúa como un experto en [industria]...",
+      promptVars: [
+        "industria"
+      ],
+      isDraft: true
+    };
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify([template], null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `plantilla_${activeModule}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  };
+
+  const handleImportFile = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const parsed = JSON.parse(event.target.result);
+        const list = Array.isArray(parsed) ? parsed : [parsed];
+        
+        setLoadingData(true);
+        for (const item of list) {
+          const formattedData = {
+            title: item.title || "Término importado",
+            category: item.category || "Diseño & Marca",
+            description: item.description || "",
+            is_draft: item.isDraft !== undefined ? item.isDraft : true,
+            prompt: item.prompt || "",
+            tools: Array.isArray(item.tools) ? item.tools : [],
+            problems: Array.isArray(item.problems) ? item.problems : [],
+            benefits: Array.isArray(item.benefits) ? item.benefits : [],
+            steps: Array.isArray(item.steps) ? item.steps : [],
+            results: item.results || "",
+            metrics: item.metrics || "",
+            prompt_vars: Array.isArray(item.promptVars) ? item.promptVars : []
+          };
+          
+          if (config.provider === 'localStorage') {
+            const localItems = JSON.parse(localStorage.getItem(`glosaurio_${activeModule}`) || "[]");
+            const newItem = { ...formattedData, id: `term-${Date.now()}-${Math.random()}` };
+            localItems.unshift(newItem);
+            localStorage.setItem(`glosaurio_${activeModule}`, JSON.stringify(localItems));
+          } else {
+            await service.createItem(activeModule, formattedData);
+          }
+        }
+        alert("¡Datos importados con éxito!");
+        await fetchCMSData();
+      } catch (err) {
+        alert("Error al importar el JSON: " + err.message);
+      } finally {
+        setLoadingData(false);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = ''; // Reset file input
+  };
+
+  const handleUploadFormTemplate = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const parsed = JSON.parse(event.target.result);
+        const item = Array.isArray(parsed) ? parsed[0] : parsed;
+        if (!item) return;
+        
+        setFormData({
+          title: item.title || '',
+          category: item.category || 'Diseño & Marca',
+          description: item.description || '',
+          tools: Array.isArray(item.tools) ? item.tools : [],
+          isDraft: item.isDraft !== undefined ? item.isDraft : true,
+          prompt: item.prompt || '',
+          problems: Array.isArray(item.problems) ? item.problems.join('\n') : (item.problems || ''),
+          benefits: Array.isArray(item.benefits) ? item.benefits.join('\n') : (item.benefits || ''),
+          steps: Array.isArray(item.steps) ? item.steps : [{ label: '', detail: '' }],
+          results: item.results || '',
+          metrics: item.metrics || '',
+          promptVars: Array.isArray(item.promptVars) ? item.promptVars.join(', ') : (item.prompt_vars ? item.prompt_vars.join(', ') : (item.promptVars || ''))
+        });
+
+        const hasSteps = !!(item.steps && item.steps.length > 0 && item.steps.some(s => (s.label || '').trim() || (s.detail || '').trim()));
+        const hasProblems = !!((item.problems && item.problems.length > 0) || (item.benefits && item.benefits.length > 0));
+        const hasMetrics = !!((item.results && item.results.trim()) || (item.metrics && item.metrics.trim()));
+        const hasPrompt = !!(item.prompt && item.prompt.trim());
+
+        setActivePanels({
+          steps: hasSteps,
+          problems: hasProblems,
+          metrics: hasMetrics,
+          prompt: hasPrompt
+        });
+
+        setExpandedSections({
+          identity: true,
+          steps: hasSteps,
+          problems: hasProblems,
+          metrics: hasMetrics,
+          prompt: hasPrompt
+        });
+
+        alert("¡Formulario rellenado desde el archivo JSON!");
+      } catch (err) {
+        alert("Error al cargar el JSON: " + err.message);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = ''; // Reset file input
   };
 
   // Render Login View if not authenticated
@@ -355,122 +653,539 @@ export default function CRMControlPanel({ config }) {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Left Side: Term Creator Form */}
-        <form onSubmit={handleSave} className="lg:col-span-5 glass-card p-6 space-y-4">
-          <h3 className="font-headline-sm text-[var(--on-surface)]">
-            {isEditing ? '✏️ Editar Término' : '➕ Añadir Término'}
-          </h3>
-
-          <div>
-            <label className="font-label-md block mb-1">Título</label>
-            <input 
-              type="text" 
-              required
-              value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              className="form-input w-full"
-              placeholder="Ej. Design Tokens"
-            />
-          </div>
-
-          <div>
-            <label className="font-label-md block mb-1">Categoría</label>
-            <select 
-              value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-              className="form-input w-full"
-            >
-              <option value="Diseño & Marca">Diseño & Marca</option>
-              <option value="Vibe Coding">Vibe Coding</option>
-              <option value="Gestión">Gestión</option>
-              <option value="Automatización">Automatización</option>
-              <option value="Tech">Tech</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="font-label-md block mb-1">Descripción</label>
-            <textarea 
-              required
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="form-input w-full"
-              rows="3"
-              placeholder="Descripción breve..."
-            />
-          </div>
-
-          <div>
-            <label className="font-label-md block mb-1">Vibe Score: {formData.vibeScore}/10</label>
-            <input 
-              type="range" 
-              min="1" 
-              max="10"
-              value={formData.vibeScore}
-              onChange={(e) => setFormData({ ...formData, vibeScore: parseInt(e.target.value) })}
-              className="w-full accent-[var(--primary)]"
-            />
-          </div>
-
-          <div>
-            <label className="font-label-md block mb-1">Herramientas (separadas por comas)</label>
-            <input 
-              type="text" 
-              value={formData.tools}
-              onChange={(e) => setFormData({ ...formData, tools: e.target.value })}
-              className="form-input w-full"
-              placeholder="Ej. Figma, Notion, VS Code"
-            />
-          </div>
-
-          <div>
-            <label className="font-label-md block mb-1">Problemas que Resuelve (uno por línea)</label>
-            <textarea 
-              value={formData.problems}
-              onChange={(e) => setFormData({ ...formData, problems: e.target.value })}
-              className="form-input w-full"
-              rows="3"
-              placeholder="Problema 1&#10;Problema 2..."
-            />
-          </div>
-
-          <div>
-            <label className="font-label-md block mb-1">Beneficios Clave (uno por línea)</label>
-            <textarea 
-              value={formData.benefits}
-              onChange={(e) => setFormData({ ...formData, benefits: e.target.value })}
-              className="form-input w-full"
-              rows="3"
-              placeholder="Beneficio 1&#10;Beneficio 2..."
-            />
-          </div>
-
-          <div>
-            <label className="font-label-md block mb-1">Prompt Template</label>
-            <textarea 
-              value={formData.prompt}
-              onChange={(e) => setFormData({ ...formData, prompt: e.target.value })}
-              className="form-input w-full font-mono text-sm"
-              rows="4"
-              placeholder="Actúa como experto..."
-            />
-          </div>
-
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input 
-              type="checkbox" 
-              checked={formData.isDraft}
-              onChange={(e) => setFormData({ ...formData, isDraft: e.target.checked })}
-              style={{ accentColor: 'var(--primary)' }}
-            />
-            <span className="font-body-md">Guardar como borrador (no publicado)</span>
-          </label>
-
-          <div className="flex gap-3 pt-2">
-            {isEditing && (
+      {showForm ? (
+        <div className="space-y-6">
+          {/* Header del formulario */}
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-[var(--outline-variant)]">
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <button 
+                  onClick={() => {
+                    setIsEditing(false);
+                    setSelectedId(null);
+                    setShowForm(false);
+                  }}
+                  className="btn-icon" 
+                  title="Volver al listado"
+                >
+                  <span className="material-symbols-outlined text-sm">arrow_back</span>
+                </button>
+                <span className="chip chip-neutral">{isEditing ? 'Modo Edición' : 'Nuevo Término'}</span>
+              </div>
+              <h1 className="font-headline-lg text-3xl font-bold text-[var(--on-surface)]">Editor de Término</h1>
+              <p className="text-[var(--on-surface-variant)] max-w-2xl mt-1">
+                {isEditing ? 'Editando un término existente del glosario.' : 'Completa los campos para crear un nuevo término.'}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
               <button 
                 type="button" 
+                onClick={handleDownloadTemplate} 
+                className="btn-secondary"
+                title="Descargar plantilla JSON de ejemplo"
+              >
+                <span className="material-symbols-outlined text-sm">download</span>
+                Descargar Plantilla
+              </button>
+              <button 
+                type="button" 
+                onClick={() => document.getElementById('form-template-input').click()} 
+                className="btn-secondary"
+                title="Cargar JSON para rellenar este formulario"
+              >
+                <span className="material-symbols-outlined text-sm">upload_file</span>
+                Cargar Plantilla
+              </button>
+              <input 
+                type="file" 
+                id="form-template-input" 
+                accept=".json" 
+                className="hidden" 
+                onChange={handleUploadFormTemplate}
+              />
+              <button 
+                type="button" 
+                onClick={(e) => handleSave(e, true)} 
+                className="btn-secondary"
+              >
+                <span className="material-symbols-outlined text-sm">save</span>
+                Guardar Borrador
+              </button>
+              <button 
+                type="button" 
+                onClick={(e) => handleSave(e, false)} 
+                className="btn-primary"
+              >
+                <span className="material-symbols-outlined text-sm">publish</span>
+                Publicar en Glosario
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            {/* LEFT: Page Index (2 cols) */}
+            <nav className="hidden lg:block lg:col-span-2">
+              <div className="crm-index-container">
+                <p className="crm-index-title">En esta página</p>
+                <ul className="crm-index-list">
+                  <li><a href="#sec-identity" className="crm-index-link"><span className="material-symbols-outlined">fingerprint</span>Identidad</a></li>
+                  <li><a href="#sec-steps" className="crm-index-link"><span className="material-symbols-outlined">route</span>Proceso</a></li>
+                  <li><a href="#sec-problems" className="crm-index-link"><span className="material-symbols-outlined">balance</span>Problemas y Beneficios</a></li>
+                  <li><a href="#sec-metrics" className="crm-index-link"><span className="material-symbols-outlined">insights</span>Métricas</a></li>
+                  <li><a href="#sec-prompt" className="crm-index-link"><span className="material-symbols-outlined">prompt_suggestion</span>Prompt</a></li>
+                </ul>
+              </div>
+            </nav>
+
+            {/* MAIN FORM: (7 cols) */}
+            <div className="lg:col-span-7 space-y-6">
+              
+              {/* Identity Section */}
+              <section id="sec-identity" className="glass-panel p-8">
+                <h2 className="font-headline-sm mb-6 flex items-center gap-2" style={{ color: 'var(--on-surface)' }}>
+                  <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>fingerprint</span>
+                  Identidad del Término
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="flex flex-col gap-2">
+                    <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Título del Término *</label>
+                    <input 
+                      type="text" 
+                      required
+                      value={formData.title}
+                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                      placeholder="Ej: Vibe Coding Essentials" 
+                      className="form-input font-headline-sm" 
+                      style={{ fontSize: '1.1rem' }}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Categoría *</label>
+                    <div className="relative">
+                      <select 
+                        value={formData.category}
+                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                        className="form-select"
+                      >
+                        <option value="Diseño & Marca">🎨 Diseño &amp; Marca</option>
+                        <option value="Vibe Coding">⚡ Vibe Coding</option>
+                        <option value="Gestión">📋 Gestión de Proyectos</option>
+                        <option value="Automatización">🤖 Automatización</option>
+                        <option value="Tech">🔧 Tech &amp; Tooling</option>
+                      </select>
+                      <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-lg" style={{ color: 'var(--outline)' }}>expand_more</span>
+                    </div>
+                  </div>
+                  <div className="md:col-span-2 flex flex-col gap-2">
+                    <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Descripción Corta *</label>
+                    <textarea 
+                      required
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      placeholder="Descripción del término que aparecerá en la tarjeta del glosario..." 
+                      rows="3"
+                      className="form-textarea"
+                    />
+                  </div>
+                </div>
+              </section>
+
+              {/* Process Steps Section */}
+              {activePanels.steps && (
+                <section id="sec-steps" className="glass-panel p-8">
+                  <div className="flex items-center justify-between cursor-pointer select-none mb-6" onClick={() => toggleSection('steps')}>
+                    <h2 className="font-headline-sm flex items-center gap-2" style={{ color: 'var(--on-surface)', margin: 0 }}>
+                      <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>route</span>
+                      Proceso Paso a Paso
+                    </h2>
+                    <div className="flex items-center gap-2">
+                      <span className={`chip ${expandedSections.steps ? 'chip-primary' : 'chip-neutral'}`}>{expandedSections.steps ? 'Desplegado' : 'Plegado'}</span>
+                      <HoldToConfirmButton 
+                        onConfirm={() => {
+                          setActivePanels(prev => ({ ...prev, steps: false }));
+                          setFormData(prev => ({ ...prev, steps: [{ label: '', detail: '' }] }));
+                        }}
+                        className="btn-icon text-[var(--error)]"
+                        style={{ border: 'none', background: 'transparent', width: '28px', height: '28px' }}
+                        title="Mantén presionado para quitar sección"
+                      >
+                        <span className="material-symbols-outlined text-lg">delete</span>
+                      </HoldToConfirmButton>
+                      <span className="material-symbols-outlined transition-transform duration-200" style={{ transform: expandedSections.steps ? 'rotate(180deg)' : 'none' }}>expand_more</span>
+                    </div>
+                  </div>
+                  {expandedSections.steps && (
+                    <div className="space-y-4">
+                      {(formData.steps || []).map((step, idx) => (
+                        <div key={idx} className="flex flex-col gap-2 p-4 rounded-xl relative bg-[var(--surface-container-low)] border border-[var(--outline-variant)]">
+                          <div className="flex items-center justify-between">
+                            <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Paso {idx + 1}</label>
+                            <button 
+                              type="button" 
+                              onClick={() => removeStep(idx)}
+                              className="btn-icon" 
+                              style={{ width: '28px', height: '28px', color: 'var(--error)', border: 'none' }}
+                              title="Eliminar paso"
+                            >
+                              <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>close</span>
+                            </button>
+                          </div>
+                          <input 
+                            type="text" 
+                            placeholder="Título del paso" 
+                            value={step.label}
+                            onChange={(e) => handleStepChange(idx, 'label', e.target.value)}
+                            className="form-input" 
+                            style={{ padding: '10px 14px' }}
+                          />
+                          <textarea 
+                            placeholder="Descripción detallada del paso..." 
+                            rows="2" 
+                            value={step.detail}
+                            onChange={(e) => handleStepChange(idx, 'detail', e.target.value)}
+                            className="form-textarea" 
+                            style={{ padding: '10px 14px' }}
+                          />
+                        </div>
+                      ))}
+                      <button 
+                        type="button" 
+                        onClick={addStep} 
+                        className="mt-4 btn-secondary w-full justify-center"
+                      >
+                        <span className="material-symbols-outlined text-sm">add</span>
+                        Agregar Paso
+                      </button>
+                    </div>
+                  )}
+                </section>
+              )}
+
+              {/* Problems & Benefits Section */}
+              {activePanels.problems && (
+                <section id="sec-problems" className="glass-panel p-8">
+                  <div className="flex items-center justify-between cursor-pointer select-none mb-6" onClick={() => toggleSection('problems')}>
+                    <h2 className="font-headline-sm flex items-center gap-2" style={{ color: 'var(--on-surface)', margin: 0 }}>
+                      <span className="material-symbols-outlined" style={{ color: 'var(--secondary)' }}>balance</span>
+                      Problemas y Beneficios
+                    </h2>
+                    <div className="flex items-center gap-2">
+                      <span className={`chip ${expandedSections.problems ? 'chip-primary' : 'chip-neutral'}`}>{expandedSections.problems ? 'Desplegado' : 'Plegado'}</span>
+                      <HoldToConfirmButton 
+                        onConfirm={() => {
+                          setActivePanels(prev => ({ ...prev, problems: false }));
+                          setFormData(prev => ({ ...prev, problems: '', benefits: '' }));
+                        }}
+                        className="btn-icon text-[var(--error)]"
+                        style={{ border: 'none', background: 'transparent', width: '28px', height: '28px' }}
+                        title="Mantén presionado para quitar sección"
+                      >
+                        <span className="material-symbols-outlined text-lg">delete</span>
+                      </HoldToConfirmButton>
+                      <span className="material-symbols-outlined transition-transform duration-200" style={{ transform: expandedSections.problems ? 'rotate(180deg)' : 'none' }}>expand_more</span>
+                    </div>
+                  </div>
+                  {expandedSections.problems && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <div className="flex flex-col gap-2">
+                        <label className="font-label-md" style={{ color: 'var(--error)' }}>
+                          <span className="material-symbols-outlined text-sm">warning</span> Problemas que Resuelve
+                        </label>
+                        <textarea 
+                          value={formData.problems}
+                          onChange={(e) => setFormData({ ...formData, problems: e.target.value })}
+                          placeholder="Un problema por línea..." 
+                          rows="5"
+                          className="form-textarea"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <label className="font-label-md" style={{ color: 'var(--tertiary)' }}>
+                          <span className="material-symbols-outlined text-sm">check_circle</span> Beneficios Clave
+                        </label>
+                        <textarea 
+                          value={formData.benefits}
+                          onChange={(e) => setFormData({ ...formData, benefits: e.target.value })}
+                          placeholder="Un beneficio por línea..." 
+                          rows="5"
+                          className="form-textarea"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </section>
+              )}
+
+              {/* Results & Metrics Section */}
+              {activePanels.metrics && (
+                <section id="sec-metrics" className="glass-panel p-8">
+                  <div className="flex items-center justify-between cursor-pointer select-none mb-6" onClick={() => toggleSection('metrics')}>
+                    <h2 className="font-headline-sm flex items-center gap-2" style={{ color: 'var(--on-surface)', margin: 0 }}>
+                      <span className="material-symbols-outlined" style={{ color: 'var(--secondary)' }}>insights</span>
+                      Resultados y Métricas
+                    </h2>
+                    <div className="flex items-center gap-2">
+                      <span className={`chip ${expandedSections.metrics ? 'chip-primary' : 'chip-neutral'}`}>{expandedSections.metrics ? 'Desplegado' : 'Plegado'}</span>
+                      <HoldToConfirmButton 
+                        onConfirm={() => {
+                          setActivePanels(prev => ({ ...prev, metrics: false }));
+                          setFormData(prev => ({ ...prev, results: '', metrics: '' }));
+                        }}
+                        className="btn-icon text-[var(--error)]"
+                        style={{ border: 'none', background: 'transparent', width: '28px', height: '28px' }}
+                        title="Mantén presionado para quitar sección"
+                      >
+                        <span className="material-symbols-outlined text-lg">delete</span>
+                      </HoldToConfirmButton>
+                      <span className="material-symbols-outlined transition-transform duration-200" style={{ transform: expandedSections.metrics ? 'rotate(180deg)' : 'none' }}>expand_more</span>
+                    </div>
+                  </div>
+                  {expandedSections.metrics && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <div className="flex flex-col gap-2">
+                        <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Entregables Esperados</label>
+                        <textarea 
+                          value={formData.results}
+                          onChange={(e) => setFormData({ ...formData, results: e.target.value })}
+                          placeholder="¿Qué se obtiene al aplicar este término?" 
+                          rows="4"
+                          className="form-textarea"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <label class="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Métricas de Éxito</label>
+                        <textarea 
+                          value={formData.metrics}
+                          onChange={(e) => setFormData({ ...formData, metrics: e.target.value })}
+                          placeholder="¿Cómo saber si se aplicó correctamente?" 
+                          rows="4"
+                          className="form-textarea"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </section>
+              )}
+
+              {/* Prompt Template Section */}
+              {activePanels.prompt && (
+                <section id="sec-prompt" className="glass-panel p-8">
+                  <div className="flex items-center justify-between cursor-pointer select-none mb-6" onClick={() => toggleSection('prompt')}>
+                    <h2 className="font-headline-sm flex items-center gap-2" style={{ color: 'var(--on-surface)', margin: 0 }}>
+                      <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>prompt_suggestion</span>
+                      Prompt Template
+                    </h2>
+                    <div className="flex items-center gap-2">
+                      <span className={`chip ${expandedSections.prompt ? 'chip-primary' : 'chip-neutral'}`}>{expandedSections.prompt ? 'Desplegado' : 'Plegado'}</span>
+                      <HoldToConfirmButton 
+                        onConfirm={() => {
+                          setActivePanels(prev => ({ ...prev, prompt: false }));
+                          setFormData(prev => ({ ...prev, prompt: '', promptVars: '' }));
+                        }}
+                        className="btn-icon text-[var(--error)]"
+                        style={{ border: 'none', background: 'transparent', width: '28px', height: '28px' }}
+                        title="Mantén presionado para quitar sección"
+                      >
+                        <span className="material-symbols-outlined text-lg">delete</span>
+                      </HoldToConfirmButton>
+                      <span className="material-symbols-outlined transition-transform duration-200" style={{ transform: expandedSections.prompt ? 'rotate(180deg)' : 'none' }}>expand_more</span>
+                    </div>
+                  </div>
+                  {expandedSections.prompt && (
+                    <>
+                      <div className="flex flex-col gap-2 mb-4">
+                        <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Variables rápidas (separadas por coma)</label>
+                        <input 
+                          type="text" 
+                          value={formData.promptVars}
+                          onChange={(e) => setFormData({ ...formData, promptVars: e.target.value })}
+                          placeholder="Ej: nombre_marca, industria, tono" 
+                          className="form-input"
+                        />
+                      </div>
+                      <div className="code-editor">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex gap-2">
+                            <span className="w-3 h-3 rounded-full bg-[var(--error)]"></span>
+                            <span className="w-3 h-3 rounded-full bg-[var(--secondary)]"></span>
+                            <span className="w-3 h-3 rounded-full bg-[var(--primary)]"></span>
+                          </div>
+                          <span className="font-caption text-[var(--outline)]">prompt.md</span>
+                        </div>
+                        <textarea 
+                          value={formData.prompt}
+                          onChange={(e) => setFormData({ ...formData, prompt: e.target.value })}
+                          placeholder="/* Escribe aquí el prompt template */&#10;&#10;Actúa como un experto en [campo].&#10;Tu objetivo es..." 
+                          rows="10" 
+                          spellCheck="false"
+                          className="code-textarea"
+                        />
+                      </div>
+                    </>
+                  )}
+                </section>
+              )}
+            </div>
+
+            {/* SIDEBAR: (3 cols) */}
+            <aside className="lg:col-span-3 space-y-6">
+              {/* Associated Tools */}
+              <div className="glass-panel p-6">
+                <h3 className="font-headline-sm mb-4 text-[var(--on-surface)]">Herramientas Asociadas</h3>
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {(formData.tools || []).map((t, idx) => (
+                    <span key={idx} className="chip chip-primary" style={{ cursor: 'pointer' }}>
+                      {t}
+                      <button 
+                        type="button" 
+                        onClick={() => removeTool(idx)} 
+                        className="btn-remove-tool ml-1 bg-transparent border-none cursor-pointer color-inherit p-0 text-[12px]"
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input 
+                    type="text" 
+                    id="tool-input"
+                    placeholder="Añadir herramienta..." 
+                    className="form-input flex-1"
+                    style={{ padding: '10px 14px' }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addTool(e.target.value);
+                        e.target.value = '';
+                      }
+                    }}
+                  />
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      const input = document.getElementById('tool-input');
+                      if (input) {
+                        addTool(input.value);
+                        input.value = '';
+                      }
+                    }}
+                    className="btn-icon" 
+                    title="Agregar herramienta"
+                  >
+                    <span className="material-symbols-outlined text-sm">add</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Secciones Disponibles */}
+              {Object.values(activePanels).includes(false) && (
+                <div className="glass-panel p-6">
+                  <h3 className="font-headline-sm mb-4 text-[var(--on-surface)]">Añadir Secciones</h3>
+                  <p className="text-xs text-[var(--on-surface-variant)] mb-3">Secciones que no se muestran en el visor. Haz clic en una para agregarla al formulario:</p>
+                  <div className="flex flex-col gap-2">
+                    {!activePanels.steps && (
+                      <span onClick={() => { setActivePanels(p => ({...p, steps: true})); setExpandedSections(s => ({...s, steps: true})); }} className="chip chip-neutral justify-between cursor-pointer hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]" style={{ display: 'flex', width: '100%', padding: '10px 14px' }}>
+                        <span className="flex items-center gap-2">
+                          <span className="material-symbols-outlined text-sm">route</span>
+                          Proceso Paso a Paso
+                        </span>
+                        <span className="material-symbols-outlined text-sm">add</span>
+                      </span>
+                    )}
+                    {!activePanels.problems && (
+                      <span onClick={() => { setActivePanels(p => ({...p, problems: true})); setExpandedSections(s => ({...s, problems: true})); }} className="chip chip-neutral justify-between cursor-pointer hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]" style={{ display: 'flex', width: '100%', padding: '10px 14px' }}>
+                        <span className="flex items-center gap-2">
+                          <span className="material-symbols-outlined text-sm">balance</span>
+                          Problemas y Beneficios
+                        </span>
+                        <span className="material-symbols-outlined text-sm">add</span>
+                      </span>
+                    )}
+                    {!activePanels.metrics && (
+                      <span onClick={() => { setActivePanels(p => ({...p, metrics: true})); setExpandedSections(s => ({...s, metrics: true})); }} className="chip chip-neutral justify-between cursor-pointer hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]" style={{ display: 'flex', width: '100%', padding: '10px 14px' }}>
+                        <span className="flex items-center gap-2">
+                          <span className="material-symbols-outlined text-sm">insights</span>
+                          Resultados y Métricas
+                        </span>
+                        <span className="material-symbols-outlined text-sm">add</span>
+                      </span>
+                    )}
+                    {!activePanels.prompt && (
+                      <span onClick={() => { setActivePanels(p => ({...p, prompt: true})); setExpandedSections(s => ({...s, prompt: true})); }} className="chip chip-neutral justify-between cursor-pointer hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]" style={{ display: 'flex', width: '100%', padding: '10px 14px' }}>
+                        <span className="flex items-center gap-2">
+                          <span className="material-symbols-outlined text-sm">prompt_suggestion</span>
+                          Prompt Template
+                        </span>
+                        <span className="material-symbols-outlined text-sm">add</span>
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Editing Banner */}
+              {isEditing && (
+                <div className="glass-panel p-5" style={{ borderLeft: '4px solid var(--secondary)' }}>
+                  <p className="font-label-md mb-1 text-[var(--secondary)]">✏️ Modo Edición</p>
+                  <p className="font-body-md text-[var(--on-surface-variant)]">Editando: "{formData.title}"</p>
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      setIsEditing(false);
+                      setSelectedId(null);
+                      setShowForm(false);
+                    }} 
+                    className="btn-secondary mt-3 w-full justify-center text-sm"
+                    style={{ padding: '8px 14px' }}
+                  >
+                    Cancelar edición
+                  </button>
+                </div>
+              )}
+            </aside>
+          </div>
+        </div>
+      ) : (
+        /* Term List Table */
+        <div className="glass-card p-6 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <h3 className="font-headline-sm">Términos Registrados</h3>
+            <div className="flex items-center gap-3">
+              <input 
+                type="text" 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Buscar..."
+                className="form-input max-w-xs text-sm"
+                style={{ padding: '6px 12px' }}
+              />
+              <button 
+                onClick={handleDownloadTemplate}
+                className="btn-secondary flex items-center gap-2 text-sm whitespace-nowrap"
+                style={{ padding: '6px 16px' }}
+                title="Descargar plantilla JSON"
+              >
+                <span className="material-symbols-outlined text-sm">auto_awesome</span>
+                Plantilla IA
+              </button>
+              <button 
+                onClick={() => document.getElementById('import-file-input').click()}
+                className="btn-secondary flex items-center gap-2 text-sm whitespace-nowrap"
+                style={{ padding: '6px 16px' }}
+                title="Importar JSON"
+              >
+                <span className="material-symbols-outlined text-sm">upload_file</span>
+                Importar JSON
+              </button>
+              <input 
+                type="file" 
+                id="import-file-input" 
+                accept=".json" 
+                className="hidden" 
+                onChange={handleImportFile}
+              />
+              <button 
                 onClick={() => {
                   setIsEditing(false);
                   setSelectedId(null);
@@ -478,37 +1193,31 @@ export default function CRMControlPanel({ config }) {
                     title: '',
                     category: 'Diseño & Marca',
                     description: '',
-                    vibeScore: 5,
-                    tools: '',
+                    tools: [],
                     isDraft: false,
                     prompt: '',
                     problems: '',
-                    benefits: ''
+                    benefits: '',
+                    steps: [{ label: '', detail: '' }],
+                    results: '',
+                    metrics: '',
+                    promptVars: ''
                   });
+                  setActivePanels({
+                    steps: false,
+                    problems: false,
+                    metrics: false,
+                    prompt: false
+                  });
+                  setShowForm(true);
                 }}
-                className="btn-secondary flex-1 justify-center"
+                className="btn-primary flex items-center gap-2 text-sm whitespace-nowrap"
+                style={{ padding: '6px 16px' }}
               >
-                Cancelar
+                <span className="material-symbols-outlined text-sm">add</span>
+                Añadir Término
               </button>
-            )}
-            <button type="submit" className="btn-primary flex-1 justify-center">
-              {isEditing ? 'Actualizar' : 'Crear'}
-            </button>
-          </div>
-        </form>
-
-        {/* Right Side: Term List Table */}
-        <div className="lg:col-span-7 glass-card p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="font-headline-sm">Términos Registrados</h3>
-            <input 
-              type="text" 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar..."
-              className="form-input max-w-xs text-sm"
-              style={{ padding: '6px 12px' }}
-            />
+            </div>
           </div>
 
           {loadingData ? (
@@ -546,13 +1255,13 @@ export default function CRMControlPanel({ config }) {
                           >
                             <span className="material-symbols-outlined text-sm">edit</span>
                           </button>
-                          <button 
-                            onClick={() => handleDelete(item.id)}
+                          <HoldToConfirmButton 
+                            onConfirm={() => handleDelete(item.id)}
                             className="btn-icon text-sm inline-flex items-center justify-center text-[var(--error)]" 
-                            title="Eliminar"
+                            title="Mantén presionado para eliminar"
                           >
                             <span className="material-symbols-outlined text-sm">delete</span>
-                          </button>
+                          </HoldToConfirmButton>
                         </td>
                       </tr>
                     ))}
@@ -561,7 +1270,7 @@ export default function CRMControlPanel({ config }) {
             </div>
           )}
         </div>
-      </div>
+      )}
     </div>
   );
 }
