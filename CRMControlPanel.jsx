@@ -25,6 +25,7 @@ class SupabaseRESTService {
     const res = await fetch(`${this.url}/rest/v1/${collection}?select=*&order=created_at.desc`, {
       headers: this._headers()
     });
+    if (res.status === 401) throw new Error('Unauthorized');
     if (!res.ok) throw new Error('Error al obtener datos');
     return await res.json();
   }
@@ -35,6 +36,7 @@ class SupabaseRESTService {
       headers: this._headers(),
       body: JSON.stringify(item)
     });
+    if (res.status === 401) throw new Error('Unauthorized');
     if (!res.ok) throw new Error('Error al crear el registro');
     return await res.json();
   }
@@ -45,6 +47,7 @@ class SupabaseRESTService {
       headers: this._headers(),
       body: JSON.stringify(item)
     });
+    if (res.status === 401) throw new Error('Unauthorized');
     if (!res.ok) throw new Error('Error al actualizar el registro');
     return await res.json();
   }
@@ -54,6 +57,7 @@ class SupabaseRESTService {
       method: 'DELETE',
       headers: this._headers()
     });
+    if (res.status === 401) throw new Error('Unauthorized');
     if (!res.ok) throw new Error('Error al eliminar el registro');
     return await res.json();
   }
@@ -148,8 +152,10 @@ function HoldToConfirmButton({ onConfirm, children, className, style, title, dur
   );
 }
 
-export default function CRMControlPanel({ config }) {
-  const [session, setSession] = useState(null);
+export default function CRMControlPanel({ config, session: propSession, setSession: propSetSession }) {
+  const [localSession, setLocalSession] = useState(null);
+  const session = propSession !== undefined ? propSession : localSession;
+  const setSession = propSetSession || setLocalSession;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [authError, setAuthError] = useState('');
@@ -175,6 +181,9 @@ export default function CRMControlPanel({ config }) {
     results: '',
     metrics: '',
     promptVars: '',
+    recommendedScenarios: '',
+    criticalExclusions: '',
+    technicalExample: '',
     // Design Tokens fields
     brandName: '',
     colors: [{ hex: '', role: '', description: '' }],
@@ -182,12 +191,15 @@ export default function CRMControlPanel({ config }) {
     logos: [{ name: '', svgContent: '' }]
   });
   const [selectedId, setSelectedId] = useState(null);
+  const [templateDropdownOpen, setTemplateDropdownOpen] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
     identity: true,
     steps: true,
     problems: true,
     metrics: true,
-    prompt: true
+    prompt: true,
+    scenarios: true,
+    code: true
   });
 
   const toggleSection = (section) => {
@@ -199,6 +211,8 @@ export default function CRMControlPanel({ config }) {
     problems: false,
     metrics: false,
     prompt: false,
+    scenarios: false,
+    code: false,
     color: false,
     typography: false,
     logo: false
@@ -288,19 +302,19 @@ export default function CRMControlPanel({ config }) {
   // 1. Check local session storage on load
   useEffect(() => {
     if (config.provider === 'supabase') {
-      const cached = localStorage.getItem(`crm_session_${config.supabase.url}`);
+      const cached = localStorage.getItem(`crm_session_${config.supabase?.url}`);
       if (cached) {
         try {
           setSession(JSON.parse(cached));
         } catch (e) {
-          localStorage.removeItem(`crm_session_${config.supabase.url}`);
+          localStorage.removeItem(`crm_session_${config.supabase?.url}`);
         }
       }
     } else {
       // LocalStorage provider doesn't require session auth
       setSession({ local: true });
     }
-  }, [config]);
+  }, [config.provider, config.supabase?.url]);
 
   // 2. Fetch data once session is active
   useEffect(() => {
@@ -342,6 +356,9 @@ export default function CRMControlPanel({ config }) {
           promptVars: Array.isArray(item.prompt_vars) ? item.prompt_vars : (Array.isArray(item.promptVars) ? item.promptVars : []),
           problems: Array.isArray(item.problems) ? item.problems : [],
           benefits: Array.isArray(item.benefits) ? item.benefits : [],
+          recommendedScenarios: Array.isArray(item.recommended_scenarios) ? item.recommended_scenarios : (Array.isArray(item.recommendedScenarios) ? item.recommendedScenarios : []),
+          criticalExclusions: Array.isArray(item.critical_exclusions) ? item.critical_exclusions : (Array.isArray(item.criticalExclusions) ? item.criticalExclusions : []),
+          technicalExample: item.technical_example || item.technicalExample || '',
           steps: Array.isArray(item.steps) ? item.steps : [],
           results: item.results || '',
           metrics: item.metrics || ''
@@ -350,6 +367,13 @@ export default function CRMControlPanel({ config }) {
       setItems(mapped);
     } catch (e) {
       console.error('Error fetching CRM data:', e);
+      if (e.message === 'Unauthorized') {
+        if (config.provider === 'supabase') {
+          localStorage.removeItem(`crm_session_${config.supabase?.url}`);
+        }
+        setSession(null);
+        alert('Tu sesión ha expirado o las credenciales son inválidas. Por favor, inicia sesión de nuevo.');
+      }
     } finally {
       setLoadingData(false);
     }
@@ -403,6 +427,9 @@ export default function CRMControlPanel({ config }) {
         tools: formData.tools || [],
         problems: typeof formData.problems === 'string' ? formData.problems.split('\n').map(x => x.trim()).filter(Boolean) : formData.problems,
         benefits: typeof formData.benefits === 'string' ? formData.benefits.split('\n').map(x => x.trim()).filter(Boolean) : formData.benefits,
+        recommended_scenarios: typeof formData.recommendedScenarios === 'string' ? formData.recommendedScenarios.split('\n').map(x => x.trim()).filter(Boolean) : formData.recommendedScenarios,
+        critical_exclusions: typeof formData.criticalExclusions === 'string' ? formData.criticalExclusions.split('\n').map(x => x.trim()).filter(Boolean) : formData.criticalExclusions,
+        technical_example: formData.technicalExample || '',
         steps: formData.steps || [],
         results: formData.results || '',
         metrics: formData.metrics || '',
@@ -450,6 +477,9 @@ export default function CRMControlPanel({ config }) {
         results: '',
         metrics: '',
         promptVars: '',
+        recommendedScenarios: '',
+        criticalExclusions: '',
+        technicalExample: '',
         brandName: '',
         tokenName: '',
         tokenType: 'color',
@@ -463,7 +493,15 @@ export default function CRMControlPanel({ config }) {
         svgContent: ''
       });
     } catch (err) {
-      alert(`Error al guardar: ${err.message}`);
+      if (err.message === 'Unauthorized') {
+        if (config.provider === 'supabase') {
+          localStorage.removeItem(`crm_session_${config.supabase?.url}`);
+        }
+        setSession(null);
+        alert('Tu sesión ha expirado o las credenciales son inválidas. Por favor, inicia sesión de nuevo.');
+      } else {
+        alert(`Error al guardar: ${err.message}`);
+      }
     }
   };
 
@@ -499,6 +537,9 @@ export default function CRMControlPanel({ config }) {
         prompt: item.prompt || '',
         problems: (item.problems || []).join('\n'),
         benefits: (item.benefits || []).join('\n'),
+        recommendedScenarios: (item.recommendedScenarios || []).join('\n'),
+        criticalExclusions: (item.criticalExclusions || []).join('\n'),
+        technicalExample: item.technicalExample || '',
         steps: (item.steps && item.steps.length > 0) ? item.steps : [{ label: '', detail: '' }],
         results: item.results || '',
         metrics: item.metrics || '',
@@ -547,12 +588,16 @@ export default function CRMControlPanel({ config }) {
       const hasProblems = !!((item.problems && item.problems.length > 0) || (item.benefits && item.benefits.length > 0));
       const hasMetrics = !!((item.results && item.results.trim()) || (item.metrics && item.metrics.trim()));
       const hasPrompt = !!(item.prompt && item.prompt.trim());
+      const hasScenarios = !!((item.recommendedScenarios && item.recommendedScenarios.length > 0) || (item.criticalExclusions && item.criticalExclusions.length > 0));
+      const hasCode = !!(item.technicalExample && item.technicalExample.trim());
 
       setActivePanels({
         steps: hasSteps,
         problems: hasProblems,
         metrics: hasMetrics,
         prompt: hasPrompt,
+        scenarios: hasScenarios,
+        code: hasCode,
         color: false,
         typography: false,
         logo: false
@@ -564,6 +609,8 @@ export default function CRMControlPanel({ config }) {
         problems: hasProblems,
         metrics: hasMetrics,
         prompt: hasPrompt,
+        scenarios: hasScenarios,
+        code: hasCode,
         color: false,
         typography: false,
         logo: false
@@ -583,7 +630,15 @@ export default function CRMControlPanel({ config }) {
         await fetchCMSData();
       }
     } catch (err) {
-      alert(`Error al eliminar: ${err.message}`);
+      if (err.message === 'Unauthorized') {
+        if (config.provider === 'supabase') {
+          localStorage.removeItem(`crm_session_${config.supabase?.url}`);
+        }
+        setSession(null);
+        alert('Tu sesión ha expirado o las credenciales son inválidas. Por favor, inicia sesión de nuevo.');
+      } else {
+        alert(`Error al eliminar: ${err.message}`);
+      }
     }
   };
 
@@ -612,6 +667,16 @@ export default function CRMControlPanel({ config }) {
       ],
       results: "Entregable final esperado.",
       metrics: "Métricas para medir el impacto.",
+      recommendedScenarios: [
+        "Pantallas iterativas de planificación (Cartas Gantt, matrices RACI).",
+        "Formularios extensos o fichas de configuración general."
+      ],
+      criticalExclusions: [
+        "Colaboración multiusuario en tiempo real (provoca conflictos de sobreescritura).",
+        "Creación o eliminación de entidades principales.",
+        "Flujos financieros, transaccionales o de aprobación crítica."
+      ],
+      technicalExample: "// Hook de ciclo de vida estándar...\nuseEffect(() => {\n  return () => {\n    if (hasChangesRef.current) {\n      persistDataInDatabase(localStateRef.current);\n    }\n  };\n}, []);",
       prompt: "Actúa como un experto en [industria]...",
       promptVars: [
         "industria"
@@ -647,6 +712,9 @@ export default function CRMControlPanel({ config }) {
             tools: Array.isArray(item.tools) ? item.tools : [],
             problems: Array.isArray(item.problems) ? item.problems : [],
             benefits: Array.isArray(item.benefits) ? item.benefits : [],
+            recommended_scenarios: Array.isArray(item.recommendedScenarios) ? item.recommendedScenarios : [],
+            critical_exclusions: Array.isArray(item.criticalExclusions) ? item.criticalExclusions : [],
+            technical_example: item.technicalExample || '',
             steps: Array.isArray(item.steps) ? item.steps : [],
             results: item.results || "",
             metrics: item.metrics || "",
@@ -693,6 +761,9 @@ export default function CRMControlPanel({ config }) {
           prompt: item.prompt || '',
           problems: Array.isArray(item.problems) ? item.problems.join('\n') : (item.problems || ''),
           benefits: Array.isArray(item.benefits) ? item.benefits.join('\n') : (item.benefits || ''),
+          recommendedScenarios: Array.isArray(item.recommendedScenarios) ? item.recommendedScenarios.join('\n') : (item.recommendedScenarios || ''),
+          criticalExclusions: Array.isArray(item.criticalExclusions) ? item.criticalExclusions.join('\n') : (item.criticalExclusions || ''),
+          technicalExample: item.technicalExample || '',
           steps: Array.isArray(item.steps) ? item.steps : [{ label: '', detail: '' }],
           results: item.results || '',
           metrics: item.metrics || '',
@@ -703,12 +774,19 @@ export default function CRMControlPanel({ config }) {
         const hasProblems = !!((item.problems && item.problems.length > 0) || (item.benefits && item.benefits.length > 0));
         const hasMetrics = !!((item.results && item.results.trim()) || (item.metrics && item.metrics.trim()));
         const hasPrompt = !!(item.prompt && item.prompt.trim());
+        const hasScenarios = !!((item.recommendedScenarios && item.recommendedScenarios.length > 0) || (item.criticalExclusions && item.criticalExclusions.length > 0));
+        const hasCode = !!(item.technicalExample && item.technicalExample.trim());
 
         setActivePanels({
           steps: hasSteps,
           problems: hasProblems,
           metrics: hasMetrics,
-          prompt: hasPrompt
+          prompt: hasPrompt,
+          scenarios: hasScenarios,
+          code: hasCode,
+          color: false,
+          typography: false,
+          logo: false
         });
 
         setExpandedSections({
@@ -716,7 +794,12 @@ export default function CRMControlPanel({ config }) {
           steps: hasSteps,
           problems: hasProblems,
           metrics: hasMetrics,
-          prompt: hasPrompt
+          prompt: hasPrompt,
+          scenarios: hasScenarios,
+          code: hasCode,
+          color: false,
+          typography: false,
+          logo: false
         });
 
         alert("¡Formulario rellenado desde el archivo JSON!");
@@ -792,105 +875,103 @@ export default function CRMControlPanel({ config }) {
   return (
     <div className="space-y-8">
       {/* Header bar */}
-      <div className="flex items-center justify-between border-b border-[var(--outline-variant)] pb-4">
-        <div>
-          <span className="chip chip-neutral font-mono uppercase tracking-wider text-xs">Provider: {config.provider}</span>
-          <h2 className="font-headline-lg text-[var(--on-surface)] mt-1">
-            {activeModule === 'design_tokens' ? 'Gestión de Design Tokens / Marca' : 'Panel de Control de Alexandria'}
+      <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-[var(--outline-variant)] pb-4 gap-4">
+        <div className="flex items-center gap-4 flex-wrap">
+          {showForm && (
+            <button 
+              onClick={() => {
+                setIsEditing(false);
+                setSelectedId(null);
+                setShowForm(false);
+              }}
+              className="btn-icon shrink-0" 
+              title="Volver al listado"
+              style={{ width: '36px', height: '36px' }}
+            >
+              <span className="material-symbols-outlined text-sm">arrow_back</span>
+            </button>
+          )}
+          <h2 className="text-xl md:text-2xl font-bold text-[var(--on-surface)] whitespace-nowrap">
+            {showForm 
+              ? (activeModule === 'design_tokens' ? 'Editor de Design Tokens' : 'Editor de Término')
+              : (activeModule === 'design_tokens' ? 'Gestión de Design Tokens / Marca' : 'Panel de Control de Alexandria')}
           </h2>
-        </div>
-        <div className="flex items-center gap-3">
-          <a 
-            href="/crm-controlpanel/setup.html" 
-            className="btn-secondary flex items-center gap-2"
-            style={{ textDecoration: 'none' }}
-          >
-            <span className="material-symbols-outlined text-sm">settings</span>
-            Configurar BD
-          </a>
-          <button onClick={handleLogout} className="btn-secondary flex items-center gap-2">
-            <span className="material-symbols-outlined text-sm">logout</span>
-            Cerrar Sesión
-          </button>
-        </div>
-      </div>
-
-      {/* Module Selector Tabs */}
-      {config.activeModules && config.activeModules.length > 1 && (
-        <div className="flex gap-2 p-1 rounded-xl w-fit bg-[var(--surface-container-high)]">
-          {config.activeModules.map(modKey => {
-            const label = modKey === 'design_tokens' ? '🎨 Design Tokens' : (modKey === 'terms' ? '📚 Glosario' : modKey);
-            const isActive = activeModule === modKey;
-            return (
-              <button
-                key={modKey}
-                onClick={() => {
-                  setActiveModule(modKey);
-                  setShowForm(false);
-                  setIsEditing(false);
-                }}
-                className={`tab-btn ${isActive ? 'active' : ''}`}
-                style={{
-                  background: isActive ? 'var(--primary-container)' : 'transparent',
-                  color: isActive ? 'var(--on-primary-container)' : 'var(--on-surface-variant)',
-                  padding: '8px 16px',
-                  borderRadius: '8px',
-                  fontSize: '0.85rem',
-                  fontWeight: '600'
-                }}
-              >
-                {label}
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {showForm ? (
-        <div className="space-y-6">
-          {/* Header del formulario */}
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-[var(--outline-variant)]">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <button 
-                  onClick={() => {
-                    setIsEditing(false);
-                    setSelectedId(null);
-                    setShowForm(false);
-                  }}
-                  className="btn-icon" 
-                  title="Volver al listado"
-                >
-                  <span className="material-symbols-outlined text-sm">arrow_back</span>
-                </button>
-                <span className="chip chip-neutral">{isEditing ? 'Modo Edición' : (activeModule === 'design_tokens' ? 'Nuevo Token' : 'Nuevo Término')}</span>
-              </div>
-              <h1 className="font-headline-lg text-3xl font-bold text-[var(--on-surface)]">
-                {activeModule === 'design_tokens' ? 'Editor de Design Tokens' : 'Editor de Término'}
-              </h1>
-              <p className="text-[var(--on-surface-variant)] max-w-2xl mt-1">
-                {isEditing ? 'Editando un elemento existente.' : 'Completa los campos para crear un nuevo elemento.'}
-              </p>
+          
+          {/* Module Selector Tabs next to title */}
+          {config.activeModules && config.activeModules.length > 1 && (
+            <div className="flex gap-1 p-0.5 rounded-lg w-fit bg-[var(--surface-container-high)]">
+              {config.activeModules.map(modKey => {
+                const label = modKey === 'design_tokens' ? '🎨 Tokens' : (modKey === 'terms' ? '📚 Glosario' : modKey);
+                const isActive = activeModule === modKey;
+                return (
+                  <button
+                    key={modKey}
+                    onClick={() => {
+                      setActiveModule(modKey);
+                      setShowForm(false);
+                      setIsEditing(false);
+                    }}
+                    className={`tab-btn ${isActive ? 'active' : ''}`}
+                    style={{
+                      background: isActive ? 'var(--primary-container)' : 'transparent',
+                      color: isActive ? 'var(--on-primary-container)' : 'var(--on-surface-variant)',
+                      padding: '4px 12px',
+                      borderRadius: '6px',
+                      fontSize: '0.8rem',
+                      fontWeight: '600'
+                    }}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
             </div>
-            <div className="flex flex-wrap gap-3">
-              <button 
-                type="button" 
-                onClick={handleDownloadTemplate} 
-                className="btn-secondary"
-                title="Descargar plantilla JSON de ejemplo"
-              >
-                <span className="material-symbols-outlined text-sm">download</span>
-                Descargar Plantilla
-              </button>
-              <button 
-                type="button" 
-                onClick={() => document.getElementById('form-template-input').click()} 
-                className="btn-secondary"
-                title="Cargar JSON para rellenar este formulario"
-              >
-                <span className="material-symbols-outlined text-sm">upload_file</span>
-                Cargar Plantilla
-              </button>
+          )}
+        </div>
+
+        {/* Right Action Row */}
+        <div className="flex flex-wrap items-center gap-3">
+          {showForm ? (
+            <>
+              {/* Dropdown for Plantilla actions */}
+              <div className="relative">
+                <button 
+                  type="button" 
+                  onClick={() => setTemplateDropdownOpen(!templateDropdownOpen)} 
+                  className="btn-secondary flex items-center gap-2"
+                  style={{ padding: '8px 16px', fontSize: '0.85rem' }}
+                >
+                  <span className="material-symbols-outlined text-sm">folder_open</span>
+                  Plantilla
+                  <span className="material-symbols-outlined text-sm">expand_more</span>
+                </button>
+                {templateDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-max rounded-xl bg-[var(--surface-container-high)] border border-[var(--outline-variant)] shadow-lg z-50 py-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleDownloadTemplate();
+                        setTemplateDropdownOpen(false);
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm text-[var(--on-surface)] hover:bg-[var(--surface-container-highest)] flex items-center gap-2 border-none bg-transparent cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-sm">download</span>
+                      Descargar Plantilla
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        document.getElementById('form-template-input').click();
+                        setTemplateDropdownOpen(false);
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm text-[var(--on-surface)] hover:bg-[var(--surface-container-highest)] flex items-center gap-2 border-none bg-transparent cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-sm">upload_file</span>
+                      Cargar Plantilla
+                    </button>
+                  </div>
+                )}
+              </div>
               <input 
                 type="file" 
                 id="form-template-input" 
@@ -902,6 +983,7 @@ export default function CRMControlPanel({ config }) {
                 type="button" 
                 onClick={(e) => handleSave(e, true)} 
                 className="btn-secondary"
+                style={{ padding: '8px 16px', fontSize: '0.85rem' }}
               >
                 <span className="material-symbols-outlined text-sm">save</span>
                 Guardar Borrador
@@ -910,41 +992,24 @@ export default function CRMControlPanel({ config }) {
                 type="button" 
                 onClick={(e) => handleSave(e, false)} 
                 className="btn-primary"
+                style={{ padding: '8px 16px', fontSize: '0.85rem' }}
               >
                 <span className="material-symbols-outlined text-sm">publish</span>
                 {activeModule === 'design_tokens' ? 'Publicar Token' : 'Publicar en Glosario'}
               </button>
-            </div>
-          </div>
+            </>
+          ) : (
+            <span className="chip chip-neutral font-mono uppercase tracking-wider text-xs">Provider: {config.provider}</span>
+          )}
+        </div>
+      </div>
+
+      {showForm ? (
+        <div className="space-y-6">
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            {/* LEFT: Page Index (2 cols) */}
-            <nav className="hidden lg:block lg:col-span-2">
-              <div className="crm-index-container">
-                <p className="crm-index-title">En esta página</p>
-                <ul className="crm-index-list">
-                  {activeModule === 'design_tokens' ? (
-                    <>
-                      <li><a href="#sec-identity" className="crm-index-link"><span className="material-symbols-outlined">palette</span>Identidad</a></li>
-                      {activePanels.color && <li><a href="#sec-color" className="crm-index-link"><span className="material-symbols-outlined">color_lens</span>Colores</a></li>}
-                      {activePanels.typography && <li><a href="#sec-typography" className="crm-index-link"><span className="material-symbols-outlined">text_fields</span>Tipografía</a></li>}
-                      {activePanels.logo && <li><a href="#sec-logo" className="crm-index-link"><span className="material-symbols-outlined">crop_schema</span>Logo SVG</a></li>}
-                    </>
-                  ) : (
-                    <>
-                      <li><a href="#sec-identity" className="crm-index-link"><span className="material-symbols-outlined">fingerprint</span>Identidad</a></li>
-                      <li><a href="#sec-steps" className="crm-index-link"><span className="material-symbols-outlined">route</span>Proceso</a></li>
-                      <li><a href="#sec-problems" className="crm-index-link"><span className="material-symbols-outlined">balance</span>Problemas y Beneficios</a></li>
-                      <li><a href="#sec-metrics" className="crm-index-link"><span className="material-symbols-outlined">insights</span>Métricas</a></li>
-                      <li><a href="#sec-prompt" className="crm-index-link"><span className="material-symbols-outlined">prompt_suggestion</span>Prompt</a></li>
-                    </>
-                  )}
-                </ul>
-              </div>
-            </nav>
-
-            {/* MAIN FORM: (7 cols) */}
-            <div className="lg:col-span-7 space-y-6">
+            {/* MAIN FORM: (9 cols) */}
+            <div className="lg:col-span-9 space-y-6">
               {activeModule === 'design_tokens' ? (
                 <>
                   {/* Token Identity Section */}
@@ -1492,6 +1557,104 @@ export default function CRMControlPanel({ config }) {
                       )}
                     </section>
                   )}
+
+                  {/* Scenarios Section */}
+                  {activePanels.scenarios && (
+                    <section id="sec-scenarios" className="glass-panel p-8">
+                      <div className="flex items-center justify-between cursor-pointer select-none mb-6" onClick={() => toggleSection('scenarios')}>
+                        <h2 className="font-headline-sm flex items-center gap-2" style={{ color: 'var(--on-surface)', margin: 0 }}>
+                          <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>check_circle</span>
+                          Casos de Uso y Contraindicaciones
+                        </h2>
+                        <div className="flex items-center gap-2">
+                          <span className={`chip ${expandedSections.scenarios ? 'chip-primary' : 'chip-neutral'}`}>{expandedSections.scenarios ? 'Desplegado' : 'Plegado'}</span>
+                          <HoldToConfirmButton 
+                            onConfirm={() => {
+                              setActivePanels(prev => ({ ...prev, scenarios: false }));
+                              setFormData(prev => ({ ...prev, recommendedScenarios: '', criticalExclusions: '' }));
+                            }}
+                            className="btn-icon text-[var(--error)]"
+                            style={{ border: 'none', background: 'transparent', width: '28px', height: '28px' }}
+                            title="Mantén presionado para quitar sección"
+                          >
+                            <span className="material-symbols-outlined text-lg">delete</span>
+                          </HoldToConfirmButton>
+                          <span className="material-symbols-outlined transition-transform duration-200" style={{ transform: expandedSections.scenarios ? 'rotate(180deg)' : 'none' }}>expand_more</span>
+                        </div>
+                      </div>
+                      {expandedSections.scenarios && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                          <div className="flex flex-col gap-2">
+                            <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Dónde SÍ aplicarlo / Casos de Uso Ideales (uno por línea)</label>
+                            <textarea 
+                              value={formData.recommendedScenarios}
+                              onChange={(e) => setFormData({ ...formData, recommendedScenarios: e.target.value })}
+                              placeholder="Ej: Pantallas iterativas de planificación (Cartas Gantt, matrices RACI)&#10;Formularios extensos o fichas de configuración" 
+                              rows="4"
+                              className="form-textarea text-sm"
+                            />
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Dónde NO aplicarlo / Contraindicaciones (uno por línea)</label>
+                            <textarea 
+                              value={formData.criticalExclusions}
+                              onChange={(e) => setFormData({ ...formData, criticalExclusions: e.target.value })}
+                              placeholder="Ej: Colaboración multiusuario en tiempo real&#10;Creación o eliminación de entidades principales" 
+                              rows="4"
+                              className="form-textarea text-sm"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </section>
+                  )}
+
+                  {/* Technical Example / Code Snippet Section */}
+                  {activePanels.code && (
+                    <section id="sec-code" className="glass-panel p-8">
+                      <div className="flex items-center justify-between cursor-pointer select-none mb-6" onClick={() => toggleSection('code')}>
+                        <h2 className="font-headline-sm flex items-center gap-2" style={{ color: 'var(--on-surface)', margin: 0 }}>
+                          <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>code</span>
+                          Snippet de Código / Ejemplo Técnico
+                        </h2>
+                        <div className="flex items-center gap-2">
+                          <span className={`chip ${expandedSections.code ? 'chip-primary' : 'chip-neutral'}`}>{expandedSections.code ? 'Desplegado' : 'Plegado'}</span>
+                          <HoldToConfirmButton 
+                            onConfirm={() => {
+                              setActivePanels(prev => ({ ...prev, code: false }));
+                              setFormData(prev => ({ ...prev, technicalExample: '' }));
+                            }}
+                            className="btn-icon text-[var(--error)]"
+                            style={{ border: 'none', background: 'transparent', width: '28px', height: '28px' }}
+                            title="Mantén presionado para quitar sección"
+                          >
+                            <span className="material-symbols-outlined text-lg">delete</span>
+                          </HoldToConfirmButton>
+                          <span className="material-symbols-outlined transition-transform duration-200" style={{ transform: expandedSections.code ? 'rotate(180deg)' : 'none' }}>expand_more</span>
+                        </div>
+                      </div>
+                      {expandedSections.code && (
+                        <div className="code-editor">
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="flex gap-2">
+                              <span className="w-3 h-3 rounded-full bg-[var(--error)]"></span>
+                              <span className="w-3 h-3 rounded-full bg-[var(--secondary)]"></span>
+                              <span className="w-3 h-3 rounded-full bg-[var(--primary)]"></span>
+                            </div>
+                            <span className="font-caption text-[var(--outline)]">example.ts</span>
+                          </div>
+                          <textarea 
+                            value={formData.technicalExample}
+                            onChange={(e) => setFormData({ ...formData, technicalExample: e.target.value })}
+                            placeholder="// Escribe aquí tu snippet de código o implementación estándar..." 
+                            rows="10" 
+                            spellCheck="false"
+                            className="code-textarea"
+                          />
+                        </div>
+                      )}
+                    </section>
+                  )}
                 </>
               )}
             </div>
@@ -1552,6 +1715,52 @@ export default function CRMControlPanel({ config }) {
                 </div>
               ) : (
                 <>
+                  {/* Secciones Disponibles */}
+                  {activeModule !== 'design_tokens' && Object.values(activePanels).includes(false) && (
+                    <div className="glass-panel p-6">
+                      <h3 className="font-headline-sm mb-2 text-[var(--on-surface)]">Añadir Secciones</h3>
+                      <p className="text-xs text-[var(--on-surface-variant)] mb-4">Haz clic en una sección para agregarla al formulario:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {!activePanels.steps && (
+                          <span onClick={() => { setActivePanels(p => ({...p, steps: true})); setExpandedSections(s => ({...s, steps: true})); }} className="chip chip-neutral cursor-pointer hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]" style={{ display: 'inline-flex', padding: '6px 12px', fontSize: '0.75rem', textTransform: 'none', letterSpacing: 'normal' }}>
+                            <span className="material-symbols-outlined text-sm mr-1">route</span>
+                            Proceso Paso a Paso
+                          </span>
+                        )}
+                        {!activePanels.problems && (
+                          <span onClick={() => { setActivePanels(p => ({...p, problems: true})); setExpandedSections(s => ({...s, problems: true})); }} className="chip chip-neutral cursor-pointer hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]" style={{ display: 'inline-flex', padding: '6px 12px', fontSize: '0.75rem', textTransform: 'none', letterSpacing: 'normal' }}>
+                            <span className="material-symbols-outlined text-sm mr-1">balance</span>
+                            Problemas y Beneficios
+                          </span>
+                        )}
+                        {!activePanels.scenarios && (
+                          <span onClick={() => { setActivePanels(p => ({...p, scenarios: true})); setExpandedSections(s => ({...s, scenarios: true})); }} className="chip chip-neutral cursor-pointer hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]" style={{ display: 'inline-flex', padding: '6px 12px', fontSize: '0.75rem', textTransform: 'none', letterSpacing: 'normal' }}>
+                            <span className="material-symbols-outlined text-sm mr-1">check_circle</span>
+                            Casos de Uso SÍ/NO
+                          </span>
+                        )}
+                        {!activePanels.metrics && (
+                          <span onClick={() => { setActivePanels(p => ({...p, metrics: true})); setExpandedSections(s => ({...s, metrics: true})); }} className="chip chip-neutral cursor-pointer hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]" style={{ display: 'inline-flex', padding: '6px 12px', fontSize: '0.75rem', textTransform: 'none', letterSpacing: 'normal' }}>
+                            <span className="material-symbols-outlined text-sm mr-1">insights</span>
+                            Resultados y Métricas
+                          </span>
+                        )}
+                        {!activePanels.prompt && (
+                          <span onClick={() => { setActivePanels(p => ({...p, prompt: true})); setExpandedSections(s => ({...s, prompt: true})); }} className="chip chip-neutral cursor-pointer hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]" style={{ display: 'inline-flex', padding: '6px 12px', fontSize: '0.75rem', textTransform: 'none', letterSpacing: 'normal' }}>
+                            <span className="material-symbols-outlined text-sm mr-1">prompt_suggestion</span>
+                            Prompt Template
+                          </span>
+                        )}
+                        {!activePanels.code && (
+                          <span onClick={() => { setActivePanels(p => ({...p, code: true})); setExpandedSections(s => ({...s, code: true})); }} className="chip chip-neutral cursor-pointer hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]" style={{ display: 'inline-flex', padding: '6px 12px', fontSize: '0.75rem', textTransform: 'none', letterSpacing: 'normal' }}>
+                            <span className="material-symbols-outlined text-sm mr-1">code</span>
+                            Ejemplo Técnico / Código
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Associated Tools */}
                   <div className="glass-panel p-6">
                     <h3 className="font-headline-sm mb-4 text-[var(--on-surface)]">Herramientas Asociadas</h3>
@@ -1603,52 +1812,6 @@ export default function CRMControlPanel({ config }) {
                 </>
               )}
 
-              {/* Secciones Disponibles */}
-              {activeModule !== 'design_tokens' && Object.values(activePanels).includes(false) && (
-                <div className="glass-panel p-6">
-                  <h3 className="font-headline-sm mb-4 text-[var(--on-surface)]">Añadir Secciones</h3>
-                  <p className="text-xs text-[var(--on-surface-variant)] mb-3">Secciones que no se muestran en el visor. Haz clic en una para agregarla al formulario:</p>
-                  <div className="flex flex-col gap-2">
-                    {!activePanels.steps && (
-                      <span onClick={() => { setActivePanels(p => ({...p, steps: true})); setExpandedSections(s => ({...s, steps: true})); }} className="chip chip-neutral justify-between cursor-pointer hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]" style={{ display: 'flex', width: '100%', padding: '10px 14px' }}>
-                        <span className="flex items-center gap-2">
-                          <span className="material-symbols-outlined text-sm">route</span>
-                          Proceso Paso a Paso
-                        </span>
-                        <span className="material-symbols-outlined text-sm">add</span>
-                      </span>
-                    )}
-                    {!activePanels.problems && (
-                      <span onClick={() => { setActivePanels(p => ({...p, problems: true})); setExpandedSections(s => ({...s, problems: true})); }} className="chip chip-neutral justify-between cursor-pointer hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]" style={{ display: 'flex', width: '100%', padding: '10px 14px' }}>
-                        <span className="flex items-center gap-2">
-                          <span className="material-symbols-outlined text-sm">balance</span>
-                          Problemas y Beneficios
-                        </span>
-                        <span className="material-symbols-outlined text-sm">add</span>
-                      </span>
-                    )}
-                    {!activePanels.metrics && (
-                      <span onClick={() => { setActivePanels(p => ({...p, metrics: true})); setExpandedSections(s => ({...s, metrics: true})); }} className="chip chip-neutral justify-between cursor-pointer hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]" style={{ display: 'flex', width: '100%', padding: '10px 14px' }}>
-                        <span className="flex items-center gap-2">
-                          <span className="material-symbols-outlined text-sm">insights</span>
-                          Resultados y Métricas
-                        </span>
-                        <span className="material-symbols-outlined text-sm">add</span>
-                      </span>
-                    )}
-                    {!activePanels.prompt && (
-                      <span onClick={() => { setActivePanels(p => ({...p, prompt: true})); setExpandedSections(s => ({...s, prompt: true})); }} className="chip chip-neutral justify-between cursor-pointer hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]" style={{ display: 'flex', width: '100%', padding: '10px 14px' }}>
-                        <span className="flex items-center gap-2">
-                          <span className="material-symbols-outlined text-sm">prompt_suggestion</span>
-                          Prompt Template
-                        </span>
-                        <span className="material-symbols-outlined text-sm">add</span>
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )}
-
               {/* Editing Banner */}
               {isEditing && (
                 <div className="glass-panel p-5" style={{ borderLeft: '4px solid var(--secondary)' }}>
@@ -1673,7 +1836,7 @@ export default function CRMControlPanel({ config }) {
         </div>
       ) : (
         /* Term List Table */
-        <div className="glass-card p-6 space-y-4">
+        <div className="glass-panel p-6 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <h3 className="font-headline-sm">Términos Registrados</h3>
             <div className="flex items-center gap-3">

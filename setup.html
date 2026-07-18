@@ -527,23 +527,26 @@ CREATE POLICY "public_read_categories" ON public.cms_categories FOR SELECT USING
 CREATE POLICY "anon_all_categories" ON public.cms_categories FOR ALL USING (true) WITH CHECK (true);`,
 
   terms: `CREATE TABLE IF NOT EXISTS public.terms (
-  id          uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  title       text NOT NULL,
-  category    text NOT NULL,
-  description text DEFAULT '',
-  video_url   text DEFAULT '',
-  steps       jsonb DEFAULT '[]',
-  problems    text[] DEFAULT '{}',
-  benefits    text[] DEFAULT '{}',
-  tools       text[] DEFAULT '{}',
-  results     text DEFAULT '',
-  metrics     text DEFAULT '',
-  prompt      text DEFAULT '',
-  prompt_vars text[] DEFAULT '{}',
-  vibe_score  integer DEFAULT 5,
-  is_draft    boolean DEFAULT false,
-  created_at  timestamptz DEFAULT now(),
-  updated_at  timestamptz DEFAULT now()
+  id                    uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  title                 text NOT NULL,
+  category              text NOT NULL,
+  description           text DEFAULT '',
+  video_url             text DEFAULT '',
+  steps                 jsonb DEFAULT '[]',
+  problems              text[] DEFAULT '{}',
+  benefits              text[] DEFAULT '{}',
+  tools                 text[] DEFAULT '{}',
+  results               text DEFAULT '',
+  metrics               text DEFAULT '',
+  prompt                text DEFAULT '',
+  prompt_vars           text[] DEFAULT '{}',
+  recommended_scenarios text[] DEFAULT '{}',
+  critical_exclusions   text[] DEFAULT '{}',
+  technical_example     text DEFAULT '',
+  vibe_score            integer DEFAULT 5,
+  is_draft              boolean DEFAULT false,
+  created_at            timestamptz DEFAULT now(),
+  updated_at            timestamptz DEFAULT now()
 );
 
 -- RLS & Policies
