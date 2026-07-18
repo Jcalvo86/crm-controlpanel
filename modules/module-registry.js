@@ -107,5 +107,22 @@ window.Glosaurio.CMS_MODULES = {
       },
       { id: 'isDraft', label: 'Borrador', type: 'boolean', default: true }
     ]
+  },
+
+  // ── 🎨 MÓDULO DESIGN TOKENS ───────────────────────────────────
+  design_tokens: {
+    id: 'design_tokens',
+    label: 'Design Tokens / Marca',
+    icon: 'palette',
+    description: 'Gestiona la paleta de colores, tipografías y logos SVG de tus marcas.',
+    collection: 'design_tokens',
+    titleField: 'brandName',
+    schema: [
+      { id: 'brandName', label: 'Nombre de la Marca', type: 'text', required: true, placeholder: 'Ej: Glosaurio, Nike' },
+      { id: 'colors', label: 'Colores', type: 'json' },
+      { id: 'typographies', label: 'Tipografías', type: 'json' },
+      { id: 'logos', label: 'Logos SVG', type: 'json' },
+      { id: 'isDraft', label: 'Borrador', type: 'boolean', default: true }
+    ]
   }
 };

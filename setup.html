@@ -37,6 +37,7 @@
   <script src="adapters/adapter-interface.js"></script>
   <script src="adapters/supabase-adapter.js"></script>
   <script src="adapters/firebase-adapter.js"></script>
+  <script src="../supabase-config.js"></script>
   <script src="crm-config.js"></script>
   <script src="data-source-config.js"></script>
 </head>
@@ -53,6 +54,9 @@
     </a>
     <div class="flex items-center gap-3">
       <span class="chip chip-neutral">Configuración</span>
+      <button id="btn-header-reset" class="btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;" title="Restablecer configuración del CMS">
+        Restablecer
+      </button>
       <button id="btn-theme" class="btn-icon" title="Cambiar tema">
         <span class="material-symbols-outlined" id="theme-icon">light_mode</span>
       </button>
@@ -70,36 +74,79 @@
       <h1 class="font-headline-lg mb-3" style="color: var(--on-surface);">Configura tu fuente de datos</h1>
       <p class="font-body-lg" style="color: var(--on-surface-variant);">Elige dónde almacenarás los términos de Glosaurio. Puedes cambiar esto en cualquier momento.</p>
     </div>
-    <!-- Step Indicators -->
-    <div class="flex items-center justify-center gap-0 mb-12 flex-wrap" id="step-indicators">
-      <div class="step-indicator flex items-center gap-2" data-step="1">
-        <div id="dot-1" class="w-9 h-9 rounded-full flex items-center justify-center font-label-md text-sm transition-all" style="background: var(--primary-container); color: var(--on-primary-container);">1</div>
-        <span class="font-label-md text-sm" style="color: var(--on-surface-variant);">Proveedor</span>
+    <!-- Active Config Status Panel (visible when already configured) -->
+    <div id="active-status-panel" class="hidden glass-panel p-8 mb-8 relative overflow-hidden">
+      <div class="absolute top-0 right-0 w-32 h-32 bg-[var(--primary)] opacity-5 rounded-full blur-2xl"></div>
+      <div class="flex items-center gap-3 mb-6">
+        <span class="material-symbols-outlined text-[var(--primary)] text-3xl">database</span>
+        <div>
+          <h2 class="font-headline-sm" style="color: var(--on-surface);">Conexión de Datos Activa</h2>
+          <p class="text-xs text-[var(--on-surface-variant)]">El sistema está conectado y funcionando correctamente con tu origen de datos.</p>
+        </div>
       </div>
-      <div class="w-10 h-0.5 mx-2 bg-outline-variant" style="background: var(--outline-variant);"></div>
-      <div class="step-indicator flex items-center gap-2" data-step="2">
-        <div id="dot-2" class="w-9 h-9 rounded-full flex items-center justify-center font-label-md text-sm" style="background: var(--surface-container-high); color: var(--on-surface-variant);">2</div>
-        <span class="font-label-md text-sm" style="color: var(--on-surface-variant);">Credenciales</span>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 border-b border-[var(--outline-variant)] pb-6 mb-6">
+        <div class="space-y-2">
+          <span class="text-xs text-[var(--outline)] uppercase font-mono tracking-wider block">Proveedor Activo</span>
+          <div id="status-provider-badge">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+        <div class="space-y-2">
+          <span class="text-xs text-[var(--outline)] uppercase font-mono tracking-wider block">Módulos Activos</span>
+          <div class="flex flex-wrap gap-2 mt-1" id="status-active-modules">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
       </div>
-      <div class="w-10 h-0.5 mx-2 bg-outline-variant" style="background: var(--outline-variant);"></div>
-      <div class="step-indicator flex items-center gap-2" data-step="3">
-        <div id="dot-3" class="w-9 h-9 rounded-full flex items-center justify-center font-label-md text-sm" style="background: var(--surface-container-high); color: var(--on-surface-variant);">3</div>
-        <span class="font-label-md text-sm" style="color: var(--on-surface-variant);">Conexión</span>
-      </div>
-      <div class="w-10 h-0.5 mx-2 bg-outline-variant" style="background: var(--outline-variant);"></div>
-      <div class="step-indicator flex items-center gap-2" data-step="4">
-        <div id="dot-4" class="w-9 h-9 rounded-full flex items-center justify-center font-label-md text-sm" style="background: var(--surface-container-high); color: var(--on-surface-variant);">4</div>
-        <span class="font-label-md text-sm" style="color: var(--on-surface-variant);">Módulos</span>
-      </div>
-      <div class="w-10 h-0.5 mx-2 bg-outline-variant" style="background: var(--outline-variant);"></div>
-      <div class="step-indicator flex items-center gap-2" data-step="5">
-        <div id="dot-5" class="w-9 h-9 rounded-full flex items-center justify-center font-label-md text-sm" style="background: var(--surface-container-high); color: var(--on-surface-variant);">5</div>
-        <span class="font-label-md text-sm" style="color: var(--on-surface-variant);">Activar</span>
+
+      <div class="flex flex-wrap gap-3 items-center">
+        <button id="btn-modify-config" class="btn-secondary flex items-center gap-2">
+          <span class="material-symbols-outlined text-sm">database</span>
+          Cambiar Origen de Datos
+        </button>
+        <button id="btn-manage-modules" class="btn-secondary flex items-center gap-2">
+          <span class="material-symbols-outlined text-sm">settings_applications</span>
+          Administrar Módulos
+        </button>
+        <a href="index.html" class="btn-primary flex items-center gap-2 ml-auto">
+          Ir al Panel de Control
+          <span class="material-symbols-outlined text-sm">arrow_forward</span>
+        </a>
       </div>
     </div>
 
-    <!-- ─── STEP 1: Choose Provider ─────────────────────── -->
-    <div id="step-1" class="step-content active">
+    <div id="wizard-flow-wrapper">
+      <!-- Step Indicators -->
+      <div class="flex items-center justify-center gap-0 mb-12 flex-wrap" id="step-indicators">
+        <div class="step-indicator flex items-center gap-2" data-step="1">
+          <div id="dot-1" class="w-9 h-9 rounded-full flex items-center justify-center font-label-md text-sm transition-all" style="background: var(--primary-container); color: var(--on-primary-container);">1</div>
+          <span class="font-label-md text-sm" style="color: var(--on-surface-variant);">Proveedor</span>
+        </div>
+        <div class="w-10 h-0.5 mx-2 bg-outline-variant" style="background: var(--outline-variant);"></div>
+        <div class="step-indicator flex items-center gap-2" data-step="2">
+          <div id="dot-2" class="w-9 h-9 rounded-full flex items-center justify-center font-label-md text-sm" style="background: var(--surface-container-high); color: var(--on-surface-variant);">2</div>
+          <span class="font-label-md text-sm" style="color: var(--on-surface-variant);">Credenciales</span>
+        </div>
+        <div class="w-10 h-0.5 mx-2 bg-outline-variant" style="background: var(--outline-variant);"></div>
+        <div class="step-indicator flex items-center gap-2" data-step="3">
+          <div id="dot-3" class="w-9 h-9 rounded-full flex items-center justify-center font-label-md text-sm" style="background: var(--surface-container-high); color: var(--on-surface-variant);">3</div>
+          <span class="font-label-md text-sm" style="color: var(--on-surface-variant);">Conexión</span>
+        </div>
+        <div class="w-10 h-0.5 mx-2 bg-outline-variant" style="background: var(--outline-variant);"></div>
+        <div class="step-indicator flex items-center gap-2" data-step="4">
+          <div id="dot-4" class="w-9 h-9 rounded-full flex items-center justify-center font-label-md text-sm" style="background: var(--surface-container-high); color: var(--on-surface-variant);">4</div>
+          <span class="font-label-md text-sm" style="color: var(--on-surface-variant);">Módulos</span>
+        </div>
+        <div class="w-10 h-0.5 mx-2 bg-outline-variant" style="background: var(--outline-variant);"></div>
+        <div class="step-indicator flex items-center gap-2" data-step="5">
+          <div id="dot-5" class="w-9 h-9 rounded-full flex items-center justify-center font-label-md text-sm" style="background: var(--surface-container-high); color: var(--on-surface-variant);">5</div>
+          <span class="font-label-md text-sm" style="color: var(--on-surface-variant);">Activar</span>
+        </div>
+      </div>
+
+      <!-- ─── STEP 1: Choose Provider ─────────────────────── -->
+      <div id="step-1" class="step-content active">
       <div class="glass-card p-8 mb-6">
         <h2 class="font-headline-sm mb-2" style="color: var(--on-surface);">¿Con qué servicio quieres empezar?</h2>
         <p class="font-body-md mb-8" style="color: var(--on-surface-variant);">Puedes migrar entre servicios en cualquier momento desde esta pantalla.</p>
@@ -271,6 +318,18 @@
               <p class="font-body-sm" style="color: var(--on-surface-variant);">Configura stock, precios, descripciones y catálogo de productos.</p>
             </div>
           </label>
+
+          <!-- Design Tokens Card -->
+          <label class="flex items-start gap-4 p-5 rounded-2xl border-2 border-outline-variant hover:border-primary cursor-pointer transition-all bg-[var(--surface-container-low)]">
+            <input type="checkbox" id="mod-design-tokens" value="design_tokens" class="mt-1 rounded text-primary focus:ring-primary" style="accent-color: var(--primary);">
+            <div class="flex-1">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="material-symbols-outlined" style="color: var(--primary);">palette</span>
+                <span class="font-headline-sm" style="color: var(--on-surface);">🎨 Design Tokens / Marca</span>
+              </div>
+              <p class="font-body-sm" style="color: var(--on-surface-variant);">Guarda paletas de colores, tipografías y logos en SVG de tus marcas y sistemas de diseño.</p>
+            </div>
+          </label>
         </div>
       </div>
 
@@ -336,6 +395,7 @@
           Limpiar configuración
         </button>
       </div>
+    </div>
     </div>
 
   </div>
@@ -531,7 +591,23 @@ CREATE POLICY "anon_all_posts" ON public.cms_posts FOR ALL USING (true) WITH CHE
 -- RLS & Policies
 ALTER TABLE public.cms_products ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "public_read_products" ON public.cms_products FOR SELECT USING (is_draft = false);
-CREATE POLICY "anon_all_products" ON public.cms_products FOR ALL USING (true) WITH CHECK (true);`
+CREATE POLICY "anon_all_products" ON public.cms_products FOR ALL USING (true) WITH CHECK (true);`,
+
+  design_tokens: `CREATE TABLE IF NOT EXISTS public.design_tokens (
+  id          uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  brand_name  text NOT NULL UNIQUE,
+  colors      jsonb DEFAULT '[]',
+  typographies jsonb DEFAULT '[]',
+  logos       jsonb DEFAULT '[]',
+  is_draft    boolean DEFAULT false,
+  created_at  timestamptz DEFAULT now(),
+  updated_at  timestamptz DEFAULT now()
+);
+
+-- RLS & Policies
+ALTER TABLE public.design_tokens ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "public_read_design_tokens" ON public.design_tokens FOR SELECT USING (is_draft = false);
+CREATE POLICY "anon_all_design_tokens" ON public.design_tokens FOR ALL USING (true) WITH CHECK (true);`
 };
 
 function updateSQLDisplay() {
@@ -546,6 +622,7 @@ function updateSQLDisplay() {
   if (document.getElementById('mod-terms').checked) activeSqls.push(SQL_SCRIPTS.terms);
   if (document.getElementById('mod-blog').checked) activeSqls.push(SQL_SCRIPTS.blog);
   if (document.getElementById('mod-products').checked) activeSqls.push(SQL_SCRIPTS.products);
+  if (document.getElementById('mod-design-tokens').checked) activeSqls.push(SQL_SCRIPTS.design_tokens);
 
   const block = document.getElementById('sql-block');
   if (activeSqls.length === 1) { // Solo categories
@@ -563,8 +640,9 @@ document.getElementById('btn-step3-next').addEventListener('click', () => {
   updateSQLDisplay();
 
   // Attach dynamic triggers to module checkboxes
-  ['mod-terms', 'mod-blog', 'mod-products'].forEach(id => {
-    document.getElementById(id).onchange = updateSQLDisplay;
+  ['mod-terms', 'mod-blog', 'mod-products', 'mod-design-tokens'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.onchange = updateSQLDisplay;
   });
 
   goToStep(4);
@@ -579,6 +657,7 @@ document.getElementById('btn-step4-next').addEventListener('click', () => {
   if (document.getElementById('mod-terms').checked) activeModules.push('terms');
   if (document.getElementById('mod-blog').checked) activeModules.push('blog');
   if (document.getElementById('mod-products').checked) activeModules.push('products');
+  if (document.getElementById('mod-design-tokens').checked) activeModules.push('design_tokens');
 
   if (activeModules.length === 0) {
     showToast('⚠️ Debes activar al menos 1 módulo de contenido.');
@@ -652,6 +731,12 @@ document.getElementById('btn-reset').addEventListener('click', () => {
   setTimeout(() => location.reload(), 1200);
 });
 
+document.getElementById('btn-header-reset')?.addEventListener('click', () => {
+  if (!confirm('¿Deseas eliminar la configuración guardada del proyecto anterior y cargar la configuración por defecto de Alexandria?')) return;
+  window.DataSourceConfig.clearConfig();
+  location.reload();
+});
+
 // ─── SQL Copy ──────────────────────────────────────────────
 document.getElementById('btn-copy-sql').addEventListener('click', () => {
   const sql = document.getElementById('sql-block').textContent;
@@ -669,7 +754,7 @@ function showToast(msg) {
 }
 
 // ─── Init ─────────────────────────────────────────────────
-initTheme();
+// initTheme(); (handled by data-source-config.js)
 
 // Pre-fill fields if config exists
 const existing = window.DataSourceConfig.getConfig();
@@ -689,24 +774,59 @@ if (existing) {
 
   // Pre-check active modules if step-4 is re-entered
   if (existing.activeModules) {
-    ['terms', 'blog', 'products'].forEach(m => {
+    ['terms', 'blog', 'products', 'design_tokens'].forEach(m => {
       const el = document.getElementById(`mod-${m}`);
       if (el) el.checked = existing.activeModules.includes(m);
     });
   }
 
-  // Show config summary at top
-  const banner = document.createElement('div');
-  banner.className = 'glass-panel p-4 mb-8 flex items-center justify-between gap-4';
-  banner.style.cssText = 'border-left: 4px solid var(--tertiary);';
-  banner.innerHTML = `
-    <div>
-      <p class="font-label-md" style="color: var(--tertiary);">✅ CMS ya configurado en modo: <strong>${existing.provider}</strong></p>
-      <p class="font-body-md" style="color: var(--on-surface-variant);">Módulos activos: ${existing.activeModules ? existing.activeModules.join(', ') : 'Ninguno'}.</p>
-    </div>
-    <a href="index.html" class="btn-primary shrink-0" style="padding: 10px 18px; font-size: 0.8rem;">Ir al CMS →</a>
+  // Hide wizard flow and show active status panel
+  document.getElementById('wizard-flow-wrapper').style.display = 'none';
+  const statusPanel = document.getElementById('active-status-panel');
+  statusPanel.classList.remove('hidden');
+
+  // Set provider name & badge
+  const providerBadge = document.getElementById('status-provider-badge');
+  const providerNames = { supabase: 'Supabase (PostgreSQL)', firebase: 'Firebase (Firestore)', localStorage: 'Local (LocalStorage)' };
+  const providerEmojis = { supabase: '🟢', firebase: '🔥', localStorage: '💾' };
+  providerBadge.innerHTML = `
+    <span class="chip chip-neutral font-mono text-sm py-2 px-3 flex items-center gap-2 w-fit">
+      <span>${providerEmojis[existing.provider] || '❓'}</span>
+      <strong>${providerNames[existing.provider] || existing.provider}</strong>
+    </span>
   `;
-  document.querySelector('main .container-main').insertBefore(banner, document.querySelector('main .container-main').children[1]);
+
+  // Set active modules chips
+  const modulesList = document.getElementById('status-active-modules');
+  const moduleLabels = { 
+    terms: '📚 Glosario / Términos', 
+    design_tokens: '🎨 Design Tokens / Marca', 
+    blog: '📝 Blog / Artículos', 
+    products: '🛍️ Productos / Catálogo' 
+  };
+  if (existing.activeModules && existing.activeModules.length > 0) {
+    modulesList.innerHTML = existing.activeModules.map(m => `
+      <span class="chip chip-primary text-xs font-semibold py-1 px-3">
+        ${moduleLabels[m] || m}
+      </span>
+    `).join('');
+  } else {
+    modulesList.innerHTML = '<span class="text-xs text-[var(--outline)]">Ningún módulo activo</span>';
+  }
+
+  // Modify config click handler
+  document.getElementById('btn-modify-config')?.addEventListener('click', () => {
+    statusPanel.classList.add('hidden');
+    document.getElementById('wizard-flow-wrapper').style.display = 'block';
+    goToStep(1);
+  });
+
+  // Manage modules click handler (jumps directly to Step 4)
+  document.getElementById('btn-manage-modules')?.addEventListener('click', () => {
+    statusPanel.classList.add('hidden');
+    document.getElementById('wizard-flow-wrapper').style.display = 'block';
+    goToStep(4);
+  });
 }
 </script>
 </body>

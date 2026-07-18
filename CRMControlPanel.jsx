@@ -174,7 +174,12 @@ export default function CRMControlPanel({ config }) {
     steps: [{ label: '', detail: '' }],
     results: '',
     metrics: '',
-    promptVars: ''
+    promptVars: '',
+    // Design Tokens fields
+    brandName: '',
+    colors: [{ hex: '', role: '', description: '' }],
+    typographies: [{ fontFamily: '', weights: [], fontSize: '', sampleText: '' }],
+    logos: [{ name: '', svgContent: '' }]
   });
   const [selectedId, setSelectedId] = useState(null);
   const [expandedSections, setExpandedSections] = useState({
@@ -193,7 +198,10 @@ export default function CRMControlPanel({ config }) {
     steps: false,
     problems: false,
     metrics: false,
-    prompt: false
+    prompt: false,
+    color: false,
+    typography: false,
+    logo: false
   });
 
   // Dynamic step management helpers
@@ -228,6 +236,48 @@ export default function CRMControlPanel({ config }) {
     const toolsArr = Array.isArray(formData.tools) ? [...formData.tools] : [];
     toolsArr.splice(index, 1);
     setFormData({ ...formData, tools: toolsArr });
+  };
+
+  const handleColorChange = (index, field, value) => {
+    const nextColors = [...(formData.colors || [])];
+    nextColors[index] = { ...nextColors[index], [field]: value };
+    setFormData({ ...formData, colors: nextColors });
+  };
+  const addColor = () => {
+    setFormData({ ...formData, colors: [...(formData.colors || []), { hex: '', role: '', description: '' }] });
+  };
+  const removeColor = (index) => {
+    const nextColors = [...(formData.colors || [])];
+    nextColors.splice(index, 1);
+    setFormData({ ...formData, colors: nextColors });
+  };
+
+  const handleTypographyChange = (index, field, value) => {
+    const nextTypos = [...(formData.typographies || [])];
+    nextTypos[index] = { ...nextTypos[index], [field]: value };
+    setFormData({ ...formData, typographies: nextTypos });
+  };
+  const addTypography = () => {
+    setFormData({ ...formData, typographies: [...(formData.typographies || []), { fontFamily: '', weights: [], fontSize: '', sampleText: '' }] });
+  };
+  const removeTypography = (index) => {
+    const nextTypos = [...(formData.typographies || [])];
+    nextTypos.splice(index, 1);
+    setFormData({ ...formData, typographies: nextTypos });
+  };
+
+  const handleLogoChange = (index, field, value) => {
+    const nextLogos = [...(formData.logos || [])];
+    nextLogos[index] = { ...nextLogos[index], [field]: value };
+    setFormData({ ...formData, logos: nextLogos });
+  };
+  const addLogo = () => {
+    setFormData({ ...formData, logos: [...(formData.logos || []), { name: '', svgContent: '' }] });
+  };
+  const removeLogo = (index) => {
+    const nextLogos = [...(formData.logos || [])];
+    nextLogos.splice(index, 1);
+    setFormData({ ...formData, logos: nextLogos });
   };
 
   // Initialize service
@@ -270,21 +320,33 @@ export default function CRMControlPanel({ config }) {
     try {
       const rawItems = await service.getItems(activeModule);
       // Map keys snake_case to camelCase
-      const mapped = rawItems.map(item => ({
-        id: item.id,
-        title: item.title,
-        category: item.category,
-        description: item.description,
-        tools: Array.isArray(item.tools) ? item.tools : [],
-        isDraft: item.is_draft || item.isDraft || false,
-        prompt: item.prompt || '',
-        promptVars: Array.isArray(item.prompt_vars) ? item.prompt_vars : (Array.isArray(item.promptVars) ? item.promptVars : []),
-        problems: Array.isArray(item.problems) ? item.problems : [],
-        benefits: Array.isArray(item.benefits) ? item.benefits : [],
-        steps: Array.isArray(item.steps) ? item.steps : [],
-        results: item.results || '',
-        metrics: item.metrics || ''
-      }));
+      const mapped = rawItems.map(item => {
+        if (activeModule === 'design_tokens') {
+          return {
+            id: item.id,
+            brandName: item.brand_name || '',
+            colors: Array.isArray(item.colors) ? item.colors : [],
+            typographies: Array.isArray(item.typographies) ? item.typographies : [],
+            logos: Array.isArray(item.logos) ? item.logos : [],
+            isDraft: item.is_draft || item.isDraft || false
+          };
+        }
+        return {
+          id: item.id,
+          title: item.title,
+          category: item.category,
+          description: item.description,
+          tools: Array.isArray(item.tools) ? item.tools : [],
+          isDraft: item.is_draft || item.isDraft || false,
+          prompt: item.prompt || '',
+          promptVars: Array.isArray(item.prompt_vars) ? item.prompt_vars : (Array.isArray(item.promptVars) ? item.promptVars : []),
+          problems: Array.isArray(item.problems) ? item.problems : [],
+          benefits: Array.isArray(item.benefits) ? item.benefits : [],
+          steps: Array.isArray(item.steps) ? item.steps : [],
+          results: item.results || '',
+          metrics: item.metrics || ''
+        };
+      });
       setItems(mapped);
     } catch (e) {
       console.error('Error fetching CRM data:', e);
@@ -321,20 +383,32 @@ export default function CRMControlPanel({ config }) {
   const handleSave = async (e, draftOverride = null) => {
     if (e) e.preventDefault();
     const finalDraftStatus = draftOverride !== null ? draftOverride : formData.isDraft;
-    const formattedData = {
-      title: formData.title,
-      category: formData.category,
-      description: formData.description,
-      is_draft: finalDraftStatus,
-      prompt: formData.prompt,
-      tools: formData.tools || [],
-      problems: typeof formData.problems === 'string' ? formData.problems.split('\n').map(x => x.trim()).filter(Boolean) : formData.problems,
-      benefits: typeof formData.benefits === 'string' ? formData.benefits.split('\n').map(x => x.trim()).filter(Boolean) : formData.benefits,
-      steps: formData.steps || [],
-      results: formData.results || '',
-      metrics: formData.metrics || '',
-      prompt_vars: typeof formData.promptVars === 'string' ? formData.promptVars.split(',').map(x => x.trim()).filter(Boolean) : formData.promptVars
-    };
+    
+    let formattedData = {};
+    if (activeModule === 'design_tokens') {
+      formattedData = {
+        brand_name: formData.brandName,
+        colors: formData.colors || [],
+        typographies: formData.typographies || [],
+        logos: formData.logos || [],
+        is_draft: finalDraftStatus
+      };
+    } else {
+      formattedData = {
+        title: formData.title,
+        category: formData.category,
+        description: formData.description,
+        is_draft: finalDraftStatus,
+        prompt: formData.prompt,
+        tools: formData.tools || [],
+        problems: typeof formData.problems === 'string' ? formData.problems.split('\n').map(x => x.trim()).filter(Boolean) : formData.problems,
+        benefits: typeof formData.benefits === 'string' ? formData.benefits.split('\n').map(x => x.trim()).filter(Boolean) : formData.benefits,
+        steps: formData.steps || [],
+        results: formData.results || '',
+        metrics: formData.metrics || '',
+        prompt_vars: typeof formData.promptVars === 'string' ? formData.promptVars.split(',').map(x => x.trim()).filter(Boolean) : formData.promptVars
+      };
+    }
 
     try {
       if (config.provider === 'localStorage') {
@@ -345,7 +419,7 @@ export default function CRMControlPanel({ config }) {
             localItems[idx] = { ...localItems[idx], ...formData, id: selectedId, isDraft: finalDraftStatus };
           }
         } else {
-          const newItem = { ...formData, id: `term-${Date.now()}`, isDraft: finalDraftStatus };
+          const newItem = { ...formData, id: `${activeModule}-${Date.now()}`, isDraft: finalDraftStatus };
           localItems.unshift(newItem);
         }
         localStorage.setItem(`glosaurio_${activeModule}`, JSON.stringify(localItems));
@@ -375,7 +449,18 @@ export default function CRMControlPanel({ config }) {
         steps: [{ label: '', detail: '' }],
         results: '',
         metrics: '',
-        promptVars: ''
+        promptVars: '',
+        brandName: '',
+        tokenName: '',
+        tokenType: 'color',
+        colorHex: '',
+        colorRole: '',
+        colorPaletteDescription: '',
+        fontFamily: '',
+        fontWeights: [],
+        fontSize: '',
+        fontSampleText: '',
+        svgContent: ''
       });
     } catch (err) {
       alert(`Error al guardar: ${err.message}`);
@@ -385,40 +470,105 @@ export default function CRMControlPanel({ config }) {
   const startEdit = (item) => {
     setIsEditing(true);
     setSelectedId(item.id);
-    setFormData({
-      title: item.title || '',
-      category: item.category || 'Diseño & Marca',
-      description: item.description || '',
-      tools: item.tools || [],
-      isDraft: item.isDraft || false,
-      prompt: item.prompt || '',
-      problems: (item.problems || []).join('\n'),
-      benefits: (item.benefits || []).join('\n'),
-      steps: (item.steps && item.steps.length > 0) ? item.steps : [{ label: '', detail: '' }],
-      results: item.results || '',
-      metrics: item.metrics || '',
-      promptVars: (item.promptVars || []).join(', ')
-    });
+    if (activeModule === 'design_tokens') {
+      setFormData({
+        brandName: item.brandName || '',
+        colors: (item.colors && item.colors.length > 0) ? item.colors : [{ hex: '', role: '', description: '' }],
+        typographies: (item.typographies && item.typographies.length > 0) ? item.typographies : [{ fontFamily: '', weights: [], fontSize: '', sampleText: '' }],
+        logos: (item.logos && item.logos.length > 0) ? item.logos : [{ name: '', svgContent: '' }],
+        isDraft: item.isDraft || false,
+        title: '',
+        category: 'Diseño & Marca',
+        description: '',
+        tools: [],
+        prompt: '',
+        problems: '',
+        benefits: '',
+        steps: [{ label: '', detail: '' }],
+        results: '',
+        metrics: '',
+        promptVars: ''
+      });
+    } else {
+      setFormData({
+        title: item.title || '',
+        category: item.category || 'Diseño & Marca',
+        description: item.description || '',
+        tools: item.tools || [],
+        isDraft: item.isDraft || false,
+        prompt: item.prompt || '',
+        problems: (item.problems || []).join('\n'),
+        benefits: (item.benefits || []).join('\n'),
+        steps: (item.steps && item.steps.length > 0) ? item.steps : [{ label: '', detail: '' }],
+        results: item.results || '',
+        metrics: item.metrics || '',
+        promptVars: (item.promptVars || []).join(', '),
+        brandName: '',
+        tokenName: '',
+        tokenType: 'color',
+        colorHex: '',
+        colorRole: '',
+        colorPaletteDescription: '',
+        fontFamily: '',
+        fontWeights: [],
+        fontSize: '',
+        fontSampleText: '',
+        svgContent: ''
+      });
+    }
 
-    const hasSteps = !!(item.steps && item.steps.length > 0 && item.steps.some(s => (s.label || '').trim() || (s.detail || '').trim()));
-    const hasProblems = !!((item.problems && item.problems.length > 0) || (item.benefits && item.benefits.length > 0));
-    const hasMetrics = !!((item.results && item.results.trim()) || (item.metrics && item.metrics.trim()));
-    const hasPrompt = !!(item.prompt && item.prompt.trim());
+    if (activeModule === 'design_tokens') {
+      const hasColor = !!(item.colors && item.colors.length > 0 && item.colors.some(c => (c.hex || '').trim() || (c.role || '').trim()));
+      const hasTypography = !!(item.typographies && item.typographies.length > 0 && item.typographies.some(t => (t.fontFamily || '').trim()));
+      const hasLogo = !!(item.logos && item.logos.length > 0 && item.logos.some(l => (l.name || '').trim() || (l.svgContent || '').trim()));
 
-    setActivePanels({
-      steps: hasSteps,
-      problems: hasProblems,
-      metrics: hasMetrics,
-      prompt: hasPrompt
-    });
+      setActivePanels({
+        steps: false,
+        problems: false,
+        metrics: false,
+        prompt: false,
+        color: hasColor,
+        typography: hasTypography,
+        logo: hasLogo
+      });
 
-    setExpandedSections({
-      identity: true,
-      steps: hasSteps,
-      problems: hasProblems,
-      metrics: hasMetrics,
-      prompt: hasPrompt
-    });
+      setExpandedSections({
+        identity: true,
+        steps: false,
+        problems: false,
+        metrics: false,
+        prompt: false,
+        color: hasColor,
+        typography: hasTypography,
+        logo: hasLogo
+      });
+    } else {
+      const hasSteps = !!(item.steps && item.steps.length > 0 && item.steps.some(s => (s.label || '').trim() || (s.detail || '').trim()));
+      const hasProblems = !!((item.problems && item.problems.length > 0) || (item.benefits && item.benefits.length > 0));
+      const hasMetrics = !!((item.results && item.results.trim()) || (item.metrics && item.metrics.trim()));
+      const hasPrompt = !!(item.prompt && item.prompt.trim());
+
+      setActivePanels({
+        steps: hasSteps,
+        problems: hasProblems,
+        metrics: hasMetrics,
+        prompt: hasPrompt,
+        color: false,
+        typography: false,
+        logo: false
+      });
+
+      setExpandedSections({
+        identity: true,
+        steps: hasSteps,
+        problems: hasProblems,
+        metrics: hasMetrics,
+        prompt: hasPrompt,
+        color: false,
+        typography: false,
+        logo: false
+      });
+    }
     setShowForm(true);
   };
 
@@ -645,13 +795,56 @@ export default function CRMControlPanel({ config }) {
       <div className="flex items-center justify-between border-b border-[var(--outline-variant)] pb-4">
         <div>
           <span className="chip chip-neutral font-mono uppercase tracking-wider text-xs">Provider: {config.provider}</span>
-          <h2 className="font-headline-lg text-[var(--on-surface)] mt-1">Panel de Control de Alexandria</h2>
+          <h2 className="font-headline-lg text-[var(--on-surface)] mt-1">
+            {activeModule === 'design_tokens' ? 'Gestión de Design Tokens / Marca' : 'Panel de Control de Alexandria'}
+          </h2>
         </div>
-        <button onClick={handleLogout} className="btn-secondary flex items-center gap-2">
-          <span className="material-symbols-outlined text-sm">logout</span>
-          Cerrar Sesión
-        </button>
+        <div className="flex items-center gap-3">
+          <a 
+            href="/crm-controlpanel/setup.html" 
+            className="btn-secondary flex items-center gap-2"
+            style={{ textDecoration: 'none' }}
+          >
+            <span className="material-symbols-outlined text-sm">settings</span>
+            Configurar BD
+          </a>
+          <button onClick={handleLogout} className="btn-secondary flex items-center gap-2">
+            <span className="material-symbols-outlined text-sm">logout</span>
+            Cerrar Sesión
+          </button>
+        </div>
       </div>
+
+      {/* Module Selector Tabs */}
+      {config.activeModules && config.activeModules.length > 1 && (
+        <div className="flex gap-2 p-1 rounded-xl w-fit bg-[var(--surface-container-high)]">
+          {config.activeModules.map(modKey => {
+            const label = modKey === 'design_tokens' ? '🎨 Design Tokens' : (modKey === 'terms' ? '📚 Glosario' : modKey);
+            const isActive = activeModule === modKey;
+            return (
+              <button
+                key={modKey}
+                onClick={() => {
+                  setActiveModule(modKey);
+                  setShowForm(false);
+                  setIsEditing(false);
+                }}
+                className={`tab-btn ${isActive ? 'active' : ''}`}
+                style={{
+                  background: isActive ? 'var(--primary-container)' : 'transparent',
+                  color: isActive ? 'var(--on-primary-container)' : 'var(--on-surface-variant)',
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  fontSize: '0.85rem',
+                  fontWeight: '600'
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {showForm ? (
         <div className="space-y-6">
@@ -670,11 +863,13 @@ export default function CRMControlPanel({ config }) {
                 >
                   <span className="material-symbols-outlined text-sm">arrow_back</span>
                 </button>
-                <span className="chip chip-neutral">{isEditing ? 'Modo Edición' : 'Nuevo Término'}</span>
+                <span className="chip chip-neutral">{isEditing ? 'Modo Edición' : (activeModule === 'design_tokens' ? 'Nuevo Token' : 'Nuevo Término')}</span>
               </div>
-              <h1 className="font-headline-lg text-3xl font-bold text-[var(--on-surface)]">Editor de Término</h1>
+              <h1 className="font-headline-lg text-3xl font-bold text-[var(--on-surface)]">
+                {activeModule === 'design_tokens' ? 'Editor de Design Tokens' : 'Editor de Término'}
+              </h1>
               <p className="text-[var(--on-surface-variant)] max-w-2xl mt-1">
-                {isEditing ? 'Editando un término existente del glosario.' : 'Completa los campos para crear un nuevo término.'}
+                {isEditing ? 'Editando un elemento existente.' : 'Completa los campos para crear un nuevo elemento.'}
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
@@ -717,7 +912,7 @@ export default function CRMControlPanel({ config }) {
                 className="btn-primary"
               >
                 <span className="material-symbols-outlined text-sm">publish</span>
-                Publicar en Glosario
+                {activeModule === 'design_tokens' ? 'Publicar Token' : 'Publicar en Glosario'}
               </button>
             </div>
           </div>
@@ -728,358 +923,688 @@ export default function CRMControlPanel({ config }) {
               <div className="crm-index-container">
                 <p className="crm-index-title">En esta página</p>
                 <ul className="crm-index-list">
-                  <li><a href="#sec-identity" className="crm-index-link"><span className="material-symbols-outlined">fingerprint</span>Identidad</a></li>
-                  <li><a href="#sec-steps" className="crm-index-link"><span className="material-symbols-outlined">route</span>Proceso</a></li>
-                  <li><a href="#sec-problems" className="crm-index-link"><span className="material-symbols-outlined">balance</span>Problemas y Beneficios</a></li>
-                  <li><a href="#sec-metrics" className="crm-index-link"><span className="material-symbols-outlined">insights</span>Métricas</a></li>
-                  <li><a href="#sec-prompt" className="crm-index-link"><span className="material-symbols-outlined">prompt_suggestion</span>Prompt</a></li>
+                  {activeModule === 'design_tokens' ? (
+                    <>
+                      <li><a href="#sec-identity" className="crm-index-link"><span className="material-symbols-outlined">palette</span>Identidad</a></li>
+                      {activePanels.color && <li><a href="#sec-color" className="crm-index-link"><span className="material-symbols-outlined">color_lens</span>Colores</a></li>}
+                      {activePanels.typography && <li><a href="#sec-typography" className="crm-index-link"><span className="material-symbols-outlined">text_fields</span>Tipografía</a></li>}
+                      {activePanels.logo && <li><a href="#sec-logo" className="crm-index-link"><span className="material-symbols-outlined">crop_schema</span>Logo SVG</a></li>}
+                    </>
+                  ) : (
+                    <>
+                      <li><a href="#sec-identity" className="crm-index-link"><span className="material-symbols-outlined">fingerprint</span>Identidad</a></li>
+                      <li><a href="#sec-steps" className="crm-index-link"><span className="material-symbols-outlined">route</span>Proceso</a></li>
+                      <li><a href="#sec-problems" className="crm-index-link"><span className="material-symbols-outlined">balance</span>Problemas y Beneficios</a></li>
+                      <li><a href="#sec-metrics" className="crm-index-link"><span className="material-symbols-outlined">insights</span>Métricas</a></li>
+                      <li><a href="#sec-prompt" className="crm-index-link"><span className="material-symbols-outlined">prompt_suggestion</span>Prompt</a></li>
+                    </>
+                  )}
                 </ul>
               </div>
             </nav>
 
             {/* MAIN FORM: (7 cols) */}
             <div className="lg:col-span-7 space-y-6">
-              
-              {/* Identity Section */}
-              <section id="sec-identity" className="glass-panel p-8">
-                <h2 className="font-headline-sm mb-6 flex items-center gap-2" style={{ color: 'var(--on-surface)' }}>
-                  <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>fingerprint</span>
-                  Identidad del Término
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <div className="flex flex-col gap-2">
-                    <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Título del Término *</label>
-                    <input 
-                      type="text" 
-                      required
-                      value={formData.title}
-                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                      placeholder="Ej: Vibe Coding Essentials" 
-                      className="form-input font-headline-sm" 
-                      style={{ fontSize: '1.1rem' }}
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Categoría *</label>
-                    <div className="relative">
-                      <select 
-                        value={formData.category}
-                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                        className="form-select"
-                      >
-                        <option value="Diseño & Marca">🎨 Diseño &amp; Marca</option>
-                        <option value="Vibe Coding">⚡ Vibe Coding</option>
-                        <option value="Gestión">📋 Gestión de Proyectos</option>
-                        <option value="Automatización">🤖 Automatización</option>
-                        <option value="Tech">🔧 Tech &amp; Tooling</option>
-                      </select>
-                      <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-lg" style={{ color: 'var(--outline)' }}>expand_more</span>
-                    </div>
-                  </div>
-                  <div className="md:col-span-2 flex flex-col gap-2">
-                    <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Descripción Corta *</label>
-                    <textarea 
-                      required
-                      value={formData.description}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      placeholder="Descripción del término que aparecerá en la tarjeta del glosario..." 
-                      rows="3"
-                      className="form-textarea"
-                    />
-                  </div>
-                </div>
-              </section>
-
-              {/* Process Steps Section */}
-              {activePanels.steps && (
-                <section id="sec-steps" className="glass-panel p-8">
-                  <div className="flex items-center justify-between cursor-pointer select-none mb-6" onClick={() => toggleSection('steps')}>
-                    <h2 className="font-headline-sm flex items-center gap-2" style={{ color: 'var(--on-surface)', margin: 0 }}>
-                      <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>route</span>
-                      Proceso Paso a Paso
+              {activeModule === 'design_tokens' ? (
+                <>
+                  {/* Token Identity Section */}
+                  <section id="sec-identity" className="glass-panel p-8">
+                    <h2 className="font-headline-sm mb-6 flex items-center gap-2" style={{ color: 'var(--on-surface)' }}>
+                      <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>palette</span>
+                      Identidad del Sistema de Diseño
                     </h2>
-                    <div className="flex items-center gap-2">
-                      <span className={`chip ${expandedSections.steps ? 'chip-primary' : 'chip-neutral'}`}>{expandedSections.steps ? 'Desplegado' : 'Plegado'}</span>
-                      <HoldToConfirmButton 
-                        onConfirm={() => {
-                          setActivePanels(prev => ({ ...prev, steps: false }));
-                          setFormData(prev => ({ ...prev, steps: [{ label: '', detail: '' }] }));
-                        }}
-                        className="btn-icon text-[var(--error)]"
-                        style={{ border: 'none', background: 'transparent', width: '28px', height: '28px' }}
-                        title="Mantén presionado para quitar sección"
-                      >
-                        <span className="material-symbols-outlined text-lg">delete</span>
-                      </HoldToConfirmButton>
-                      <span className="material-symbols-outlined transition-transform duration-200" style={{ transform: expandedSections.steps ? 'rotate(180deg)' : 'none' }}>expand_more</span>
-                    </div>
-                  </div>
-                  {expandedSections.steps && (
-                    <div className="space-y-4">
-                      {(formData.steps || []).map((step, idx) => (
-                        <div key={idx} className="flex flex-col gap-2 p-4 rounded-xl relative bg-[var(--surface-container-low)] border border-[var(--outline-variant)]">
-                          <div className="flex items-center justify-between">
-                            <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Paso {idx + 1}</label>
-                            <button 
-                              type="button" 
-                              onClick={() => removeStep(idx)}
-                              className="btn-icon" 
-                              style={{ width: '28px', height: '28px', color: 'var(--error)', border: 'none' }}
-                              title="Eliminar paso"
-                            >
-                              <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>close</span>
-                            </button>
-                          </div>
-                          <input 
-                            type="text" 
-                            placeholder="Título del paso" 
-                            value={step.label}
-                            onChange={(e) => handleStepChange(idx, 'label', e.target.value)}
-                            className="form-input" 
-                            style={{ padding: '10px 14px' }}
-                          />
-                          <textarea 
-                            placeholder="Descripción detallada del paso..." 
-                            rows="2" 
-                            value={step.detail}
-                            onChange={(e) => handleStepChange(idx, 'detail', e.target.value)}
-                            className="form-textarea" 
-                            style={{ padding: '10px 14px' }}
-                          />
-                        </div>
-                      ))}
-                      <button 
-                        type="button" 
-                        onClick={addStep} 
-                        className="mt-4 btn-secondary w-full justify-center"
-                      >
-                        <span className="material-symbols-outlined text-sm">add</span>
-                        Agregar Paso
-                      </button>
-                    </div>
-                  )}
-                </section>
-              )}
-
-              {/* Problems & Benefits Section */}
-              {activePanels.problems && (
-                <section id="sec-problems" className="glass-panel p-8">
-                  <div className="flex items-center justify-between cursor-pointer select-none mb-6" onClick={() => toggleSection('problems')}>
-                    <h2 className="font-headline-sm flex items-center gap-2" style={{ color: 'var(--on-surface)', margin: 0 }}>
-                      <span className="material-symbols-outlined" style={{ color: 'var(--secondary)' }}>balance</span>
-                      Problemas y Beneficios
-                    </h2>
-                    <div className="flex items-center gap-2">
-                      <span className={`chip ${expandedSections.problems ? 'chip-primary' : 'chip-neutral'}`}>{expandedSections.problems ? 'Desplegado' : 'Plegado'}</span>
-                      <HoldToConfirmButton 
-                        onConfirm={() => {
-                          setActivePanels(prev => ({ ...prev, problems: false }));
-                          setFormData(prev => ({ ...prev, problems: '', benefits: '' }));
-                        }}
-                        className="btn-icon text-[var(--error)]"
-                        style={{ border: 'none', background: 'transparent', width: '28px', height: '28px' }}
-                        title="Mantén presionado para quitar sección"
-                      >
-                        <span className="material-symbols-outlined text-lg">delete</span>
-                      </HoldToConfirmButton>
-                      <span className="material-symbols-outlined transition-transform duration-200" style={{ transform: expandedSections.problems ? 'rotate(180deg)' : 'none' }}>expand_more</span>
-                    </div>
-                  </div>
-                  {expandedSections.problems && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div className="grid grid-cols-1 gap-5">
                       <div className="flex flex-col gap-2">
-                        <label className="font-label-md" style={{ color: 'var(--error)' }}>
-                          <span className="material-symbols-outlined text-sm">warning</span> Problemas que Resuelve
-                        </label>
-                        <textarea 
-                          value={formData.problems}
-                          onChange={(e) => setFormData({ ...formData, problems: e.target.value })}
-                          placeholder="Un problema por línea..." 
-                          rows="5"
-                          className="form-textarea"
-                        />
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        <label className="font-label-md" style={{ color: 'var(--tertiary)' }}>
-                          <span className="material-symbols-outlined text-sm">check_circle</span> Beneficios Clave
-                        </label>
-                        <textarea 
-                          value={formData.benefits}
-                          onChange={(e) => setFormData({ ...formData, benefits: e.target.value })}
-                          placeholder="Un beneficio por línea..." 
-                          rows="5"
-                          className="form-textarea"
-                        />
-                      </div>
-                    </div>
-                  )}
-                </section>
-              )}
-
-              {/* Results & Metrics Section */}
-              {activePanels.metrics && (
-                <section id="sec-metrics" className="glass-panel p-8">
-                  <div className="flex items-center justify-between cursor-pointer select-none mb-6" onClick={() => toggleSection('metrics')}>
-                    <h2 className="font-headline-sm flex items-center gap-2" style={{ color: 'var(--on-surface)', margin: 0 }}>
-                      <span className="material-symbols-outlined" style={{ color: 'var(--secondary)' }}>insights</span>
-                      Resultados y Métricas
-                    </h2>
-                    <div className="flex items-center gap-2">
-                      <span className={`chip ${expandedSections.metrics ? 'chip-primary' : 'chip-neutral'}`}>{expandedSections.metrics ? 'Desplegado' : 'Plegado'}</span>
-                      <HoldToConfirmButton 
-                        onConfirm={() => {
-                          setActivePanels(prev => ({ ...prev, metrics: false }));
-                          setFormData(prev => ({ ...prev, results: '', metrics: '' }));
-                        }}
-                        className="btn-icon text-[var(--error)]"
-                        style={{ border: 'none', background: 'transparent', width: '28px', height: '28px' }}
-                        title="Mantén presionado para quitar sección"
-                      >
-                        <span className="material-symbols-outlined text-lg">delete</span>
-                      </HoldToConfirmButton>
-                      <span className="material-symbols-outlined transition-transform duration-200" style={{ transform: expandedSections.metrics ? 'rotate(180deg)' : 'none' }}>expand_more</span>
-                    </div>
-                  </div>
-                  {expandedSections.metrics && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                      <div className="flex flex-col gap-2">
-                        <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Entregables Esperados</label>
-                        <textarea 
-                          value={formData.results}
-                          onChange={(e) => setFormData({ ...formData, results: e.target.value })}
-                          placeholder="¿Qué se obtiene al aplicar este término?" 
-                          rows="4"
-                          className="form-textarea"
-                        />
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        <label class="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Métricas de Éxito</label>
-                        <textarea 
-                          value={formData.metrics}
-                          onChange={(e) => setFormData({ ...formData, metrics: e.target.value })}
-                          placeholder="¿Cómo saber si se aplicó correctamente?" 
-                          rows="4"
-                          className="form-textarea"
-                        />
-                      </div>
-                    </div>
-                  )}
-                </section>
-              )}
-
-              {/* Prompt Template Section */}
-              {activePanels.prompt && (
-                <section id="sec-prompt" className="glass-panel p-8">
-                  <div className="flex items-center justify-between cursor-pointer select-none mb-6" onClick={() => toggleSection('prompt')}>
-                    <h2 className="font-headline-sm flex items-center gap-2" style={{ color: 'var(--on-surface)', margin: 0 }}>
-                      <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>prompt_suggestion</span>
-                      Prompt Template
-                    </h2>
-                    <div className="flex items-center gap-2">
-                      <span className={`chip ${expandedSections.prompt ? 'chip-primary' : 'chip-neutral'}`}>{expandedSections.prompt ? 'Desplegado' : 'Plegado'}</span>
-                      <HoldToConfirmButton 
-                        onConfirm={() => {
-                          setActivePanels(prev => ({ ...prev, prompt: false }));
-                          setFormData(prev => ({ ...prev, prompt: '', promptVars: '' }));
-                        }}
-                        className="btn-icon text-[var(--error)]"
-                        style={{ border: 'none', background: 'transparent', width: '28px', height: '28px' }}
-                        title="Mantén presionado para quitar sección"
-                      >
-                        <span className="material-symbols-outlined text-lg">delete</span>
-                      </HoldToConfirmButton>
-                      <span className="material-symbols-outlined transition-transform duration-200" style={{ transform: expandedSections.prompt ? 'rotate(180deg)' : 'none' }}>expand_more</span>
-                    </div>
-                  </div>
-                  {expandedSections.prompt && (
-                    <>
-                      <div className="flex flex-col gap-2 mb-4">
-                        <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Variables rápidas (separadas por coma)</label>
+                        <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Nombre de la Marca *</label>
                         <input 
                           type="text" 
-                          value={formData.promptVars}
-                          onChange={(e) => setFormData({ ...formData, promptVars: e.target.value })}
-                          placeholder="Ej: nombre_marca, industria, tono" 
-                          className="form-input"
+                          required
+                          value={formData.brandName}
+                          onChange={(e) => setFormData({ ...formData, brandName: e.target.value })}
+                          placeholder="Ej: Glosaurio, Nike" 
+                          className="form-input" 
                         />
                       </div>
-                      <div className="code-editor">
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="flex gap-2">
-                            <span className="w-3 h-3 rounded-full bg-[var(--error)]"></span>
-                            <span className="w-3 h-3 rounded-full bg-[var(--secondary)]"></span>
-                            <span className="w-3 h-3 rounded-full bg-[var(--primary)]"></span>
+                    </div>
+                  </section>
+
+                  {/* Conditional Token Settings Section */}
+                  {activePanels.color && (
+                    <section id="sec-color" className="glass-panel p-8 space-y-6">
+                      <div className="flex justify-between items-center border-b border-[var(--outline-variant)] pb-4">
+                        <h2 className="font-headline-sm flex items-center gap-2" style={{ color: 'var(--on-surface)' }}>
+                          <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>color_lens</span>
+                          Paleta de Colores
+                        </h2>
+                        <button 
+                          type="button" 
+                          onClick={addColor}
+                          className="btn-secondary text-xs flex items-center gap-1"
+                          style={{ padding: '6px 12px' }}
+                        >
+                          <span className="material-symbols-outlined text-sm">add</span> Añadir Color
+                        </button>
+                      </div>
+                      <div className="space-y-6 divide-y divide-[var(--outline-variant)]">
+                        {(formData.colors || []).map((color, idx) => (
+                          <div key={idx} className="pt-6 first:pt-0 space-y-4">
+                            <div className="flex justify-between items-center">
+                              <span className="chip chip-neutral text-xs font-mono">Color #{idx + 1}</span>
+                              {(formData.colors || []).length > 1 && (
+                                <button 
+                                  type="button" 
+                                  onClick={() => removeColor(idx)}
+                                  className="btn-icon text-[var(--error)]"
+                                  title="Eliminar este color"
+                                >
+                                  <span className="material-symbols-outlined text-sm">delete</span>
+                                </button>
+                              )}
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                              <div className="flex flex-col gap-2">
+                                <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Código Color (HEX/RGB/HSL)</label>
+                                <div className="flex gap-2">
+                                  <input 
+                                    type="text" 
+                                    value={color.hex || ''}
+                                    onChange={(e) => handleColorChange(idx, 'hex', e.target.value)}
+                                    placeholder="Ej: #2563EB" 
+                                    className="form-input flex-1" 
+                                  />
+                                  <div 
+                                    className="w-12 h-12 rounded-xl border border-[var(--outline-variant)] shadow-sm shrink-0"
+                                    style={{ backgroundColor: color.hex || 'transparent' }}
+                                  />
+                                </div>
+                              </div>
+                              <div className="flex flex-col gap-2">
+                                <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Rol / Nombre del Color</label>
+                                <input 
+                                  type="text" 
+                                  value={color.role || ''}
+                                  onChange={(e) => handleColorChange(idx, 'role', e.target.value)}
+                                  placeholder="Ej: Primary Button, Text Accent" 
+                                  className="form-input" 
+                                />
+                              </div>
+                              <div className="flex flex-col gap-2 md:col-span-2">
+                                <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Descripción de la Paleta & Uso</label>
+                                <textarea 
+                                  value={color.description || ''}
+                                  onChange={(e) => handleColorChange(idx, 'description', e.target.value)}
+                                  placeholder="Describe cómo y cuándo debe utilizarse este color..." 
+                                  rows="3"
+                                  className="form-textarea"
+                                />
+                              </div>
+                            </div>
                           </div>
-                          <span className="font-caption text-[var(--outline)]">prompt.md</span>
-                        </div>
-                        <textarea 
-                          value={formData.prompt}
-                          onChange={(e) => setFormData({ ...formData, prompt: e.target.value })}
-                          placeholder="/* Escribe aquí el prompt template */&#10;&#10;Actúa como un experto en [campo].&#10;Tu objetivo es..." 
-                          rows="10" 
-                          spellCheck="false"
-                          className="code-textarea"
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
+                  {activePanels.typography && (
+                    <section id="sec-typography" className="glass-panel p-8 space-y-6">
+                      <div className="flex justify-between items-center border-b border-[var(--outline-variant)] pb-4">
+                        <h2 className="font-headline-sm flex items-center gap-2" style={{ color: 'var(--on-surface)' }}>
+                          <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>text_fields</span>
+                          Tipografías
+                        </h2>
+                        <button 
+                          type="button" 
+                          onClick={addTypography}
+                          className="btn-secondary text-xs flex items-center gap-1"
+                          style={{ padding: '6px 12px' }}
+                        >
+                          <span className="material-symbols-outlined text-sm">add</span> Añadir Fuente
+                        </button>
+                      </div>
+                      <div className="space-y-6 divide-y divide-[var(--outline-variant)]">
+                        {(formData.typographies || []).map((typo, idx) => (
+                          <div key={idx} className="pt-6 first:pt-0 space-y-4">
+                            <div className="flex justify-between items-center">
+                              <span className="chip chip-neutral text-xs font-mono">Fuente #{idx + 1}</span>
+                              {(formData.typographies || []).length > 1 && (
+                                <button 
+                                  type="button" 
+                                  onClick={() => removeTypography(idx)}
+                                  className="btn-icon text-[var(--error)]"
+                                  title="Eliminar esta fuente"
+                                >
+                                  <span className="material-symbols-outlined text-sm">delete</span>
+                                </button>
+                              )}
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                              <div className="flex flex-col gap-2">
+                                <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Google Font Family</label>
+                                <input 
+                                  type="text" 
+                                  value={typo.fontFamily || ''}
+                                  onChange={(e) => handleTypographyChange(idx, 'fontFamily', e.target.value)}
+                                  placeholder="Ej: Plus Jakarta Sans o Inter" 
+                                  className="form-input" 
+                                />
+                              </div>
+                              <div className="flex flex-col gap-2">
+                                <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Tamaño de Fuente (Base)</label>
+                                <input 
+                                  type="text" 
+                                  value={typo.fontSize || ''}
+                                  onChange={(e) => handleTypographyChange(idx, 'fontSize', e.target.value)}
+                                  placeholder="Ej: 16px o 1.25rem" 
+                                  className="form-input" 
+                                />
+                              </div>
+                              <div className="flex flex-col gap-2 md:col-span-2">
+                                <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Pesos Disponibles (Separados por coma)</label>
+                                <input 
+                                  type="text" 
+                                  value={Array.isArray(typo.weights) ? typo.weights.join(', ') : typo.weights || ''}
+                                  onChange={(e) => handleTypographyChange(idx, 'weights', e.target.value.split(',').map(x => x.trim()))}
+                                  placeholder="Ej: 400, 600, 700" 
+                                  className="form-input" 
+                                />
+                              </div>
+                              <div className="flex flex-col gap-2 md:col-span-2">
+                                <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Texto de Muestra</label>
+                                <textarea 
+                                  value={typo.fontSampleText || ''}
+                                  onChange={(e) => handleTypographyChange(idx, 'fontSampleText', e.target.value)}
+                                  placeholder="Muestra de texto para probar la tipografía..." 
+                                  rows="3"
+                                  className="form-textarea"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
+                  {activePanels.logo && (
+                    <section id="sec-logo" className="glass-panel p-8 space-y-6">
+                      <div className="flex justify-between items-center border-b border-[var(--outline-variant)] pb-4">
+                        <h2 className="font-headline-sm flex items-center gap-2" style={{ color: 'var(--on-surface)' }}>
+                          <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>crop_schema</span>
+                          Logos SVG
+                        </h2>
+                        <button 
+                          type="button" 
+                          onClick={addLogo}
+                          className="btn-secondary text-xs flex items-center gap-1"
+                          style={{ padding: '6px 12px' }}
+                        >
+                          <span className="material-symbols-outlined text-sm">add</span> Añadir Logo
+                        </button>
+                      </div>
+                      <div className="space-y-6 divide-y divide-[var(--outline-variant)]">
+                        {(formData.logos || []).map((logo, idx) => (
+                          <div key={idx} className="pt-6 first:pt-0 space-y-4">
+                            <div className="flex justify-between items-center">
+                              <span className="chip chip-neutral text-xs font-mono">Logo #{idx + 1}</span>
+                              {(formData.logos || []).length > 1 && (
+                                <button 
+                                  type="button" 
+                                  onClick={() => removeLogo(idx)}
+                                  className="btn-icon text-[var(--error)]"
+                                  title="Eliminar este logo"
+                                >
+                                  <span className="material-symbols-outlined text-sm">delete</span>
+                                </button>
+                              )}
+                            </div>
+                            <div className="flex flex-col gap-4">
+                              <div className="flex flex-col gap-2">
+                                <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Nombre del Logotipo</label>
+                                <input 
+                                  type="text" 
+                                  value={logo.name || ''}
+                                  onChange={(e) => handleLogoChange(idx, 'name', e.target.value)}
+                                  placeholder="Ej: Logo Principal, Isotipo, Logo Versión Oscura" 
+                                  className="form-input" 
+                                />
+                              </div>
+                              <div className="flex flex-col gap-2">
+                                <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Código SVG Crudo</label>
+                                <div className="code-editor">
+                                  <div className="flex items-center justify-between mb-4">
+                                    <div className="flex gap-2">
+                                      <span className="w-3 h-3 rounded-full bg-[var(--error)]"></span>
+                                      <span className="w-3 h-3 rounded-full bg-[var(--secondary)]"></span>
+                                      <span className="w-3 h-3 rounded-full bg-[var(--primary)]"></span>
+                                    </div>
+                                    <span className="font-caption text-[var(--outline)]">logo-{idx + 1}.svg</span>
+                                  </div>
+                                  <textarea 
+                                    value={logo.svgContent || ''}
+                                    onChange={(e) => handleLogoChange(idx, 'svgContent', e.target.value)}
+                                    placeholder="<svg viewBox='0 0 100 100' ...>&#10;  <path ... />&#10;</svg>" 
+                                    rows="10" 
+                                    spellCheck="false"
+                                    className="code-textarea"
+                                  />
+                                </div>
+                              </div>
+
+                              {/* SVG Live Preview */}
+                              {logo.svgContent && (
+                                <div className="flex flex-col gap-2">
+                                  <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Previsualización SVG</label>
+                                  <div 
+                                    className="p-8 rounded-2xl flex items-center justify-center border border-dashed border-[var(--outline-variant)] bg-[var(--surface-container-low)] min-h-[140px] max-h-[260px] overflow-auto"
+                                    dangerouslySetInnerHTML={{ __html: logo.svgContent }}
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                </>
+              ) : (
+                <>
+                  {/* Identity Section */}
+                  <section id="sec-identity" className="glass-panel p-8">
+                    <h2 className="font-headline-sm mb-6 flex items-center gap-2" style={{ color: 'var(--on-surface)' }}>
+                      <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>fingerprint</span>
+                      Identidad del Término
+                    </h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <div className="flex flex-col gap-2">
+                        <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Título del Término *</label>
+                        <input 
+                          type="text" 
+                          required
+                          value={formData.title}
+                          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                          placeholder="Ej: Vibe Coding Essentials" 
+                          className="form-input font-headline-sm" 
+                          style={{ fontSize: '1.1rem' }}
                         />
                       </div>
-                    </>
+                      <div className="flex flex-col gap-2">
+                        <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Categoría *</label>
+                        <div className="relative">
+                          <select 
+                            value={formData.category}
+                            onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                            className="form-select"
+                          >
+                            <option value="Diseño & Marca">🎨 Diseño &amp; Marca</option>
+                            <option value="Vibe Coding">⚡ Vibe Coding</option>
+                            <option value="Gestión">📋 Gestión de Proyectos</option>
+                            <option value="Automatización">🤖 Automatización</option>
+                            <option value="Tech">🔧 Tech &amp; Tooling</option>
+                          </select>
+                          <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-lg" style={{ color: 'var(--outline)' }}>expand_more</span>
+                        </div>
+                      </div>
+                      <div className="md:col-span-2 flex flex-col gap-2">
+                        <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Descripción Corta *</label>
+                        <textarea 
+                          required
+                          value={formData.description}
+                          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                          placeholder="Descripción del término que aparecerá en la tarjeta del glosario..." 
+                          rows="3"
+                          className="form-textarea"
+                        />
+                      </div>
+                    </div>
+                  </section>
+
+                  {/* Process Steps Section */}
+                  {activePanels.steps && (
+                    <section id="sec-steps" className="glass-panel p-8">
+                      <div className="flex items-center justify-between cursor-pointer select-none mb-6" onClick={() => toggleSection('steps')}>
+                        <h2 className="font-headline-sm flex items-center gap-2" style={{ color: 'var(--on-surface)', margin: 0 }}>
+                          <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>route</span>
+                          Proceso Paso a Paso
+                        </h2>
+                        <div className="flex items-center gap-2">
+                          <span className={`chip ${expandedSections.steps ? 'chip-primary' : 'chip-neutral'}`}>{expandedSections.steps ? 'Desplegado' : 'Plegado'}</span>
+                          <HoldToConfirmButton 
+                            onConfirm={() => {
+                              setActivePanels(prev => ({ ...prev, steps: false }));
+                              setFormData(prev => ({ ...prev, steps: [{ label: '', detail: '' }] }));
+                            }}
+                            className="btn-icon text-[var(--error)]"
+                            style={{ border: 'none', background: 'transparent', width: '28px', height: '28px' }}
+                            title="Mantén presionado para quitar sección"
+                          >
+                            <span className="material-symbols-outlined text-lg">delete</span>
+                          </HoldToConfirmButton>
+                          <span className="material-symbols-outlined transition-transform duration-200" style={{ transform: expandedSections.steps ? 'rotate(180deg)' : 'none' }}>expand_more</span>
+                        </div>
+                      </div>
+                      {expandedSections.steps && (
+                        <div className="space-y-4">
+                          {(formData.steps || []).map((step, idx) => (
+                            <div key={idx} className="p-4 rounded-xl space-y-2 relative" style={{ background: 'var(--surface-container-low)', border: '1px solid var(--outline-variant)' }}>
+                              <div className="flex items-center justify-between">
+                                <span className="font-caption uppercase tracking-wider text-xs" style={{ color: 'var(--outline)' }}>Paso {idx + 1}</span>
+                                {formData.steps.length > 1 && (
+                                  <button 
+                                    type="button" 
+                                    onClick={() => removeStep(idx)}
+                                    className="text-[var(--error)] hover:underline flex items-center gap-1 text-xs"
+                                    style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+                                  >
+                                    <span className="material-symbols-outlined text-sm">close</span>
+                                    Quitar
+                                  </button>
+                                )}
+                              </div>
+                              <input 
+                                type="text" 
+                                value={step.label}
+                                onChange={(e) => handleStepChange(idx, 'label', e.target.value)}
+                                placeholder="Título del paso" 
+                                className="form-input text-sm"
+                                style={{ padding: '10px 14px' }}
+                              />
+                              <textarea 
+                                value={step.detail}
+                                onChange={(e) => handleStepChange(idx, 'detail', e.target.value)}
+                                placeholder="Descripción del paso..." 
+                                rows="2"
+                                className="form-textarea text-sm"
+                                style={{ padding: '10px 14px' }}
+                              />
+                            </div>
+                          ))}
+                          <button 
+                            type="button" 
+                            onClick={addStep} 
+                            className="btn-secondary w-full justify-center text-sm py-2.5 flex items-center gap-2"
+                          >
+                            <span className="material-symbols-outlined text-sm">add</span>
+                            Agregar Paso
+                          </button>
+                        </div>
+                      )}
+                    </section>
                   )}
-                </section>
+
+                  {/* Problems Section */}
+                  {activePanels.problems && (
+                    <section id="sec-problems" className="glass-panel p-8">
+                      <div className="flex items-center justify-between cursor-pointer select-none mb-6" onClick={() => toggleSection('problems')}>
+                        <h2 className="font-headline-sm flex items-center gap-2" style={{ color: 'var(--on-surface)', margin: 0 }}>
+                          <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>balance</span>
+                          Problemas y Beneficios
+                        </h2>
+                        <div className="flex items-center gap-2">
+                          <span className={`chip ${expandedSections.problems ? 'chip-primary' : 'chip-neutral'}`}>{expandedSections.problems ? 'Desplegado' : 'Plegado'}</span>
+                          <HoldToConfirmButton 
+                            onConfirm={() => {
+                              setActivePanels(prev => ({ ...prev, problems: false }));
+                              setFormData(prev => ({ ...prev, problems: '', benefits: '' }));
+                            }}
+                            className="btn-icon text-[var(--error)]"
+                            style={{ border: 'none', background: 'transparent', width: '28px', height: '28px' }}
+                            title="Mantén presionado para quitar sección"
+                          >
+                            <span className="material-symbols-outlined text-lg">delete</span>
+                          </HoldToConfirmButton>
+                          <span className="material-symbols-outlined transition-transform duration-200" style={{ transform: expandedSections.problems ? 'rotate(180deg)' : 'none' }}>expand_more</span>
+                        </div>
+                      </div>
+                      {expandedSections.problems && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                          <div className="flex flex-col gap-2">
+                            <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Problemas que Resuelve (uno por línea)</label>
+                            <textarea 
+                              value={formData.problems}
+                              onChange={(e) => setFormData({ ...formData, problems: e.target.value })}
+                              placeholder="Ej: Decisiones de diseño lentas&#10;Ciclos de feedback muy largos" 
+                              rows="4"
+                              className="form-textarea text-sm"
+                            />
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Beneficios Clave (uno por línea)</label>
+                            <textarea 
+                              value={formData.benefits}
+                              onChange={(e) => setFormData({ ...formData, benefits: e.target.value })}
+                              placeholder="Ej: Reduce semanas de trabajo a días&#10;Valida ideas rápidamente" 
+                              rows="4"
+                              className="form-textarea text-sm"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </section>
+                  )}
+
+                  {/* Results & Metrics Section */}
+                  {activePanels.metrics && (
+                    <section id="sec-metrics" className="glass-panel p-8">
+                      <div className="flex items-center justify-between cursor-pointer select-none mb-6" onClick={() => toggleSection('metrics')}>
+                        <h2 className="font-headline-sm flex items-center gap-2" style={{ color: 'var(--on-surface)', margin: 0 }}>
+                          <span className="material-symbols-outlined" style={{ color: 'var(--secondary)' }}>insights</span>
+                          Resultados y Métricas
+                        </h2>
+                        <div className="flex items-center gap-2">
+                          <span className={`chip ${expandedSections.metrics ? 'chip-primary' : 'chip-neutral'}`}>{expandedSections.metrics ? 'Desplegado' : 'Plegado'}</span>
+                          <HoldToConfirmButton 
+                            onConfirm={() => {
+                              setActivePanels(prev => ({ ...prev, metrics: false }));
+                              setFormData(prev => ({ ...prev, results: '', metrics: '' }));
+                            }}
+                            className="btn-icon text-[var(--error)]"
+                            style={{ border: 'none', background: 'transparent', width: '28px', height: '28px' }}
+                            title="Mantén presionado para quitar sección"
+                          >
+                            <span className="material-symbols-outlined text-lg">delete</span>
+                          </HoldToConfirmButton>
+                          <span className="material-symbols-outlined transition-transform duration-200" style={{ transform: expandedSections.metrics ? 'rotate(180deg)' : 'none' }}>expand_more</span>
+                        </div>
+                      </div>
+                      {expandedSections.metrics && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                          <div className="flex flex-col gap-2">
+                            <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Entregables Esperados</label>
+                            <textarea 
+                              value={formData.results}
+                              onChange={(e) => setFormData({ ...formData, results: e.target.value })}
+                              placeholder="¿Qué se obtiene al aplicar este término?" 
+                              rows="4"
+                              className="form-textarea"
+                            />
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            <label class="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Métricas de Éxito</label>
+                            <textarea 
+                              value={formData.metrics}
+                              onChange={(e) => setFormData({ ...formData, metrics: e.target.value })}
+                              placeholder="¿Cómo saber si se aplicó correctamente?" 
+                              rows="4"
+                              className="form-textarea"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </section>
+                  )}
+
+                  {/* Prompt Template Section */}
+                  {activePanels.prompt && (
+                    <section id="sec-prompt" className="glass-panel p-8">
+                      <div className="flex items-center justify-between cursor-pointer select-none mb-6" onClick={() => toggleSection('prompt')}>
+                        <h2 className="font-headline-sm flex items-center gap-2" style={{ color: 'var(--on-surface)', margin: 0 }}>
+                          <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>prompt_suggestion</span>
+                          Prompt Template
+                        </h2>
+                        <div className="flex items-center gap-2">
+                          <span className={`chip ${expandedSections.prompt ? 'chip-primary' : 'chip-neutral'}`}>{expandedSections.prompt ? 'Desplegado' : 'Plegado'}</span>
+                          <HoldToConfirmButton 
+                            onConfirm={() => {
+                              setActivePanels(prev => ({ ...prev, prompt: false }));
+                              setFormData(prev => ({ ...prev, prompt: '', promptVars: '' }));
+                            }}
+                            className="btn-icon text-[var(--error)]"
+                            style={{ border: 'none', background: 'transparent', width: '28px', height: '28px' }}
+                            title="Mantén presionado para quitar sección"
+                          >
+                            <span className="material-symbols-outlined text-lg">delete</span>
+                          </HoldToConfirmButton>
+                          <span className="material-symbols-outlined transition-transform duration-200" style={{ transform: expandedSections.prompt ? 'rotate(180deg)' : 'none' }}>expand_more</span>
+                        </div>
+                      </div>
+                      {expandedSections.prompt && (
+                        <>
+                          <div className="flex flex-col gap-2 mb-4">
+                            <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Variables rápidas (separadas por coma)</label>
+                            <input 
+                              type="text" 
+                              value={formData.promptVars}
+                              onChange={(e) => setFormData({ ...formData, promptVars: e.target.value })}
+                              placeholder="Ej: nombre_marca, industria, tono" 
+                              className="form-input"
+                            />
+                          </div>
+                          <div className="code-editor">
+                            <div className="flex items-center justify-between mb-4">
+                              <div className="flex gap-2">
+                                <span className="w-3 h-3 rounded-full bg-[var(--error)]"></span>
+                                <span className="w-3 h-3 rounded-full bg-[var(--secondary)]"></span>
+                                <span className="w-3 h-3 rounded-full bg-[var(--primary)]"></span>
+                              </div>
+                              <span className="font-caption text-[var(--outline)]">prompt.md</span>
+                            </div>
+                            <textarea 
+                              value={formData.prompt}
+                              onChange={(e) => setFormData({ ...formData, prompt: e.target.value })}
+                              placeholder="/* Escribe aquí el prompt template */&#10;&#10;Actúa como un experto en [campo].&#10;Tu objetivo es..." 
+                              rows="10" 
+                              spellCheck="false"
+                              className="code-textarea"
+                            />
+                          </div>
+                        </>
+                      )}
+                    </section>
+                  )}
+                </>
               )}
             </div>
 
             {/* SIDEBAR: (3 cols) */}
             <aside className="lg:col-span-3 space-y-6">
-              {/* Associated Tools */}
-              <div className="glass-panel p-6">
-                <h3 className="font-headline-sm mb-4 text-[var(--on-surface)]">Herramientas Asociadas</h3>
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {(formData.tools || []).map((t, idx) => (
-                    <span key={idx} className="chip chip-primary" style={{ cursor: 'pointer' }}>
-                      {t}
+              {activeModule === 'design_tokens' ? (
+                <div className="space-y-6">
+                  {/* Secciones Disponibles para Design Tokens */}
+                  {(!activePanels.color || !activePanels.typography || !activePanels.logo) && (
+                    <div className="glass-panel p-6">
+                      <h3 className="font-headline-sm mb-4 text-[var(--on-surface)]">Añadir Secciones</h3>
+                      <p className="text-xs text-[var(--on-surface-variant)] mb-3">Haz clic en un componente para agregarlo a tu sistema de diseño:</p>
+                      <div className="flex flex-col gap-2">
+                        {!activePanels.color && (
+                          <span onClick={() => { setActivePanels(p => ({...p, color: true})); setExpandedSections(s => ({...s, color: true})); }} className="chip chip-neutral justify-between cursor-pointer hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]" style={{ display: 'flex', width: '100%', padding: '10px 14px' }}>
+                            <span className="flex items-center gap-2">
+                              <span className="material-symbols-outlined text-sm">color_lens</span>
+                              Paleta de Colores
+                            </span>
+                            <span className="material-symbols-outlined text-sm">add</span>
+                          </span>
+                        )}
+                        {!activePanels.typography && (
+                          <span onClick={() => { setActivePanels(p => ({...p, typography: true})); setExpandedSections(s => ({...s, typography: true})); }} className="chip chip-neutral justify-between cursor-pointer hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]" style={{ display: 'flex', width: '100%', padding: '10px 14px' }}>
+                            <span className="flex items-center gap-2">
+                              <span className="material-symbols-outlined text-sm">text_fields</span>
+                              Tipografía
+                            </span>
+                            <span className="material-symbols-outlined text-sm">add</span>
+                          </span>
+                        )}
+                        {!activePanels.logo && (
+                          <span onClick={() => { setActivePanels(p => ({...p, logo: true})); setExpandedSections(s => ({...s, logo: true})); }} className="chip chip-neutral justify-between cursor-pointer hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]" style={{ display: 'flex', width: '100%', padding: '10px 14px' }}>
+                            <span className="flex items-center gap-2">
+                              <span className="material-symbols-outlined text-sm">crop_schema</span>
+                              Logo SVG
+                            </span>
+                            <span className="material-symbols-outlined text-sm">add</span>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="glass-panel p-6 space-y-4">
+                    <h3 className="font-headline-sm text-[var(--on-surface)]">Guía de Formatos</h3>
+                    <p className="text-xs text-[var(--on-surface-variant)] leading-relaxed">
+                      <strong>Colores:</strong> Usa HEX (#000000), HSL o RGB. Se previsualizará automáticamente si el formato es válido.
+                    </p>
+                    <p className="text-xs text-[var(--on-surface-variant)] leading-relaxed">
+                      <strong>Tipografía:</strong> La fuente de Google Fonts debe ingresarse con su nombre exacto (ej. "Plus Jakarta Sans") para ser cargada de manera dinámica.
+                    </p>
+                    <p className="text-xs text-[var(--on-surface-variant)] leading-relaxed">
+                      <strong>Logo SVG:</strong> Inserta el código XML crudo del SVG. Asegúrate de incluir el atributo <code>viewBox</code> para un escalado responsivo.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Associated Tools */}
+                  <div className="glass-panel p-6">
+                    <h3 className="font-headline-sm mb-4 text-[var(--on-surface)]">Herramientas Asociadas</h3>
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {(formData.tools || []).map((t, idx) => (
+                        <span key={idx} className="chip chip-primary" style={{ cursor: 'pointer' }}>
+                          {t}
+                          <button 
+                            type="button" 
+                            onClick={() => removeTool(idx)} 
+                            className="btn-remove-tool ml-1 bg-transparent border-none cursor-pointer color-inherit p-0 text-[12px]"
+                          >
+                            ✕
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                    <div className="flex gap-2">
+                      <input 
+                        type="text" 
+                        id="tool-input"
+                        placeholder="Añadir herramienta..." 
+                        className="form-input flex-1"
+                        style={{ padding: '10px 14px' }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            addTool(e.target.value);
+                            e.target.value = '';
+                          }
+                        }}
+                      />
                       <button 
                         type="button" 
-                        onClick={() => removeTool(idx)} 
-                        className="btn-remove-tool ml-1 bg-transparent border-none cursor-pointer color-inherit p-0 text-[12px]"
+                        onClick={() => {
+                          const input = document.getElementById('tool-input');
+                          if (input) {
+                            addTool(input.value);
+                            input.value = '';
+                          }
+                        }}
+                        className="btn-icon" 
+                        title="Agregar herramienta"
                       >
-                        ✕
+                        <span className="material-symbols-outlined text-sm">add</span>
                       </button>
-                    </span>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <input 
-                    type="text" 
-                    id="tool-input"
-                    placeholder="Añadir herramienta..." 
-                    className="form-input flex-1"
-                    style={{ padding: '10px 14px' }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        addTool(e.target.value);
-                        e.target.value = '';
-                      }
-                    }}
-                  />
-                  <button 
-                    type="button" 
-                    onClick={() => {
-                      const input = document.getElementById('tool-input');
-                      if (input) {
-                        addTool(input.value);
-                        input.value = '';
-                      }
-                    }}
-                    className="btn-icon" 
-                    title="Agregar herramienta"
-                  >
-                    <span className="material-symbols-outlined text-sm">add</span>
-                  </button>
-                </div>
-              </div>
+                    </div>
+                  </div>
+                </>
+              )}
 
               {/* Secciones Disponibles */}
-              {Object.values(activePanels).includes(false) && (
+              {activeModule !== 'design_tokens' && Object.values(activePanels).includes(false) && (
                 <div className="glass-panel p-6">
                   <h3 className="font-headline-sm mb-4 text-[var(--on-surface)]">Añadir Secciones</h3>
                   <p className="text-xs text-[var(--on-surface-variant)] mb-3">Secciones que no se muestran en el visor. Haz clic en una para agregarla al formulario:</p>
@@ -1201,13 +1726,27 @@ export default function CRMControlPanel({ config }) {
                     steps: [{ label: '', detail: '' }],
                     results: '',
                     metrics: '',
-                    promptVars: ''
+                    promptVars: '',
+                    brandName: '',
+                    tokenName: '',
+                    tokenType: 'color',
+                    colorHex: '',
+                    colorRole: '',
+                    colorPaletteDescription: '',
+                    fontFamily: '',
+                    fontWeights: [],
+                    fontSize: '',
+                    fontSampleText: '',
+                    svgContent: ''
                   });
                   setActivePanels({
                     steps: false,
                     problems: false,
                     metrics: false,
-                    prompt: false
+                    prompt: false,
+                    color: false,
+                    typography: false,
+                    logo: false
                   });
                   setShowForm(true);
                 }}
@@ -1215,7 +1754,7 @@ export default function CRMControlPanel({ config }) {
                 style={{ padding: '6px 16px' }}
               >
                 <span className="material-symbols-outlined text-sm">add</span>
-                Añadir Término
+                {activeModule === 'design_tokens' ? 'Añadir Token' : 'Añadir Término'}
               </button>
             </div>
           </div>
@@ -1229,19 +1768,42 @@ export default function CRMControlPanel({ config }) {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-[var(--outline-variant)] text-xs uppercase tracking-wider text-[var(--outline)]">
-                    <th className="pb-3 pr-2">Nombre</th>
-                    <th className="pb-3 pr-2">Categoría</th>
+                    <th className="pb-3 pr-2">{activeModule === 'design_tokens' ? 'Marca / Sistema de Diseño' : 'Nombre'}</th>
+                    <th className="pb-3 pr-2">{activeModule === 'design_tokens' ? 'Elementos' : 'Categoría'}</th>
                     <th className="pb-3 pr-2">Estado</th>
                     <th className="pb-3 text-right">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--outline-variant)]">
                   {items
-                    .filter(i => i.title.toLowerCase().includes(searchTerm.toLowerCase()))
+                    .filter(i => {
+                      const searchStr = activeModule === 'design_tokens'
+                        ? `${i.brandName || i.brand_name || ''}`
+                        : `${i.title} ${i.category}`;
+                      return searchStr.toLowerCase().includes(searchTerm.toLowerCase());
+                    })
                     .map(item => (
                       <tr key={item.id} className="text-sm">
-                        <td className="py-3 font-semibold text-[var(--on-surface)] pr-2">{item.title}</td>
-                        <td className="py-3 text-[var(--on-surface-variant)] pr-2">{item.category}</td>
+                        <td className="py-3 font-semibold text-[var(--on-surface)] pr-2">
+                          {activeModule === 'design_tokens' ? (
+                            <span className="flex items-center gap-2">
+                              <span>{item.brandName}</span>
+                            </span>
+                          ) : (
+                            item.title
+                          )}
+                        </td>
+                        <td className="py-3 text-[var(--on-surface-variant)] pr-2">
+                          {activeModule === 'design_tokens' ? (
+                            <div className="flex flex-wrap gap-2 text-xs">
+                              {item.colors && item.colors.length > 0 && <span className="chip chip-neutral">{item.colors.length} Colores</span>}
+                              {item.typographies && item.typographies.length > 0 && <span className="chip chip-neutral">{item.typographies.length} Fuentes</span>}
+                              {item.logos && item.logos.length > 0 && <span className="chip chip-neutral">{item.logos.length} Logos</span>}
+                            </div>
+                          ) : (
+                            item.category
+                          )}
+                        </td>
                         <td className="py-3 pr-2">
                           <span className={`chip ${item.isDraft ? 'chip-neutral' : 'chip-tertiary'}`}>
                             {item.isDraft ? 'Borrador' : 'Publicado'}
