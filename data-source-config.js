@@ -16,11 +16,18 @@
  */
 
 (function () {
-  // Inicialización inmediata de tema para evitar flashes blancos
-  const isDark = localStorage.getItem('glosaurio_theme') !== 'light';
-  document.documentElement.classList.toggle('dark', isDark);
+  // Obtener config de archivo para leer el appName y crear un namespace para localStorage
+  const fileConfig = window.CRM_CONFIG || window.GLOSAURIO_DEFAULT_CONFIG || null;
+  const projectSuffix = fileConfig?.branding?.appName 
+    ? `_${fileConfig.branding.appName.toLowerCase().replace(/[^a-z0-9]/g, '')}` 
+    : '';
 
-  const CONFIG_KEY = 'glosaurio_datasource_config';
+  const CONFIG_KEY = `glosaurio_datasource_config${projectSuffix}`;
+  const THEME_KEY = `glosaurio_theme${projectSuffix}`;
+
+  // Inicialización inmediata de tema para evitar flashes blancos
+  const isDark = localStorage.getItem(THEME_KEY) !== 'light';
+  document.documentElement.classList.toggle('dark', isDark);
 
   const Config = {
     getConfig() {
@@ -60,8 +67,7 @@
     },
 
     isConfigured() {
-      const c = this.getConfig();
-      return c && c.provider !== 'localStorage';
+      return window.DataSource && !(window.DataSource instanceof window.Glosaurio.LocalStorageAdapter);
     }
   };
 
@@ -134,7 +140,7 @@
       
       const icon = document.getElementById('theme-icon');
       if (icon) icon.textContent = nextDark ? 'light_mode' : 'dark_mode';
-      localStorage.setItem('glosaurio_theme', nextDark ? 'dark' : 'light');
+      localStorage.setItem(THEME_KEY, nextDark ? 'dark' : 'light');
       
       // Sincronizar estado con CRM si está definido en crm-app.js
       if (window.CRM) {

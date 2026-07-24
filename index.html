@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html lang="es" class="dark">
 <head>
+  <script>
+    // Evitar errores 404 de resolución de rutas relativas si se accede sin la barra diagonal final
+    if (window.location.pathname.endsWith('/controlpanel')) {
+      window.location.pathname += '/';
+    }
+  </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CMS Andreia — Panel CRM</title>
@@ -25,7 +31,7 @@
   <script src="adapters/adapter-interface.js"></script>
   <script src="adapters/supabase-adapter.js"></script>
   <script src="adapters/firebase-adapter.js"></script>
-  <script src="crm-config.js"></script>
+  <script src="../crm-config.js"></script>
   <script src="data-source-config.js"></script>
   <script src="modules/module-registry.js"></script>
 </head>
@@ -87,6 +93,22 @@
 
     <!-- ─── CMS MAIN WORKSPACE ─────────────────────────────── -->
     <div class="lg:col-span-9 space-y-6" id="cms-workspace">
+
+      <!-- ═══════════════════════════ VIEW: SIN CONFIGURAR ═══════════════════════════ -->
+      <div id="crm-unconfigured-view" class="hidden glass-panel p-12 text-center space-y-6 relative overflow-hidden">
+        <div class="absolute top-0 right-0 w-32 h-32 bg-[var(--primary)] opacity-5 rounded-full blur-2xl"></div>
+        <span class="material-symbols-outlined text-7xl block text-[var(--primary)] opacity-40">database</span>
+        <h2 class="font-headline-lg" style="color: var(--on-surface);">¡Bienvenido al Panel de Control!</h2>
+        <p class="font-body-lg max-w-lg mx-auto" style="color: var(--on-surface-variant);">
+          Para comenzar a gestionar tus contenidos (Viajes, Términos y Design Tokens), primero debes conectar tu Base de Datos.
+        </p>
+        <div class="pt-4">
+          <a href="setup.html" class="btn-primary inline-flex items-center gap-2 px-6 py-3 mx-auto">
+            Configurar Base de Datos ahora
+            <span class="material-symbols-outlined text-sm">arrow_forward</span>
+          </a>
+        </div>
+      </div>
 
       <!-- Header -->
       <div class="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">

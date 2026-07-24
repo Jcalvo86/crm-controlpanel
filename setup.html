@@ -38,7 +38,7 @@
   <script src="adapters/supabase-adapter.js"></script>
   <script src="adapters/firebase-adapter.js"></script>
   <script src="../supabase-config.js"></script>
-  <script src="crm-config.js"></script>
+  <script src="../crm-config.js"></script>
   <script src="data-source-config.js"></script>
 </head>
 
@@ -576,19 +576,25 @@ CREATE POLICY "public_read_posts" ON public.cms_posts FOR SELECT USING (is_draft
 CREATE POLICY "anon_all_posts" ON public.cms_posts FOR ALL USING (true) WITH CHECK (true);`,
 
   products: `CREATE TABLE IF NOT EXISTS public.cms_products (
-  id            uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  name          text NOT NULL,
-  sku           text NOT NULL UNIQUE,
-  price         numeric NOT NULL,
-  compare_price numeric,
-  description   text DEFAULT '',
-  status        text DEFAULT 'active',
-  stock         integer DEFAULT 0,
-  image_url     text DEFAULT '',
-  features      text[] DEFAULT '{}',
-  is_draft      boolean DEFAULT true,
-  created_at    timestamptz DEFAULT now(),
-  updated_at    timestamptz DEFAULT now()
+  id             uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  name           text NOT NULL,
+  subtitle       text DEFAULT '',
+  sku            text NOT NULL UNIQUE,
+  price          numeric NOT NULL,
+  compare_price  numeric,
+  image_url      text DEFAULT '',
+  overview       text DEFAULT '',
+  duration       integer DEFAULT 0,
+  itinerary_json text DEFAULT '[]',
+  best_season    text DEFAULT '',
+  currency       text DEFAULT '',
+  visa           text DEFAULT '',
+  map_url        text DEFAULT '',
+  gallery_urls   text[] DEFAULT '{}',
+  status         text DEFAULT 'active',
+  is_draft       boolean DEFAULT true,
+  created_at     timestamptz DEFAULT now(),
+  updated_at     timestamptz DEFAULT now()
 );
 
 -- RLS & Policies

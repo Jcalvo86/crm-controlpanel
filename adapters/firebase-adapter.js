@@ -167,9 +167,9 @@ window.Glosaurio.FirebaseAdapter = class FirebaseAdapter {
 
   async testConnection(collection = 'terms') {
     try {
-      const res = await fetch(`https://firestore.googleapis.com/v1/projects/${this.projectId}/databases/(default)/documents?key=${this.apiKey}&pageSize=1`);
-      if (res.status === 200) {
-        return { ok: true, message: `Conexión a Firebase exitosa ✓ (proyecto: ${this.projectId}, colección: ${collection})` };
+      const res = await fetch(`https://firestore.googleapis.com/v1/projects/${this.projectId}/databases/(default)/documents/${collection}?key=${this.apiKey}&pageSize=1`);
+      if (res.status === 200 || res.status === 404) {
+        return { ok: true, message: `Conexión a Firebase exitosa ✓ (proyecto: ${this.projectId}, base de datos vacía)` };
       }
       if (res.status === 403) {
         return { ok: false, message: 'Acceso denegado (403). Verifica las Firestore Rules.' };

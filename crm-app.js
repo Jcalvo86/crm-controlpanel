@@ -25,7 +25,7 @@ const CRM = {
 // ─────────────────────────────────────────────────────────────
 //  THEME
 // ─────────────────────────────────────────────────────────────
-CRM.isDark = localStorage.getItem('glosaurio_theme') !== 'light';
+CRM.isDark = document.documentElement.classList.contains('dark');
 
 // ─────────────────────────────────────────────────────────────
 //  VIEW NAVIGATION
@@ -77,6 +77,17 @@ function renderSidebarModules() {
   const container = document.getElementById('cms-modules-nav');
   if (!container) return;
 
+  const isConfigured = window.DataSourceConfig?.isConfigured();
+  if (!isConfigured) {
+    container.innerHTML = `
+      <div class="text-xs p-4 text-center rounded-xl border border-dashed border-[var(--outline-variant)] text-[var(--outline)]">
+        <span class="material-symbols-outlined block mb-1 text-lg">database_off</span>
+        Base de datos sin configurar
+      </div>
+    `;
+    return;
+  }
+
   const cfg = window.DataSourceConfig.getConfig() || {};
   const defaultModules = Object.keys(window.Glosaurio.CMS_MODULES || {});
   CRM.activeModulesList = cfg.activeModules || defaultModules;
@@ -114,6 +125,17 @@ function renderSidebarModules() {
 
   // Re-enlazar evento de categorías
   document.getElementById('btn-nav-categories')?.addEventListener('click', showCategoriesView);
+}
+
+function showUnconfiguredScreen() {
+  document.getElementById('crm-list-view')?.classList.add('hidden');
+  document.getElementById('crm-form-view')?.classList.add('hidden');
+  document.getElementById('crm-categories-view')?.classList.add('hidden');
+  
+  const workspaceHeader = document.getElementById('workspace-title')?.parentElement?.parentElement;
+  if (workspaceHeader) workspaceHeader.classList.add('hidden');
+
+  document.getElementById('crm-unconfigured-view')?.classList.remove('hidden');
 }
 
 async function switchModule(moduleKey) {
@@ -955,15 +977,49 @@ document.getElementById('crm-search')?.addEventListener('input', e => {
 //  PROVIDER BADGE DISPLAYER
 // ─────────────────────────────────────────────────────────────
 function updateProviderBadges() {
+  const isConfigured = window.DataSourceConfig?.isConfigured();
   const provider = window.DataSourceConfig?.getProvider() || 'localStorage';
-  const labels = { supabase: '🟢 Supabase', firebase: '🔥 Firebase', localStorage: '💾 Local' };
-  const txt = labels[provider] || provider;
+  
+  let txt = '';
+  if (!isConfigured) {
+    txt = '⚠️ Sin Configurar';
+  } else {
+    const labels = { supabase: '🟢 Supabase', firebase: '🔥 Firebase', localStorage: '💾 Local' };
+    txt = labels[provider] || provider;
+  }
 
   const badgeHeader = document.getElementById('provider-badge');
-  if (badgeHeader) badgeHeader.textContent = txt;
+  if (badgeHeader) {
+    badgeHeader.textContent = txt;
+    badgeHeader.style.cursor = 'pointer';
+    badgeHeader.title = isConfigured ? 'Base de datos configurada. Haz clic para cambiarla.' : '¡Base de datos sin configurar! Haz clic para configurarla ahora.';
+    
+    if (!isConfigured) {
+      badgeHeader.className = 'chip chip-neutral animate-pulse';
+      badgeHeader.style.border = '1px solid var(--error, #ba1a1a)';
+      badgeHeader.style.color = 'var(--error, #ba1a1a)';
+    } else {
+      badgeHeader.className = 'chip chip-tertiary';
+      badgeHeader.style.border = '';
+      badgeHeader.style.color = '';
+    }
+    
+    badgeHeader.onclick = () => {
+      window.location.href = 'setup.html';
+    };
+  }
 
   const badgeSidebar = document.getElementById('provider-badge-sidebar');
-  if (badgeSidebar) badgeSidebar.textContent = txt;
+  if (badgeSidebar) {
+    badgeSidebar.textContent = txt;
+    if (!isConfigured) {
+      badgeSidebar.style.color = 'var(--error, #ba1a1a)';
+      badgeSidebar.style.fontWeight = 'bold';
+    } else {
+      badgeSidebar.style.color = '';
+      badgeSidebar.style.fontWeight = '';
+    }
+  }
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -1191,8 +1247,19 @@ fileInput?.addEventListener('change', e => {
 //  INIT CMS WORKSPACE
 // ─────────────────────────────────────────────────────────────
 async function init() {
-  initTheme();
+  // Theme initialization is handled automatically in data-source-config.js
   updateProviderBadges();
+
+  const isConfigured = window.DataSourceConfig?.isConfigured();
+  if (!isConfigured) {
+    renderSidebarModules();
+    showUnconfiguredScreen();
+    
+    // Ocultar botón Probar
+    const btnTestDb = document.getElementById('btn-test-db');
+    if (btnTestDb) btnTestDb.style.display = 'none';
+    return;
+  }
 
   // Probar conexión a Base de Datos
   const btnTestDb = document.getElementById('btn-test-db');

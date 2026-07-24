@@ -1,7 +1,7 @@
 // Configuration file for ControlPanel CRM
 window.CRM_CONFIG = {
   // 1. Data Source Provider Configuration
-  provider: "supabase", // 'firebase' | 'supabase' | 'localStorage'
+  provider: "firebase", // 'firebase' | 'supabase' | 'localStorage'
   
   supabase: {
     url: 'https://dzksclkscwljussvyrzx.supabase.co',
@@ -9,11 +9,11 @@ window.CRM_CONFIG = {
   },
 
   // 2. Active Modules for this project
-  activeModules: ["terms", "design_tokens"], // Choose from: 'terms', 'blog', 'products', 'design_tokens'
+  activeModules: ["terms", "products", "design_tokens"], // Choose from: 'terms', 'blog', 'products', 'design_tokens'
 
   // 3. Project Branding Customizations
   branding: {
-    appName: "Alexandria",
+    appName: "Sueño Travel",
     logoUrl: "../favicon.png", // Path or URL to the logo
     backUrl: "../index.html"          // Path or URL to go back
   }
