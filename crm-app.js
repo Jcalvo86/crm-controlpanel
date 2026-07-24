@@ -34,6 +34,7 @@ function showCRMList() {
   document.getElementById('crm-list-view')?.classList.remove('hidden');
   document.getElementById('crm-form-view')?.classList.add('hidden');
   document.getElementById('crm-categories-view')?.classList.add('hidden');
+  document.getElementById('btn-download-template')?.classList.add('hidden');
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -41,6 +42,7 @@ function showCRMForm(isNew = true) {
   document.getElementById('crm-list-view')?.classList.add('hidden');
   document.getElementById('crm-form-view')?.classList.remove('hidden');
   document.getElementById('crm-categories-view')?.classList.add('hidden');
+  document.getElementById('btn-download-template')?.classList.remove('hidden');
 
   const moduleDef = window.Glosaurio.CMS_MODULES[CRM.activeModule];
   const chip = document.getElementById('editor-mode-chip');
@@ -59,6 +61,7 @@ function showCategoriesView() {
   document.getElementById('crm-list-view')?.classList.add('hidden');
   document.getElementById('crm-form-view')?.classList.add('hidden');
   document.getElementById('crm-categories-view')?.classList.remove('hidden');
+  document.getElementById('btn-download-template')?.classList.add('hidden');
 
   // Actualizar título
   document.getElementById('workspace-title').textContent = 'Configuración de Categorías';
@@ -546,6 +549,7 @@ function buildItemFromForm(isDraft = false) {
 
     switch (field.type) {
       case 'text':
+      case 'url':
       case 'textarea':
       case 'markdown':
       case 'code':
@@ -597,6 +601,7 @@ function loadItemIntoForm(item) {
 
     switch (field.type) {
       case 'text':
+      case 'url':
       case 'textarea':
       case 'markdown':
       case 'code':
@@ -663,6 +668,7 @@ function resetForm() {
 
     switch (field.type) {
       case 'text':
+      case 'url':
       case 'textarea':
       case 'markdown':
       case 'code':
@@ -1046,18 +1052,55 @@ document.getElementById('btn-download-template')?.addEventListener('click', () =
   moduleDef.schema.forEach(field => {
     if (field.id === 'isDraft') {
       template[field.id] = field.default !== undefined ? field.default : true;
+    } else if (field.id === 'colors') {
+      template[field.id] = [
+        {
+          hex: "[Código de color en formato HEX, RGB o HSL, ej: '#2563EB']",
+          role: "[Rol o nombre del color, ej: 'Primario', 'Fondo']",
+          description: "[Descripción detallada del uso de este color en el diseño]"
+        }
+      ];
+    } else if (field.id === 'typographies') {
+      template[field.id] = [
+        {
+          fontFamily: "[Familia tipográfica de Google Fonts, ej: 'Plus Jakarta Sans']",
+          fontSize: "[Tamaño base de la fuente, ej: '16px' o '1rem']",
+          weights: [
+            "[Pesos de fuente soportados y disponibles, ej: '400', '700']"
+          ],
+          fontSampleText: "[Texto corto de muestra para previsualizar la tipografía]"
+        }
+      ];
+    } else if (field.id === 'logos') {
+      template[field.id] = [
+        {
+          name: "[Nombre identificativo del logotipo, ej: 'Logo Principal' o 'Isotipo']",
+          svgContent: "[Código XML crudo del SVG, ej: <svg ...>...</svg>]"
+        }
+      ];
     } else if (field.type === 'steps') {
       template[field.id] = [
-        { label: 'Paso 1: Título de ejemplo', detail: 'Descripción detallada de este paso.' }
+        { 
+          label: `[Nombre o título corto del paso. Campo: ${field.label}]`, 
+          detail: `[Explicación detallada de las acciones específicas para este paso. Campo: ${field.label}]` 
+        }
       ];
-    } else if (field.type === 'lines' || field.type === 'tags') {
-      template[field.id] = field.type === 'lines' ? ['Ejemplo 1', 'Ejemplo 2'] : ['Etiqueta1', 'Etiqueta2'];
+    } else if (field.type === 'lines') {
+      template[field.id] = [
+        `[Descripción del elemento o línea 1. Campo: ${field.label}]`, 
+        `[Descripción del elemento o línea 2. Campo: ${field.label}]`
+      ];
+    } else if (field.type === 'tags') {
+      template[field.id] = [
+        `[Etiqueta1_de_${field.id}]`, 
+        `[Etiqueta2_de_${field.id}]`
+      ];
     } else if (field.type === 'number' || field.type === 'range') {
       template[field.id] = field.default !== undefined ? field.default : 0;
     } else if (field.type === 'boolean') {
       template[field.id] = field.default !== undefined ? field.default : false;
     } else {
-      template[field.id] = field.placeholder || 'Texto de ejemplo';
+      template[field.id] = `[Descripción de lo esperado: ${field.label}. ${field.placeholder || ''}]`;
     }
   });
 

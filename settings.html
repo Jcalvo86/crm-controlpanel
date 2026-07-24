@@ -228,7 +228,7 @@
     // Render active modules
     const modules = config.activeModules || [];
     if (modules.length > 0) {
-      const moduleNames = { blog: '📝 Blog / Artículos', products: '🛍️ Productos / Catálogo', terms: '📚 Términos / Glosario' };
+      const moduleNames = { blog: '📝 Blog / Artículos', products: '🛍️ Productos / Catálogo', terms: '📚 Entrada', design_tokens: '🎨 UI Kit' };
       modulesList.innerHTML = modules.map(m => `
         <span class="chip chip-neutral font-body-sm">${moduleNames[m] || m}</span>
       `).join('');

@@ -12,13 +12,13 @@ window.Glosaurio.CMS_MODULES = {
   // ── 📚 MÓDULO TÉRMINOS / GLOSARIO ────────────────────────────
   terms: {
     id: 'terms',
-    label: 'Términos / Glosario',
+    label: 'Entrada',
     icon: 'menu_book',
-    description: 'Gestiona los conceptos, metodologías y prompts del glosario.',
+    description: 'Gestiona las entradas, metodologías y prompts.',
     collection: 'terms',
     titleField: 'title', // campo representativo para títulos
     schema: [
-      { id: 'title', label: 'Título del Término', type: 'text', required: true, placeholder: 'Ej: Vibe Coding Essentials' },
+      { id: 'title', label: 'Título de la Entrada', type: 'text', required: true, placeholder: 'Ej: Vibe Coding Essentials' },
       {
         id: 'category',
         label: 'Categoría',
@@ -26,6 +26,7 @@ window.Glosaurio.CMS_MODULES = {
         required: true
       },
       { id: 'description', label: 'Descripción Corta', type: 'textarea', required: true, rows: 3, placeholder: 'Descripción concisa para la tarjeta...' },
+      { id: 'url', label: 'Enlace URL (Documentación / Web)', type: 'url', placeholder: 'Ej: https://ejemplo.com' },
       { id: 'videoUrl', label: 'Enlace a Video (URL)', type: 'url', placeholder: 'Ej: https://www.youtube.com/watch?v=...' },
       {
         id: 'steps',
@@ -112,13 +113,14 @@ window.Glosaurio.CMS_MODULES = {
   // ── 🎨 MÓDULO DESIGN TOKENS ───────────────────────────────────
   design_tokens: {
     id: 'design_tokens',
-    label: 'Design Tokens / Marca',
+    label: 'UI Kit',
     icon: 'palette',
-    description: 'Gestiona la paleta de colores, tipografías y logos SVG de tus marcas.',
+    description: 'Gestiona los UI Kits, paletas de colores, tipografías y logos SVG.',
     collection: 'design_tokens',
     titleField: 'brandName',
     schema: [
       { id: 'brandName', label: 'Nombre de la Marca', type: 'text', required: true, placeholder: 'Ej: Glosaurio, Nike' },
+      { id: 'url', label: 'Enlace URL (UI Kit / Web)', type: 'url', placeholder: 'Ej: https://figma.com/... o https://ejemplo.com' },
       { id: 'colors', label: 'Colores', type: 'json' },
       { id: 'typographies', label: 'Tipografías', type: 'json' },
       { id: 'logos', label: 'Logos SVG', type: 'json' },
