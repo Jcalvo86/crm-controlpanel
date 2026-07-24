@@ -23,7 +23,7 @@ window.Glosaurio.SEED_TERMS = [
   {
     id: 'design-sprint',
     title: 'Design Sprint',
-    category: 'Diseño & Marca',
+    category: '{"workArea":"diseño","contentType":"metodologia","targetResult":"crear_marca"}',
     description: 'Metodología de cinco días para resolver problemas críticos de negocio mediante diseño, prototipado y testeo de usuarios reales.',
     steps: [
       { label: 'Map & Understand', detail: 'Mapear el problema y establecer el objetivo a largo plazo. Identificar los actores clave del proceso.' },
@@ -45,7 +45,7 @@ window.Glosaurio.SEED_TERMS = [
   {
     id: 'cursor-ai-workflow',
     title: 'Cursor AI Workflow',
-    category: 'Vibe Coding',
+    category: '{"workArea":"codigo","contentType":"herramienta","targetResult":"reducir_tokens"}',
     description: 'Optimización extrema del flujo de desarrollo utilizando Composer, Cursor Rules y las capacidades nativas de AI en el editor.',
     steps: [
       { label: 'Setup & Rules', detail: 'Configurar `.cursorrules` con las convenciones del proyecto.' },
@@ -66,7 +66,7 @@ window.Glosaurio.SEED_TERMS = [
   {
     id: 'brand-voice-guide',
     title: 'Brand Voice Guide',
-    category: 'Diseño & Marca',
+    category: '{"workArea":"diseño","contentType":"metodologia","targetResult":"crear_marca"}',
     description: 'Framework para definir la personalidad lingüística de una marca y su aplicación en interfaces conversacionales y comunicación digital.',
     steps: [
       { label: 'Audit de Voz', detail: 'Recopilar ejemplos de comunicación existente y mapear atributos de personalidad.' },
@@ -87,7 +87,7 @@ window.Glosaurio.SEED_TERMS = [
   {
     id: 'prompt-engineering',
     title: 'Prompt Engineering',
-    category: 'Vibe Coding',
+    category: '{"workArea":"codigo","contentType":"herramienta","targetResult":"no_parezca_ai"}',
     description: 'Arte y ciencia de diseñar instrucciones precisas para LLMs que maximizan la calidad y consistencia de las respuestas generadas.',
     steps: [
       { label: 'Define Objective', detail: 'Especificar el output deseado con ejemplos concretos.' },

@@ -1,5 +1,27 @@
 import React, { useState, useEffect, useRef } from 'react';
 
+const parseCategory = (catStr) => {
+  try {
+    if (catStr && catStr.startsWith('{') && catStr.endsWith('}')) {
+      const parsed = JSON.parse(catStr);
+      return {
+        workArea: parsed.workArea || 'codigo',
+        contentType: parsed.contentType || 'metodologia',
+        targetResult: parsed.targetResult || 'otro'
+      };
+    }
+  } catch (e) {}
+  
+  const normalized = (catStr || '').trim();
+  if (normalized === 'Diseño & Marca') return { workArea: 'diseño', contentType: 'metodologia', targetResult: 'crear_marca' };
+  if (normalized === 'Vibe Coding') return { workArea: 'codigo', contentType: 'herramienta', targetResult: 'no_parezca_ai' };
+  if (normalized === 'Gestión' || normalized === 'Gestión de Proyectos') return { workArea: 'gestion', contentType: 'metodologia', targetResult: 'otro' };
+  if (normalized === 'Automatización') return { workArea: 'codigo', contentType: 'herramienta', targetResult: 'reducir_tokens' };
+  if (normalized === 'Tech' || normalized === 'Tech & Tooling') return { workArea: 'codigo', contentType: 'herramienta', targetResult: 'otro' };
+  
+  return { workArea: 'codigo', contentType: 'metodologia', targetResult: 'otro' };
+};
+
 // Reusable REST Adapters inside the component structure
 class SupabaseRESTService {
   constructor(config, sessionToken = null) {
@@ -166,12 +188,20 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
   const [loadingData, setLoadingData] = useState(false);
   const [activeModule, setActiveModule] = useState(config.activeModules?.[0] || 'terms');
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortAlphabetical, setSortAlphabetical] = useState(false);
+  const [filterCategory, setFilterCategory] = useState('all');
   const [isEditing, setIsEditing] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [creatingTypeSelected, setCreatingTypeSelected] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     category: 'Diseño & Marca',
+    workArea: 'codigo',
+    contentType: 'metodologia',
+    targetResult: 'otro',
     description: '',
+    url: '',
+    videos: [''],
     tools: [],
     isDraft: false,
     prompt: '',
@@ -199,7 +229,8 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
     metrics: true,
     prompt: true,
     scenarios: true,
-    code: true
+    code: true,
+    videos: true
   });
 
   const toggleSection = (section) => {
@@ -213,10 +244,66 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
     prompt: false,
     scenarios: false,
     code: false,
+    videos: false,
     color: false,
     typography: false,
-    logo: false
   });
+
+  const [showAllResults, setShowAllResults] = useState(false);
+
+  const allResultsFromData = React.useMemo(() => {
+    if (activeModule !== 'terms') return [];
+    const set = new Set();
+    items.forEach(item => {
+      try {
+        let cat = item.category;
+        if (cat && typeof cat === 'string') {
+          if (cat.startsWith('{')) {
+            const parsed = JSON.parse(cat);
+            if (parsed.targetResult) {
+              parsed.targetResult.split(',').forEach(r => {
+                const cleaned = r.trim();
+                if (cleaned) set.add(cleaned);
+              });
+            }
+          } else {
+            const parsed = parseCategory(cat);
+            if (parsed.targetResult) {
+              parsed.targetResult.split(',').forEach(r => {
+                const cleaned = r.trim();
+                if (cleaned) set.add(cleaned);
+              });
+            }
+          }
+        }
+      } catch (e) {}
+    });
+    return Array.from(set);
+  }, [items, activeModule]);
+
+  const mergedResultsOptions = React.useMemo(() => {
+    const list = [
+      { val: 'reducir_tokens', label: '📉 Reducir tokens' },
+      { val: 'no_parezca_ai', label: '🤖 Que no parezca AI' },
+      { val: 'crear_marca', label: '🎨 Crear una marca' },
+      { val: 'otro', label: '💡 General' }
+    ];
+    const predefinedVals = list.map(o => o.val);
+    allResultsFromData.forEach(r => {
+      if (!predefinedVals.includes(r)) {
+        const displayLabel = r.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        list.push({ val: r, label: `💡 ${displayLabel}` });
+      }
+    });
+    const selectedResults = (formData.targetResult || '').split(',').map(x => x.trim()).filter(Boolean);
+    selectedResults.forEach(r => {
+      if (!list.some(o => o.val === r)) {
+        const displayLabel = r.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        list.push({ val: r, label: `💡 ${displayLabel}` });
+      }
+    });
+    return list;
+  }, [allResultsFromData, formData.targetResult]);
 
   // Dynamic step management helpers
   const handleStepChange = (index, field, value) => {
@@ -294,6 +381,20 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
     setFormData({ ...formData, logos: nextLogos });
   };
 
+  const handleVideoChange = (index, value) => {
+    const nextVideos = [...(formData.videos || [])];
+    nextVideos[index] = value;
+    setFormData({ ...formData, videos: nextVideos });
+  };
+  const addVideo = () => {
+    setFormData({ ...formData, videos: [...(formData.videos || []), ''] });
+  };
+  const removeVideo = (index) => {
+    const nextVideos = [...(formData.videos || [])];
+    nextVideos.splice(index, 1);
+    setFormData({ ...formData, videos: nextVideos });
+  };
+
   // Initialize service
   const service = config.provider === 'supabase' 
     ? new SupabaseRESTService(config.supabase, session?.token)
@@ -350,6 +451,8 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
           title: item.title,
           category: item.category,
           description: item.description,
+          url: item.url || '',
+          video_url: item.video_url || '',
           tools: Array.isArray(item.tools) ? item.tools : [],
           isDraft: item.is_draft || item.isDraft || false,
           prompt: item.prompt || '',
@@ -415,13 +518,20 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
         colors: formData.colors || [],
         typographies: formData.typographies || [],
         logos: formData.logos || [],
+        url: formData.url || '',
         is_draft: finalDraftStatus
       };
     } else {
       formattedData = {
         title: formData.title,
-        category: formData.category,
+        category: JSON.stringify({
+          workArea: formData.workArea || 'codigo',
+          contentType: formData.contentType || 'metodologia',
+          targetResult: formData.targetResult || 'otro'
+        }),
         description: formData.description,
+        url: formData.url || '',
+        video_url: JSON.stringify((formData.videos || []).filter(Boolean)),
         is_draft: finalDraftStatus,
         prompt: formData.prompt,
         tools: formData.tools || [],
@@ -467,7 +577,11 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
       setFormData({
         title: '',
         category: 'Diseño & Marca',
+        workArea: 'codigo',
+        contentType: 'metodologia',
+        targetResult: 'otro',
         description: '',
+        url: '',
         tools: [],
         isDraft: false,
         prompt: '',
@@ -511,12 +625,15 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
     if (activeModule === 'design_tokens') {
       setFormData({
         brandName: item.brandName || '',
+        url: item.url || '',
         colors: (item.colors && item.colors.length > 0) ? item.colors : [{ hex: '', role: '', description: '' }],
         typographies: (item.typographies && item.typographies.length > 0) ? item.typographies : [{ fontFamily: '', weights: [], fontSize: '', sampleText: '' }],
         logos: (item.logos && item.logos.length > 0) ? item.logos : [{ name: '', svgContent: '' }],
         isDraft: item.isDraft || false,
         title: '',
         category: 'Diseño & Marca',
+        workArea: 'diseño',
+        contentType: 'metodologia',
         description: '',
         tools: [],
         prompt: '',
@@ -527,11 +644,34 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
         metrics: '',
         promptVars: ''
       });
+      setCreatingTypeSelected(true);
     } else {
+      const parsedCat = parseCategory(item.category);
+      let parsedVideos = [''];
+      let urlFallback = item.url || '';
+      if (item.video_url) {
+        try {
+          const parsed = JSON.parse(item.video_url);
+          if (Array.isArray(parsed)) {
+            parsedVideos = parsed.length > 0 ? parsed : [''];
+          } else if (typeof parsed === 'string' && parsed.trim()) {
+            parsedVideos = [parsed.trim()];
+          }
+        } catch (e) {
+          if (!urlFallback && typeof item.video_url === 'string' && item.video_url.trim()) {
+            urlFallback = item.video_url.trim();
+          }
+        }
+      }
       setFormData({
         title: item.title || '',
         category: item.category || 'Diseño & Marca',
+        workArea: parsedCat.workArea,
+        contentType: parsedCat.contentType,
+        targetResult: parsedCat.targetResult,
         description: item.description || '',
+        url: urlFallback,
+        videos: parsedVideos,
         tools: item.tools || [],
         isDraft: item.isDraft || false,
         prompt: item.prompt || '',
@@ -556,6 +696,7 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
         fontSampleText: '',
         svgContent: ''
       });
+      setCreatingTypeSelected(true);
     }
 
     if (activeModule === 'design_tokens') {
@@ -643,46 +784,76 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
   };
 
   const handleDownloadTemplate = () => {
-    const template = {
-      title: "Ejemplo de Término",
-      category: "Diseño & Marca",
-      description: "Una descripción breve pero concisa del término.",
-      steps: [
-        {
-          label: "Paso 1: Inicialización",
-          detail: "Detalles del primer paso de implementación."
-        }
-      ],
-      problems: [
-        "Problema de ejemplo 1",
-        "Problema de ejemplo 2"
-      ],
-      benefits: [
-        "Beneficio de ejemplo 1",
-        "Beneficio de ejemplo 2"
-      ],
-      tools: [
-        "Figma",
-        "React"
-      ],
-      results: "Entregable final esperado.",
-      metrics: "Métricas para medir el impacto.",
-      recommendedScenarios: [
-        "Pantallas iterativas de planificación (Cartas Gantt, matrices RACI).",
-        "Formularios extensos o fichas de configuración general."
-      ],
-      criticalExclusions: [
-        "Colaboración multiusuario en tiempo real (provoca conflictos de sobreescritura).",
-        "Creación o eliminación de entidades principales.",
-        "Flujos financieros, transaccionales o de aprobación crítica."
-      ],
-      technicalExample: "// Hook de ciclo de vida estándar...\nuseEffect(() => {\n  return () => {\n    if (hasChangesRef.current) {\n      persistDataInDatabase(localStateRef.current);\n    }\n  };\n}, []);",
-      prompt: "Actúa como un experto en [industria]...",
-      promptVars: [
-        "industria"
-      ],
-      isDraft: true
-    };
+    let template = {};
+    if (activeModule === 'design_tokens') {
+      template = {
+        brandName: "[Nombre de la marca o sistema de diseño, ej: 'Alexandria']",
+        colors: [
+          {
+            hex: "[Código de color en formato HEX, RGB o HSL, ej: '#2563EB']",
+            role: "[Rol o nombre del color, ej: 'Primario', 'Fondo']",
+            description: "[Descripción detallada del uso de este color en el diseño]"
+          }
+        ],
+        typographies: [
+          {
+            fontFamily: "[Familia tipográfica de Google Fonts, ej: 'Plus Jakarta Sans']",
+            fontSize: "[Tamaño base de la fuente, ej: '16px' o '1rem']",
+            weights: [
+              "[Pesos de fuente soportados y disponibles, ej: '400', '700']"
+            ],
+            fontSampleText: "[Texto corto de muestra para previsualizar la tipografía]"
+          }
+        ],
+        logos: [
+          {
+            name: "[Nombre identificativo del logotipo, ej: 'Logo Principal' o 'Isotipo']",
+            svgContent: "[Código XML crudo del SVG, ej: <svg ...>...</svg>]"
+          }
+        ],
+        isDraft: true
+      };
+    } else {
+      template = {
+        title: "[Nombre del término, concepto o metodología. Ej: 'Design Tokens' o 'Vibe Coding']",
+        category: "[Categoría del término. Debe ser una de las siguientes: 'Diseño & Marca', 'Vibe Coding', 'Tech', 'Gestión de Proyectos', 'Automatización']",
+        description: "[Descripción clara y detallada de lo que consiste este término, explicando su propósito e importancia.]",
+        steps: [
+          {
+            label: "[Paso 1: Nombre o título corto de la primera etapa del proceso de implementación]",
+            detail: "[Explicación detallada de las acciones específicas y consideraciones para este paso.]"
+          }
+        ],
+        problems: [
+          "[Problema o ineficiencia número 1 que este término busca resolver o mitigar]",
+          "[Problema o ineficiencia número 2 que este término busca resolver o mitigar]"
+        ],
+        benefits: [
+          "[Beneficio o ventaja directa número 1 obtenida al aplicar este término o metodología]",
+          "[Beneficio o ventaja directa número 2 obtenida al aplicar este término o metodología]"
+        ],
+        tools: [
+          "[Nombre de la herramienta o software relacionado 1 (ej: Figma, VS Code)]",
+          "[Nombre de la herramienta o software relacionado 2]"
+        ],
+        results: "[Descripción del entregable final, resultado tangible o estado esperado después de implementar este concepto.]",
+        metrics: "[Indicadores clave de rendimiento o métricas de éxito recomendadas para evaluar el impacto.]",
+        recommendedScenarios: [
+          "[Escenario o caso de uso número 1 donde se aconseja y beneficia la aplicación de este término]",
+          "[Escenario o caso de uso número 2 donde se aconseja y beneficia la aplicación de este término]"
+        ],
+        criticalExclusions: [
+          "[Situación o contexto de riesgo número 1 donde explícitamente se desaconseja el uso de este término]",
+          "[Situación o contexto de riesgo número 2 donde explícitamente se desaconseja el uso de este término]"
+        ],
+        technicalExample: "[Snippet de código, configuración de ejemplo o demostración técnica que ilustre la aplicación práctica.]",
+        prompt: "[Instrucción o prompt de IA recomendado para optimizar el uso de este concepto con un LLM, usando variables en formato [nombre_variable]]",
+        promptVars: [
+          "[nombre_variable]"
+        ],
+        isDraft: true
+      };
+    }
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify([template], null, 2));
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute("href", dataStr);
@@ -691,6 +862,7 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
     downloadAnchor.click();
     downloadAnchor.remove();
   };
+
 
   const handleImportFile = (e) => {
     const file = e.target.files[0];
@@ -707,6 +879,7 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
             title: item.title || "Término importado",
             category: item.category || "Diseño & Marca",
             description: item.description || "",
+            url: item.url || "",
             is_draft: item.isDraft !== undefined ? item.isDraft : true,
             prompt: item.prompt || "",
             tools: Array.isArray(item.tools) ? item.tools : [],
@@ -756,6 +929,7 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
           title: item.title || '',
           category: item.category || 'Diseño & Marca',
           description: item.description || '',
+          url: item.url || '',
           tools: Array.isArray(item.tools) ? item.tools : [],
           isDraft: item.isDraft !== undefined ? item.isDraft : true,
           prompt: item.prompt || '',
@@ -893,15 +1067,15 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
           )}
           <h2 className="text-xl md:text-2xl font-bold text-[var(--on-surface)] whitespace-nowrap">
             {showForm 
-              ? (activeModule === 'design_tokens' ? 'Editor de Design Tokens' : 'Editor de Término')
-              : (activeModule === 'design_tokens' ? 'Gestión de Design Tokens / Marca' : 'Panel de Control de Alexandria')}
+              ? (!creatingTypeSelected ? 'Añadir Nuevo Registro' : (activeModule === 'design_tokens' ? 'Editor de UI Kit' : 'Editor de Entrada'))
+              : (activeModule === 'design_tokens' ? 'Gestión de UI Kit / Marca' : 'Panel de Control de Alexandria')}
           </h2>
           
           {/* Module Selector Tabs next to title */}
-          {config.activeModules && config.activeModules.length > 1 && (
+          {!showForm && config.activeModules && config.activeModules.length > 1 && (
             <div className="flex gap-1 p-0.5 rounded-lg w-fit bg-[var(--surface-container-high)]">
               {config.activeModules.map(modKey => {
-                const label = modKey === 'design_tokens' ? '🎨 Tokens' : (modKey === 'terms' ? '📚 Glosario' : modKey);
+                const label = modKey === 'design_tokens' ? '🎨 UI Kit' : (modKey === 'terms' ? '📚 Entrada' : modKey);
                 const isActive = activeModule === modKey;
                 return (
                   <button
@@ -931,7 +1105,7 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
 
         {/* Right Action Row */}
         <div className="flex flex-wrap items-center gap-3">
-          {showForm ? (
+          {showForm && creatingTypeSelected ? (
             <>
               {/* Dropdown for Plantilla actions */}
               <div className="relative">
@@ -995,7 +1169,7 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
                 style={{ padding: '8px 16px', fontSize: '0.85rem' }}
               >
                 <span className="material-symbols-outlined text-sm">publish</span>
-                {activeModule === 'design_tokens' ? 'Publicar Token' : 'Publicar en Glosario'}
+                {activeModule === 'design_tokens' ? 'Publicar UI Kit' : 'Publicar Entrada'}
               </button>
             </>
           ) : (
@@ -1005,7 +1179,55 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
       </div>
 
       {showForm ? (
-        <div className="space-y-6">
+        !creatingTypeSelected ? (
+          <div className="glass-panel p-10 max-w-2xl mx-auto text-center space-y-8 my-8">
+            <h2 className="font-headline-lg text-[var(--on-surface)]">¿Qué tipo de registro deseas crear?</h2>
+            <p className="text-sm text-[var(--on-surface-variant)]">Selecciona el tipo de contenido para inicializar el editor correspondiente. Esta selección no podrá cambiarse después.</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveModule('terms');
+                  setCreatingTypeSelected(true);
+                }}
+                className="glass-panel p-8 text-center flex flex-col items-center justify-center gap-4 hover:border-[var(--primary)] hover:bg-[color-mix(in_srgb,var(--primary)_5%,transparent)] transition-all cursor-pointer group"
+                style={{ background: 'var(--surface-container-low)', border: '1px solid var(--outline-variant)' }}
+              >
+                <span className="material-symbols-outlined text-4xl text-[var(--primary)] group-hover:scale-110 transition-transform">menu_book</span>
+                <div>
+                  <h3 className="font-headline-sm text-[var(--on-surface)] mb-1">Entrada / Glosario</h3>
+                  <p className="text-xs text-[var(--on-surface-variant)]">Patrón de desarrollo, guía paso a paso, prompt template y videos.</p>
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveModule('design_tokens');
+                  setCreatingTypeSelected(true);
+                }}
+                className="glass-panel p-8 text-center flex flex-col items-center justify-center gap-4 hover:border-[var(--primary)] hover:bg-[color-mix(in_srgb,var(--primary)_5%,transparent)] transition-all cursor-pointer group"
+                style={{ background: 'var(--surface-container-low)', border: '1px solid var(--outline-variant)' }}
+              >
+                <span className="material-symbols-outlined text-4xl text-[var(--primary)] group-hover:scale-110 transition-transform">palette</span>
+                <div>
+                  <h3 className="font-headline-sm text-[var(--on-surface)] mb-1">UI Kit / Marca</h3>
+                  <p className="text-xs text-[var(--on-surface-variant)]">Sistema de diseño, paleta de colores, tipografías y logotipos vectoriales.</p>
+                </div>
+              </button>
+            </div>
+            <div className="pt-4">
+              <button
+                type="button"
+                onClick={() => setShowForm(false)}
+                className="btn-secondary text-sm"
+                style={{ padding: '8px 24px' }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-6">
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             {/* MAIN FORM: (9 cols) */}
@@ -1018,7 +1240,7 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
                       <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>palette</span>
                       Identidad del Sistema de Diseño
                     </h2>
-                    <div className="grid grid-cols-1 gap-5">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                       <div className="flex flex-col gap-2">
                         <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Nombre de la Marca *</label>
                         <input 
@@ -1027,6 +1249,16 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
                           value={formData.brandName}
                           onChange={(e) => setFormData({ ...formData, brandName: e.target.value })}
                           placeholder="Ej: Glosaurio, Nike" 
+                          className="form-input" 
+                        />
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Enlace URL (UI Kit / Web)</label>
+                        <input 
+                          type="url" 
+                          value={formData.url || ''}
+                          onChange={(e) => setFormData({ ...formData, url: e.target.value })}
+                          placeholder="Ej: https://figma.com/... o https://ejemplo.com" 
                           className="form-input" 
                         />
                       </div>
@@ -1278,11 +1510,11 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
                   <section id="sec-identity" className="glass-panel p-8">
                     <h2 className="font-headline-sm mb-6 flex items-center gap-2" style={{ color: 'var(--on-surface)' }}>
                       <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>fingerprint</span>
-                      Identidad del Término
+                      Identidad de la Entrada
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                      <div className="flex flex-col gap-2">
-                        <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Título del Término *</label>
+                      <div className="md:col-span-2 flex flex-col gap-2">
+                        <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Título de la Entrada *</label>
                         <input 
                           type="text" 
                           required
@@ -1294,21 +1526,157 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
                         />
                       </div>
                       <div className="flex flex-col gap-2">
-                        <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Categoría *</label>
+                        <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Área de Trabajo *</label>
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          {[
+                            { val: 'codigo', label: '💻 Código' },
+                            { val: 'diseño', label: '🎨 Diseño' },
+                            { val: 'mrkt', label: '📈 Marketing' },
+                            { val: 'gestion', label: '📋 Gestión' }
+                          ].map(area => {
+                            const selectedAreas = (formData.workArea || '').split(',').map(x => x.trim()).filter(Boolean);
+                            const isSelected = selectedAreas.includes(area.val);
+                            return (
+                              <button
+                                key={area.val}
+                                type="button"
+                                onClick={() => {
+                                  let nextAreas;
+                                  if (isSelected) {
+                                    nextAreas = selectedAreas.filter(a => a !== area.val);
+                                  } else {
+                                    nextAreas = [...selectedAreas, area.val];
+                                  }
+                                  setFormData({ ...formData, workArea: nextAreas.join(',') });
+                                }}
+                                className={`chip ${isSelected ? 'chip-primary' : 'chip-neutral'}`}
+                                style={{ cursor: 'pointer', border: '1px solid var(--outline-variant)', textTransform: 'none', padding: '6px 12px' }}
+                              >
+                                {area.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Tipo de Contenido *</label>
                         <div className="relative">
                           <select 
-                            value={formData.category}
-                            onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                            value={formData.contentType || 'metodologia'}
+                            onChange={(e) => setFormData({ ...formData, contentType: e.target.value })}
                             className="form-select"
                           >
-                            <option value="Diseño & Marca">🎨 Diseño &amp; Marca</option>
-                            <option value="Vibe Coding">⚡ Vibe Coding</option>
-                            <option value="Gestión">📋 Gestión de Proyectos</option>
-                            <option value="Automatización">🤖 Automatización</option>
-                            <option value="Tech">🔧 Tech &amp; Tooling</option>
+                            <option value="herramienta">🔧 Herramienta</option>
+                            <option value="framework">📦 Framework</option>
+                            <option value="regla">📜 Regla</option>
+                            <option value="metodologia">💡 Metodología</option>
                           </select>
                           <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-lg" style={{ color: 'var(--outline)' }}>expand_more</span>
                         </div>
+                      </div>
+                      <div className="md:col-span-2 flex flex-col gap-3">
+                        <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Resultado Objetivo / ¿Qué necesito? *</label>
+                        <div className="flex flex-col gap-3">
+                          <div className="flex flex-wrap gap-2">
+                            {(() => {
+                              const visibleOptions = showAllResults ? mergedResultsOptions : mergedResultsOptions.slice(0, 12);
+                              const selectedResults = (formData.targetResult || '').split(',').map(x => x.trim()).filter(Boolean);
+                              return (
+                                <>
+                                  {visibleOptions.map(opt => {
+                                    const isSelected = selectedResults.includes(opt.val);
+                                    return (
+                                      <button
+                                        key={opt.val}
+                                        type="button"
+                                        onClick={() => {
+                                          let nextResults;
+                                          if (isSelected) {
+                                            nextResults = selectedResults.filter(r => r !== opt.val);
+                                          } else {
+                                            nextResults = [...selectedResults, opt.val];
+                                          }
+                                          setFormData({ ...formData, targetResult: nextResults.join(',') });
+                                        }}
+                                        className={`chip ${isSelected ? 'chip-secondary' : 'chip-neutral'}`}
+                                        style={{ cursor: 'pointer', border: '1px solid var(--outline-variant)', textTransform: 'none', padding: '6px 12px' }}
+                                      >
+                                        {opt.label}
+                                      </button>
+                                    );
+                                  })}
+                                  {mergedResultsOptions.length > 12 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setShowAllResults(!showAllResults)}
+                                      className="chip chip-neutral flex items-center gap-1 font-semibold text-xs"
+                                      style={{ cursor: 'pointer', border: '1px solid var(--outline-variant)', textTransform: 'none', padding: '6px 12px' }}
+                                    >
+                                      {showAllResults ? 'Ver menos' : `Ver todos (${mergedResultsOptions.length})`}
+                                      <span className="material-symbols-outlined text-[14px]">
+                                        {showAllResults ? 'expand_less' : 'expand_more'}
+                                      </span>
+                                    </button>
+                                  )}
+                                </>
+                              );
+                            })()}
+                          </div>
+                          <div className="flex gap-2">
+                            <input 
+                              type="text" 
+                              id="custom-result-input"
+                              placeholder="Escribe un resultado objetivo personalizado y pulsa Añadir..." 
+                              className="form-input flex-1" 
+                              style={{ padding: '8px 12px', fontSize: '0.85rem' }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  const val = e.target.value.trim();
+                                  if (val) {
+                                    const formatted = val.toLowerCase().replace(/\s+/g, '_');
+                                    const selectedResults = (formData.targetResult || '').split(',').map(x => x.trim()).filter(Boolean);
+                                    if (!selectedResults.includes(formatted)) {
+                                      const nextResults = [...selectedResults, formatted];
+                                      setFormData({ ...formData, targetResult: nextResults.join(',') });
+                                    }
+                                    e.target.value = '';
+                                  }
+                                }
+                              }}
+                            />
+                            <button 
+                              type="button" 
+                              onClick={() => {
+                                const input = document.getElementById('custom-result-input');
+                                if (input && input.value.trim()) {
+                                  const val = input.value.trim();
+                                  const formatted = val.toLowerCase().replace(/\s+/g, '_');
+                                  const selectedResults = (formData.targetResult || '').split(',').map(x => x.trim()).filter(Boolean);
+                                  if (!selectedResults.includes(formatted)) {
+                                    const nextResults = [...selectedResults, formatted];
+                                    setFormData({ ...formData, targetResult: nextResults.join(',') });
+                                  }
+                                  input.value = '';
+                                }
+                              }}
+                              className="btn-secondary text-xs"
+                              style={{ padding: '6px 14px' }}
+                            >
+                              Añadir
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Enlace URL (Documentación / Web)</label>
+                        <input 
+                          type="url" 
+                          value={formData.url || ''}
+                          onChange={(e) => setFormData({ ...formData, url: e.target.value })}
+                          placeholder="Ej: https://ejemplo.com" 
+                          className="form-input" 
+                        />
                       </div>
                       <div className="md:col-span-2 flex flex-col gap-2">
                         <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Descripción Corta *</label>
@@ -1558,6 +1926,66 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
                     </section>
                   )}
 
+                  {/* Videos Section */}
+                  {activePanels.videos && (
+                    <section id="sec-videos" className="glass-panel p-8 space-y-6">
+                      <div className="flex justify-between items-center border-b border-[var(--outline-variant)] pb-4">
+                        <h2 className="font-headline-sm flex items-center gap-2" style={{ color: 'var(--on-surface)', margin: 0 }}>
+                          <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>video_library</span>
+                          Videos Relacionados
+                        </h2>
+                        <div className="flex items-center gap-2">
+                          <button 
+                            type="button" 
+                            onClick={addVideo}
+                            className="btn-secondary text-xs flex items-center gap-1"
+                            style={{ padding: '6px 12px' }}
+                          >
+                            <span className="material-symbols-outlined text-sm">add</span> Añadir Video
+                          </button>
+                          <HoldToConfirmButton 
+                            onConfirm={() => {
+                              setActivePanels(prev => ({ ...prev, videos: false }));
+                              setFormData(prev => ({ ...prev, videos: [''] }));
+                            }}
+                            className="btn-icon text-[var(--error)]"
+                            style={{ border: 'none', background: 'transparent', width: '28px', height: '28px' }}
+                            title="Mantén presionado para quitar sección"
+                          >
+                            <span className="material-symbols-outlined text-lg">delete</span>
+                          </HoldToConfirmButton>
+                          <span className={`chip ${expandedSections.videos ? 'chip-primary' : 'chip-neutral'}`}>{expandedSections.videos ? 'Desplegado' : 'Plegado'}</span>
+                          <span className="material-symbols-outlined transition-transform duration-200" onClick={() => toggleSection('videos')} style={{ transform: expandedSections.videos ? 'rotate(180deg)' : 'none', cursor: 'pointer' }}>expand_more</span>
+                        </div>
+                      </div>
+                      {expandedSections.videos && (
+                        <div className="space-y-4">
+                          {(formData.videos || []).map((videoUrl, idx) => (
+                            <div key={idx} className="flex gap-2 items-center">
+                              <input 
+                                type="url" 
+                                value={videoUrl}
+                                onChange={(e) => handleVideoChange(idx, e.target.value)}
+                                placeholder="Enlace del video (ej. YouTube, Loom, Vimeo)" 
+                                className="form-input flex-1" 
+                              />
+                              {(formData.videos || []).length > 1 && (
+                                <button 
+                                  type="button" 
+                                  onClick={() => removeVideo(idx)}
+                                  className="btn-icon text-[var(--error)]"
+                                  title="Eliminar este video"
+                                >
+                                  <span className="material-symbols-outlined text-sm">delete</span>
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </section>
+                  )}
+
                   {/* Scenarios Section */}
                   {activePanels.scenarios && (
                     <section id="sec-scenarios" className="glass-panel p-8">
@@ -1757,6 +2185,12 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
                             Ejemplo Técnico / Código
                           </span>
                         )}
+                        {!activePanels.videos && (
+                          <span onClick={() => { setActivePanels(p => ({...p, videos: true})); setExpandedSections(s => ({...s, videos: true})); }} className="chip chip-neutral cursor-pointer hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]" style={{ display: 'inline-flex', padding: '6px 12px', fontSize: '0.75rem', textTransform: 'none', letterSpacing: 'normal' }}>
+                            <span className="material-symbols-outlined text-sm mr-1">video_library</span>
+                            Videos Relacionados
+                          </span>
+                        )}
                       </div>
                     </div>
                   )}
@@ -1834,29 +2268,40 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
             </aside>
           </div>
         </div>
+        )
       ) : (
         /* Term List Table */
         <div className="glass-panel p-6 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <h3 className="font-headline-sm">Términos Registrados</h3>
+            <h3 className="font-headline-sm">Entradas Registradas</h3>
             <div className="flex items-center gap-3">
               <input 
                 type="text" 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Buscar..."
-                className="form-input max-w-xs text-sm"
-                style={{ padding: '6px 12px' }}
+                className="form-input text-sm"
+                style={{ padding: '6px 12px', width: '180px', height: '34px' }}
               />
-              <button 
-                onClick={handleDownloadTemplate}
-                className="btn-secondary flex items-center gap-2 text-sm whitespace-nowrap"
-                style={{ padding: '6px 16px' }}
-                title="Descargar plantilla JSON"
-              >
-                <span className="material-symbols-outlined text-sm">auto_awesome</span>
-                Plantilla IA
-              </button>
+              {activeModule !== 'design_tokens' && (
+                <div className="relative">
+                  <select
+                    value={filterCategory}
+                    onChange={(e) => setFilterCategory(e.target.value)}
+                    className="form-select text-sm pr-8"
+                    style={{ padding: '6px 32px 6px 12px', width: '150px', height: '34px', lineHeight: '1.2' }}
+                  >
+                    <option value="all">Todas las áreas</option>
+                    <option value="codigo">💻 Código</option>
+                    <option value="diseño">🎨 Diseño</option>
+                    <option value="mrkt">📈 Marketing</option>
+                    <option value="gestion">📋 Gestión</option>
+                  </select>
+                  <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-md" style={{ color: 'var(--outline)' }}>expand_more</span>
+                </div>
+              )}
+
+
               <button 
                 onClick={() => document.getElementById('import-file-input').click()}
                 className="btn-secondary flex items-center gap-2 text-sm whitespace-nowrap"
@@ -1880,7 +2325,12 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
                   setFormData({
                     title: '',
                     category: 'Diseño & Marca',
+                    workArea: 'codigo',
+                    contentType: 'metodologia',
+                    targetResult: 'otro',
                     description: '',
+                    url: '',
+                    videos: [''],
                     tools: [],
                     isDraft: false,
                     prompt: '',
@@ -1890,6 +2340,9 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
                     results: '',
                     metrics: '',
                     promptVars: '',
+                    recommendedScenarios: '',
+                    criticalExclusions: '',
+                    technicalExample: '',
                     brandName: '',
                     tokenName: '',
                     tokenType: 'color',
@@ -1907,17 +2360,21 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
                     problems: false,
                     metrics: false,
                     prompt: false,
+                    scenarios: false,
+                    code: false,
+                    videos: false,
                     color: false,
                     typography: false,
                     logo: false
                   });
+                  setCreatingTypeSelected(false);
                   setShowForm(true);
                 }}
                 className="btn-primary flex items-center gap-2 text-sm whitespace-nowrap"
                 style={{ padding: '6px 16px' }}
               >
                 <span className="material-symbols-outlined text-sm">add</span>
-                {activeModule === 'design_tokens' ? 'Añadir Token' : 'Añadir Término'}
+                Añadir Nuevo
               </button>
             </div>
           </div>
@@ -1931,10 +2388,36 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-[var(--outline-variant)] text-xs uppercase tracking-wider text-[var(--outline)]">
-                    <th className="pb-3 pr-2">{activeModule === 'design_tokens' ? 'Marca / Sistema de Diseño' : 'Nombre'}</th>
-                    <th className="pb-3 pr-2">{activeModule === 'design_tokens' ? 'Elementos' : 'Categoría'}</th>
-                    <th className="pb-3 pr-2">Estado</th>
-                    <th className="pb-3 text-right">Acciones</th>
+                    <th className="pb-3 pr-2" style={{ width: '45%' }}>
+                      <div className="flex items-center gap-2">
+                        <span>{activeModule === 'design_tokens' ? 'Marca / Sistema de Diseño' : 'Nombre'}</span>
+                        <button
+                          type="button"
+                          onClick={() => setSortAlphabetical(!sortAlphabetical)}
+                          className="inline-flex items-center justify-center rounded-md p-1 transition-colors"
+                          style={{
+                            background: sortAlphabetical ? 'var(--primary-container)' : 'transparent',
+                            color: sortAlphabetical ? 'var(--primary)' : 'var(--outline)',
+                            border: '1px solid var(--outline-variant)',
+                            cursor: 'pointer',
+                            width: '24px',
+                            height: '24px'
+                          }}
+                          title={sortAlphabetical ? "Ordenado A-Z (clic para desactivar)" : "Ordenar A-Z"}
+                        >
+                          <span className="material-symbols-outlined text-xs">
+                            {sortAlphabetical ? 'sort_by_alpha' : 'sort'}
+                          </span>
+                        </button>
+                      </div>
+                    </th>
+                    <th className="pb-3 pr-2" style={{ width: '25%' }}>
+                      <div className="flex items-center gap-2">
+                        <span>{activeModule === 'design_tokens' ? 'Elementos' : 'Categoría'}</span>
+                      </div>
+                    </th>
+                    <th className="pb-3 pr-2" style={{ width: '15%' }}>Estado</th>
+                    <th className="pb-3 text-right" style={{ width: '15%' }}>Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--outline-variant)]">
@@ -1943,7 +2426,21 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
                       const searchStr = activeModule === 'design_tokens'
                         ? `${i.brandName || i.brand_name || ''}`
                         : `${i.title} ${i.category}`;
-                      return searchStr.toLowerCase().includes(searchTerm.toLowerCase());
+                      const matchesSearch = searchStr.toLowerCase().includes(searchTerm.toLowerCase());
+                      
+                      let matchesCategory = true;
+                      if (activeModule !== 'design_tokens' && filterCategory !== 'all') {
+                        const parsed = parseCategory(i.category);
+                        matchesCategory = parsed.workArea === filterCategory;
+                      }
+                      
+                      return matchesSearch && matchesCategory;
+                    })
+                    .sort((a, b) => {
+                      if (!sortAlphabetical) return 0;
+                      const valA = (activeModule === 'design_tokens' ? a.brandName : a.title) || '';
+                      const valB = (activeModule === 'design_tokens' ? b.brandName : b.title) || '';
+                      return valA.localeCompare(valB);
                     })
                     .map(item => (
                       <tr key={item.id} className="text-sm">
@@ -1964,7 +2461,15 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
                               {item.logos && item.logos.length > 0 && <span className="chip chip-neutral">{item.logos.length} Logos</span>}
                             </div>
                           ) : (
-                            item.category
+                            (() => {
+                              const parsed = parseCategory(item.category);
+                              return (
+                                <div className="flex flex-wrap gap-1 text-xs">
+                                  <span className="chip chip-neutral font-mono">{parsed.workArea}</span>
+                                  <span className="chip chip-neutral font-mono">{parsed.contentType}</span>
+                                </div>
+                              );
+                            })()
                           )}
                         </td>
                         <td className="py-3 pr-2">
