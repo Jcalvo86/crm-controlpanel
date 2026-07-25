@@ -85,31 +85,53 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 border-b border-[var(--outline-variant)] pb-6 mb-6">
-        <div class="space-y-2">
-          <span class="text-xs text-[var(--outline)] uppercase font-mono tracking-wider block">Proveedor Activo</span>
-          <div id="status-provider-badge">
-            <!-- Rendered by JS -->
+      <div class="divide-y divide-[var(--outline-variant)]">
+        <!-- Row 1: Proveedor Activo -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between py-5 gap-4">
+          <div class="space-y-1">
+            <span class="text-xs text-[var(--outline)] uppercase font-mono tracking-wider block">Proveedor Activo</span>
+            <div id="status-provider-badge">
+              <!-- Rendered by JS -->
+            </div>
           </div>
+          <button id="btn-modify-config" class="btn-secondary flex items-center gap-2">
+            <span class="material-symbols-outlined text-sm">database</span>
+            Cambiar Origen de Datos
+          </button>
         </div>
-        <div class="space-y-2">
-          <span class="text-xs text-[var(--outline)] uppercase font-mono tracking-wider block">Módulos Activos</span>
-          <div class="flex flex-wrap gap-2 mt-1" id="status-active-modules">
-            <!-- Rendered by JS -->
+
+        <!-- Row 2: Módulos Activos -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between py-5 gap-4">
+          <div class="space-y-1">
+            <span class="text-xs text-[var(--outline)] uppercase font-mono tracking-wider block">Módulos Activos</span>
+            <div class="flex flex-wrap gap-2 mt-1" id="status-active-modules">
+              <!-- Rendered by JS -->
+            </div>
           </div>
+          <button id="btn-manage-modules" class="btn-secondary flex items-center gap-2">
+            <span class="material-symbols-outlined text-sm">settings_applications</span>
+            Administrar Módulos
+          </button>
+        </div>
+
+        <!-- Row 3: Taxonomías/Categorías Configuradas -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between py-5 gap-4">
+          <div class="space-y-1">
+            <span class="text-xs text-[var(--outline)] uppercase font-mono tracking-wider block">Categorías / Áreas Configuradas</span>
+            <p class="text-xs text-[var(--on-surface-variant)]">Estas taxonomías definen los filtros de tus contenidos:</p>
+            <div class="flex flex-wrap gap-2 mt-2" id="status-categories-list">
+              <!-- Rendered by JS -->
+            </div>
+          </div>
+          <button id="btn-manage-categories" class="btn-secondary flex items-center gap-2">
+            <span class="material-symbols-outlined text-sm">category</span>
+            Administrar Categorías
+          </button>
         </div>
       </div>
 
-      <div class="flex flex-wrap gap-3 items-center">
-        <button id="btn-modify-config" class="btn-secondary flex items-center gap-2">
-          <span class="material-symbols-outlined text-sm">database</span>
-          Cambiar Origen de Datos
-        </button>
-        <button id="btn-manage-modules" class="btn-secondary flex items-center gap-2">
-          <span class="material-symbols-outlined text-sm">settings_applications</span>
-          Administrar Módulos
-        </button>
-        <a href="index.html" class="btn-primary flex items-center gap-2 ml-auto">
+      <div class="flex justify-end mt-6 border-t border-[var(--outline-variant)] pt-6">
+        <a href="index.html" class="btn-primary flex items-center gap-2">
           Ir al Panel de Control
           <span class="material-symbols-outlined text-sm">arrow_forward</span>
         </a>
@@ -289,9 +311,9 @@
             <div class="flex-1">
               <div class="flex items-center gap-2 mb-1">
                 <span class="material-symbols-outlined" style="color: var(--primary);">menu_book</span>
-                <span class="font-headline-sm" style="color: var(--on-surface);">📚 Términos / Glosario</span>
+                <span class="font-headline-sm" style="color: var(--on-surface);">📚 Concepto</span>
               </div>
-              <p class="font-body-sm" style="color: var(--on-surface-variant);">Guarda metodologías, variables, descripciones y templates de prompt. (Recomendado)</p>
+              <p class="font-body-sm" style="color: var(--on-surface-variant);">Guarda metodologías, variables, descripciones, templates de prompt y especificaciones de desarrollo. (Recomendado)</p>
             </div>
           </label>
 
@@ -325,9 +347,33 @@
             <div class="flex-1">
               <div class="flex items-center gap-2 mb-1">
                 <span class="material-symbols-outlined" style="color: var(--primary);">palette</span>
-                <span class="font-headline-sm" style="color: var(--on-surface);">🎨 Design Tokens / Marca</span>
+                <span class="font-headline-sm" style="color: var(--on-surface);">🎨 UI Kit / Marca</span>
               </div>
               <p class="font-body-sm" style="color: var(--on-surface-variant);">Guarda paletas de colores, tipografías y logos en SVG de tus marcas y sistemas de diseño.</p>
+            </div>
+          </label>
+
+          <!-- Travel Card -->
+          <label class="flex items-start gap-4 p-5 rounded-2xl border-2 border-outline-variant hover:border-primary cursor-pointer transition-all bg-[var(--surface-container-low)]">
+            <input type="checkbox" id="mod-travel" value="travel" class="mt-1 rounded text-primary focus:ring-primary" style="accent-color: var(--primary);">
+            <div class="flex-1">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="material-symbols-outlined" style="color: var(--primary);">flight_takeoff</span>
+                <span class="font-headline-sm" style="color: var(--on-surface);">✈️ Viaje</span>
+              </div>
+              <p class="font-body-sm" style="color: var(--on-surface-variant);">Gestiona itinerarios, destinos, vuelos, cotizaciones y guías de viajes.</p>
+            </div>
+          </label>
+
+          <!-- Location Card -->
+          <label class="flex items-start gap-4 p-5 rounded-2xl border-2 border-outline-variant hover:border-primary cursor-pointer transition-all bg-[var(--surface-container-low)]">
+            <input type="checkbox" id="mod-location" value="location" class="mt-1 rounded text-primary focus:ring-primary" style="accent-color: var(--primary);">
+            <div class="flex-1">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="material-symbols-outlined" style="color: var(--primary);">pin_drop</span>
+                <span class="font-headline-sm" style="color: var(--on-surface);">📍 Ubicación / Lugar</span>
+              </div>
+              <p class="font-body-sm" style="color: var(--on-surface-variant);">Administra localizaciones geográficas, hoteles, puntos de interés y direcciones.</p>
             </div>
           </label>
         </div>
@@ -396,6 +442,40 @@
         </button>
       </div>
     </div>
+
+    <!-- ─── STEP 6: Manage Categories ────────────────────── -->
+    <div id="step-6" class="step-content">
+      <div class="glass-card p-8 mb-6">
+        <h2 class="font-headline-sm mb-2" style="color: var(--on-surface);">Administrar Estructuras de Categorías</h2>
+        <p class="font-body-md mb-6" style="color: var(--on-surface-variant);">Configura y añade grupos de categorías personalizadas (ej. Áreas de Trabajo, Continentes, etc.) para tu proyecto.</p>
+
+        <!-- New Taxonomy Creator -->
+        <div class="glass-panel p-5 mb-6 flex flex-col sm:flex-row items-end gap-4" style="background: var(--surface-container-low);">
+          <div class="flex-grow space-y-1 w-full">
+            <label class="font-label-md" style="color: var(--on-surface-variant);">Nombre de la Estructura (ej: Continentes)</label>
+            <input type="text" id="new-tax-label" class="form-input text-sm w-full" placeholder="Ej: Continentes">
+          </div>
+          <button id="btn-create-tax" class="btn-primary flex items-center gap-2 whitespace-nowrap w-full sm:w-auto justify-center">
+            <span class="material-symbols-outlined text-sm">add_box</span>
+            Crear Estructura
+          </button>
+        </div>
+
+        <!-- Dynamically rendered Taxonomies List -->
+        <div class="flex flex-col gap-6 mb-6" id="taxonomies-grid">
+          <!-- Rendered dynamically by JS -->
+        </div>
+
+        <div class="flex justify-between">
+          <button id="btn-step6-back" class="btn-secondary">
+            <span class="material-symbols-outlined text-sm">close</span> Cancelar
+          </button>
+          <button id="btn-step6-next" class="btn-primary">
+            Guardar Estructuras <span class="material-symbols-outlined text-sm">save</span>
+          </button>
+        </div>
+      </div>
+    </div>
     </div>
 
   </div>
@@ -415,6 +495,16 @@ function goToStep(n) {
   S.step = n;
   document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
   document.getElementById(`step-${n}`).classList.add('active');
+  
+  if (n === 4) {
+    const currentCfg = window.DataSourceConfig.getConfig();
+    if (currentCfg && currentCfg.activeModules) {
+      ['terms', 'blog', 'products', 'design_tokens'].forEach(m => {
+        const el = document.getElementById(`mod-${m}`);
+        if (el) el.checked = currentCfg.activeModules.includes(m);
+      });
+    }
+  }
   // Update dots
   for (let i = 1; i <= 5; i++) {
     const dot = document.getElementById(`dot-${i}`);
@@ -455,8 +545,35 @@ document.getElementById('btn-step1-next').addEventListener('click', () => {
 });
 
 // ─── Step 2: Credentials ───────────────────────────────────
-document.getElementById('btn-step2-back').addEventListener('click', () => goToStep(1));
+document.getElementById('btn-step2-back').addEventListener('click', () => {
+  if (S.editMode) {
+    cancelEdit();
+  } else {
+    goToStep(1);
+  }
+});
 document.getElementById('btn-step2-next').addEventListener('click', () => {
+  if (S.editMode === 'provider') {
+    let config = window.DataSourceConfig.getConfig() || { activeModules: ['terms'] };
+    config.provider = S.provider;
+    if (S.provider === 'supabase') {
+      config.supabase = {
+        url:     document.getElementById('sb-url').value.trim(),
+        anonKey: document.getElementById('sb-key').value.trim()
+      };
+    } else if (S.provider === 'firebase') {
+      config.firebase = {
+        apiKey:     document.getElementById('fb-apikey').value.trim(),
+        projectId:  document.getElementById('fb-projectid').value.trim(),
+        authDomain: document.getElementById('fb-authdomain').value.trim()
+      };
+    }
+    window.DataSourceConfig.saveConfig(config);
+    showToast('✅ Origen de datos guardado con éxito');
+    setTimeout(() => location.reload(), 1000);
+    return;
+  }
+
   S.testPassed = false;
   document.getElementById('test-idle').classList.remove('hidden');
   document.getElementById('test-loading').classList.add('hidden');
@@ -610,7 +727,41 @@ CREATE POLICY "anon_all_products" ON public.cms_products FOR ALL USING (true) WI
 -- RLS & Policies
 ALTER TABLE public.design_tokens ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "public_read_design_tokens" ON public.design_tokens FOR SELECT USING (is_draft = false);
-CREATE POLICY "anon_all_design_tokens" ON public.design_tokens FOR ALL USING (true) WITH CHECK (true);`
+CREATE POLICY "anon_all_design_tokens" ON public.design_tokens FOR ALL USING (true) WITH CHECK (true);`,
+
+  travel: `CREATE TABLE IF NOT EXISTS public.cms_travels (
+  id                    uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  title                 text NOT NULL,
+  destination           text NOT NULL,
+  duration              text DEFAULT '',
+  price                 numeric DEFAULT 0,
+  description           text DEFAULT '',
+  is_draft              boolean DEFAULT true,
+  created_at            timestamptz DEFAULT now(),
+  updated_at            timestamptz DEFAULT now()
+);
+
+-- RLS & Policies
+ALTER TABLE public.cms_travels ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "public_read_travels" ON public.cms_travels FOR SELECT USING (is_draft = false);
+CREATE POLICY "anon_all_travels" ON public.cms_travels FOR ALL USING (true) WITH CHECK (true);`,
+
+  location: `CREATE TABLE IF NOT EXISTS public.cms_locations (
+  id                    uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  name                  text NOT NULL,
+  address               text DEFAULT '',
+  city                  text DEFAULT '',
+  country               text DEFAULT '',
+  description           text DEFAULT '',
+  is_draft              boolean DEFAULT true,
+  created_at            timestamptz DEFAULT now(),
+  updated_at            timestamptz DEFAULT now()
+);
+
+-- RLS & Policies
+ALTER TABLE public.cms_locations ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "public_read_locations" ON public.cms_locations FOR SELECT USING (is_draft = false);
+CREATE POLICY "anon_all_locations" ON public.cms_locations FOR ALL USING (true) WITH CHECK (true);`
 };
 
 function updateSQLDisplay() {
@@ -626,6 +777,8 @@ function updateSQLDisplay() {
   if (document.getElementById('mod-blog').checked) activeSqls.push(SQL_SCRIPTS.blog);
   if (document.getElementById('mod-products').checked) activeSqls.push(SQL_SCRIPTS.products);
   if (document.getElementById('mod-design-tokens').checked) activeSqls.push(SQL_SCRIPTS.design_tokens);
+  if (document.getElementById('mod-travel').checked) activeSqls.push(SQL_SCRIPTS.travel);
+  if (document.getElementById('mod-location').checked) activeSqls.push(SQL_SCRIPTS.location);
 
   const block = document.getElementById('sql-block');
   if (activeSqls.length === 1) { // Solo categories
@@ -643,7 +796,7 @@ document.getElementById('btn-step3-next').addEventListener('click', () => {
   updateSQLDisplay();
 
   // Attach dynamic triggers to module checkboxes
-  ['mod-terms', 'mod-blog', 'mod-products', 'mod-design-tokens'].forEach(id => {
+  ['mod-terms', 'mod-blog', 'mod-products', 'mod-design-tokens', 'mod-travel', 'mod-location'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.onchange = updateSQLDisplay;
   });
@@ -652,22 +805,37 @@ document.getElementById('btn-step3-next').addEventListener('click', () => {
 });
 
 // ─── Step 4 -> Step 5 Transition ─────────────────────────────
-document.getElementById('btn-step4-back').addEventListener('click', () => goToStep(3));
+document.getElementById('btn-step4-back').addEventListener('click', () => {
+  if (S.editMode) {
+    cancelEdit();
+  } else {
+    goToStep(3);
+  }
+});
 
 document.getElementById('btn-step4-next').addEventListener('click', () => {
-  // Collect active modules
   const activeModules = [];
   if (document.getElementById('mod-terms').checked) activeModules.push('terms');
   if (document.getElementById('mod-blog').checked) activeModules.push('blog');
   if (document.getElementById('mod-products').checked) activeModules.push('products');
   if (document.getElementById('mod-design-tokens').checked) activeModules.push('design_tokens');
+  if (document.getElementById('mod-travel').checked) activeModules.push('travel');
+  if (document.getElementById('mod-location').checked) activeModules.push('location');
 
   if (activeModules.length === 0) {
     showToast('⚠️ Debes activar al menos 1 módulo de contenido.');
     return;
   }
 
-  // Build config object
+  if (S.editMode === 'modules') {
+    let config = window.DataSourceConfig.getConfig() || {};
+    config.activeModules = activeModules;
+    window.DataSourceConfig.saveConfig(config);
+    showToast('✅ Módulos actualizados con éxito');
+    setTimeout(() => location.reload(), 1000);
+    return;
+  }
+
   let config = { provider: S.provider, activeModules };
   if (S.provider === 'supabase') {
     config.supabase = {
@@ -777,7 +945,7 @@ if (existing) {
 
   // Pre-check active modules if step-4 is re-entered
   if (existing.activeModules) {
-    ['terms', 'blog', 'products', 'design_tokens'].forEach(m => {
+    ['terms', 'blog', 'products', 'design_tokens', 'travel', 'location'].forEach(m => {
       const el = document.getElementById(`mod-${m}`);
       if (el) el.checked = existing.activeModules.includes(m);
     });
@@ -802,10 +970,12 @@ if (existing) {
   // Set active modules chips
   const modulesList = document.getElementById('status-active-modules');
   const moduleLabels = { 
-    terms: '📚 Entrada', 
+    terms: '📚 Concepto', 
     design_tokens: '🎨 UI Kit', 
     blog: '📝 Blog / Artículos', 
-    products: '🛍️ Productos / Catálogo' 
+    products: '🛍️ Productos / Catálogo',
+    travel: '✈️ Viaje',
+    location: '📍 Ubicación / Lugar'
   };
   if (existing.activeModules && existing.activeModules.length > 0) {
     modulesList.innerHTML = existing.activeModules.map(m => `
@@ -817,18 +987,238 @@ if (existing) {
     modulesList.innerHTML = '<span class="text-xs text-[var(--outline)]">Ningún módulo activo</span>';
   }
 
+
+
+  // Set active taxonomies list
+  const categoriesList = document.getElementById('status-categories-list');
+  let activeTaxonomies = existing.taxonomies || window.CRM_CONFIG?.taxonomies || window.GLOSAURIO_DEFAULT_CONFIG?.taxonomies;
+  if (activeTaxonomies) {
+    if (activeTaxonomies.workAreas && !activeTaxonomies.workArea) {
+      activeTaxonomies = {
+        workArea: { label: 'Áreas de Trabajo', items: activeTaxonomies.workAreas },
+        contentType: { label: 'Tipos de Contenido', items: activeTaxonomies.contentTypes || [] }
+      };
+    }
+    
+    const allChips = [];
+    Object.entries(activeTaxonomies).forEach(([taxKey, tax]) => {
+      if (tax && Array.isArray(tax.items)) {
+        tax.items.forEach(item => {
+          allChips.push(`
+            <span class="chip ${item.chipClass || 'chip-neutral'} text-xs font-semibold py-1 px-3 flex items-center gap-1 w-fit">
+              <span>${item.icon || '📌'}</span>
+              <span>${item.label}</span>
+              <span class="text-[9px] opacity-60 font-mono">(${tax.label})</span>
+            </span>
+          `);
+        });
+      }
+    });
+    categoriesList.innerHTML = allChips.join('') || '<span class="text-xs text-[var(--outline)]">Ninguna categoría configurada.</span>';
+  } else {
+    categoriesList.innerHTML = '<span class="text-xs text-[var(--outline)]">Usando taxonomías predeterminadas</span>';
+  }
+
+  function cancelEdit() {
+    S.editMode = null;
+    document.getElementById('step-indicators').classList.remove('hidden');
+    document.getElementById('wizard-flow-wrapper').style.display = 'none';
+    statusPanel.classList.remove('hidden');
+    // Restore button labels
+    document.getElementById('btn-step2-next').innerHTML = 'Siguiente <span class="material-symbols-outlined text-sm">arrow_forward</span>';
+    document.getElementById('btn-step2-back').innerHTML = '<span class="material-symbols-outlined text-sm">arrow_back</span> Volver';
+    document.getElementById('btn-step4-next').innerHTML = 'Siguiente <span class="material-symbols-outlined text-sm">arrow_forward</span>';
+    document.getElementById('btn-step4-back').innerHTML = '<span class="material-symbols-outlined text-sm">arrow_back</span> Volver';
+  }
+
   // Modify config click handler
   document.getElementById('btn-modify-config')?.addEventListener('click', () => {
+    S.editMode = 'provider';
     statusPanel.classList.add('hidden');
+    document.getElementById('step-indicators').classList.add('hidden');
+    document.getElementById('btn-step2-next').innerHTML = 'Guardar Origen de Datos <span class="material-symbols-outlined text-sm">save</span>';
+    document.getElementById('btn-step2-back').innerHTML = '<span class="material-symbols-outlined text-sm">close</span> Cancelar';
     document.getElementById('wizard-flow-wrapper').style.display = 'block';
     goToStep(1);
   });
 
   // Manage modules click handler (jumps directly to Step 4)
   document.getElementById('btn-manage-modules')?.addEventListener('click', () => {
+    S.editMode = 'modules';
     statusPanel.classList.add('hidden');
+    document.getElementById('step-indicators').classList.add('hidden');
+    document.getElementById('btn-step4-next').innerHTML = 'Guardar Módulos <span class="material-symbols-outlined text-sm">save</span>';
+    document.getElementById('btn-step4-back').innerHTML = '<span class="material-symbols-outlined text-sm">close</span> Cancelar';
     document.getElementById('wizard-flow-wrapper').style.display = 'block';
     goToStep(4);
+  });
+
+  // Manage categories click handler
+  document.getElementById('btn-manage-categories')?.addEventListener('click', () => {
+    S.editMode = 'categories';
+    let activeTax = existing.taxonomies || window.CRM_CONFIG?.taxonomies || window.GLOSAURIO_DEFAULT_CONFIG?.taxonomies || {};
+    
+    // Normalize if it's the old style array-based:
+    if (activeTax.workAreas && !activeTax.workArea) {
+      activeTax = {
+        workArea: { label: 'Áreas de Trabajo', items: activeTax.workAreas },
+        contentType: { label: 'Tipos de Contenido', items: activeTax.contentTypes || [] }
+      };
+    }
+    
+    S.tempTaxonomies = JSON.parse(JSON.stringify(activeTax));
+
+    statusPanel.classList.add('hidden');
+    document.getElementById('step-indicators').classList.add('hidden');
+    document.getElementById('wizard-flow-wrapper').style.display = 'block';
+    goToStep(6);
+    renderTempCategories();
+  });
+
+  function renderTempCategories() {
+    const grid = document.getElementById('taxonomies-grid');
+    grid.innerHTML = Object.entries(S.tempTaxonomies).map(([taxKey, tax]) => `
+      <div class="glass-panel p-6 space-y-4 relative" style="border: 1px solid var(--outline-variant); background: var(--surface-container-low);">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="font-headline-sm" style="color: var(--primary);">${tax.label}</h3>
+            <span class="text-[10px] text-[var(--outline)] font-mono">Clave: ${taxKey}</span>
+          </div>
+          <button onclick="removeTaxonomyStructure('${taxKey}')" class="text-[var(--error)] hover:bg-[var(--surface-container-high)] p-2 rounded-xl transition-colors" title="Eliminar estructura">
+            <span class="material-symbols-outlined text-sm">delete_forever</span>
+          </button>
+        </div>
+
+        <div class="flex gap-2 max-w-md">
+          <input type="text" id="add-item-label-${taxKey}" class="form-input text-xs flex-grow bg-[var(--surface)]" placeholder="Nueva categoría...">
+          
+          <!-- Popover Icon Picker -->
+          <div class="relative">
+            <button onclick="toggleIconPicker(event, '${taxKey}')" id="icon-picker-btn-${taxKey}" data-icon="📌" class="btn-secondary text-base flex items-center justify-center bg-[var(--surface)] border border-[var(--outline-variant)] rounded-xl" style="height: 38px; min-width: 44px; padding: 0;">
+              📌
+            </button>
+            <div id="icon-picker-dropdown-${taxKey}" class="hidden absolute left-0 mt-1 p-2 rounded-xl bg-[var(--surface-container-high)] border border-[var(--outline-variant)] shadow-lg z-50 grid grid-cols-5 gap-1 w-44">
+              ${['📌', '💡', '🔧', '📦', '📜', '💻', '🎨', '📈', '📋', '🤖', '✈️', '📍', '🌍', '⭐', '🔥', '🎯', '🚀', '💼', '🔑', '🏷️', '🏖️', '🏨', '🎟️', '🗺️', '🧭'].map(emoji => `
+                <button onclick="selectPickerIcon(event, '${taxKey}', '${emoji}')" class="hover:bg-[var(--surface-container-highest)] p-1 rounded text-base border-none bg-transparent cursor-pointer flex items-center justify-center">
+                  ${emoji}
+                </button>
+              `).join('')}
+            </div>
+          </div>
+
+          <button onclick="addCategoryToTaxonomy('${taxKey}')" class="btn-primary text-xs" style="padding: 8px 12px;">
+            <span class="material-symbols-outlined text-xs">add</span>
+          </button>
+        </div>
+
+        <div class="flex flex-wrap gap-2 pt-2">
+          ${(tax.items || []).map((item, idx) => `
+            <span class="chip ${item.chipClass || 'chip-neutral'} text-xs font-semibold py-1 pl-3 pr-2 flex items-center gap-1.5 w-fit border border-[var(--outline-variant)] rounded-full">
+              <span>${item.icon || '📌'}</span>
+              <span>${item.label}</span>
+              <button onclick="removeCategoryFromTaxonomy('${taxKey}', ${idx})" class="text-[var(--error)] hover:bg-[var(--surface-container-high)] ml-1 p-0.5 rounded-full inline-flex items-center justify-center cursor-pointer border-none bg-transparent" style="width: 16px; height: 16px;">
+                <span class="material-symbols-outlined text-[10px] font-bold">close</span>
+              </button>
+            </span>
+          `).join('') || '<p class="text-xs text-[var(--outline)]">No hay categorías en este grupo.</p>'}
+        </div>
+      </div>
+    `).join('') || '<p class="text-xs text-[var(--outline)] text-center py-8">Crea la primera estructura de categorías arriba.</p>';
+  }
+
+  window.toggleIconPicker = function(event, taxKey) {
+    event.stopPropagation();
+    // Hide other dropdowns
+    document.querySelectorAll('[id^="icon-picker-dropdown-"]').forEach(d => {
+      if (d.id !== `icon-picker-dropdown-${taxKey}`) d.classList.add('hidden');
+    });
+    const el = document.getElementById(`icon-picker-dropdown-${taxKey}`);
+    if (el) el.classList.toggle('hidden');
+  };
+
+  window.selectPickerIcon = function(event, taxKey, emoji) {
+    event.stopPropagation();
+    const btn = document.getElementById(`icon-picker-btn-${taxKey}`);
+    if (btn) {
+      btn.innerHTML = emoji;
+      btn.setAttribute('data-icon', emoji);
+    }
+    const el = document.getElementById(`icon-picker-dropdown-${taxKey}`);
+    if (el) el.classList.add('hidden');
+  };
+
+  // Close dropdowns on outside click
+  document.addEventListener('click', (e) => {
+    document.querySelectorAll('[id^="icon-picker-dropdown-"]').forEach(dropdown => {
+      const btn = document.getElementById(dropdown.id.replace('dropdown', 'btn'));
+      if (!dropdown.contains(e.target) && (!btn || !btn.contains(e.target))) {
+        dropdown.classList.add('hidden');
+      }
+    });
+  });
+
+  window.removeTaxonomyStructure = function(taxKey) {
+    if (!confirm(`¿Estás seguro de que deseas eliminar por completo el grupo de categorías "${S.tempTaxonomies[taxKey].label}"?`)) return;
+    delete S.tempTaxonomies[taxKey];
+    renderTempCategories();
+  };
+
+  window.addCategoryToTaxonomy = function(taxKey) {
+    const labelInput = document.getElementById(`add-item-label-${taxKey}`);
+    const pickerBtn = document.getElementById(`icon-picker-btn-${taxKey}`);
+    const label = labelInput.value.trim();
+    const icon = pickerBtn ? (pickerBtn.getAttribute('data-icon') || '📌') : '📌';
+    if (!label) return;
+    
+    const val = label.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '_');
+    
+    const items = S.tempTaxonomies[taxKey].items || [];
+    const classes = ['chip-primary', 'chip-secondary', 'chip-tertiary', 'chip-error'];
+    const chipClass = classes[items.length % classes.length];
+    
+    items.push({ val, label, icon, chipClass });
+    S.tempTaxonomies[taxKey].items = items;
+    
+    labelInput.value = '';
+    renderTempCategories();
+  };
+
+  window.removeCategoryFromTaxonomy = function(taxKey, idx) {
+    S.tempTaxonomies[taxKey].items.splice(idx, 1);
+    renderTempCategories();
+  };
+
+  document.getElementById('btn-create-tax')?.addEventListener('click', () => {
+    const labelInput = document.getElementById('new-tax-label');
+    const label = labelInput.value.trim();
+    if (!label) return;
+    
+    const key = label.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '');
+    if (S.tempTaxonomies[key]) {
+      alert('Ya existe una estructura con una clave similar.');
+      return;
+    }
+    
+    S.tempTaxonomies[key] = {
+      label: label,
+      items: []
+    };
+    
+    labelInput.value = '';
+    renderTempCategories();
+  });
+
+  document.getElementById('btn-step6-next')?.addEventListener('click', async () => {
+    let config = window.DataSourceConfig.getConfig() || {};
+    config.taxonomies = S.tempTaxonomies;
+    
+    await window.DataSourceConfig.saveConfig(config);
+    showToast('✅ Estructuras de categorías guardadas con éxito');
+    setTimeout(() => location.reload(), 1000);
+  });
+
+  document.getElementById('btn-step6-back')?.addEventListener('click', () => {
+    cancelEdit();
   });
 }
 </script>

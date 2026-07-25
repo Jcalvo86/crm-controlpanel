@@ -175,6 +175,24 @@ window.Glosaurio.LocalStorageAdapter = class LocalStorageAdapter {
     this._write(collection, items);
   }
 
+  async getDbConfig() {
+    try {
+      const config = localStorage.getItem('glosaurio_datasource_config');
+      if (!config) return null;
+      const parsed = JSON.parse(config);
+      return {
+        activeModules: parsed.activeModules,
+        taxonomies: parsed.taxonomies,
+        branding: parsed.branding
+      };
+    } catch { return null; }
+  }
+
+  async saveDbConfig(config) {
+    localStorage.setItem('glosaurio_datasource_config', JSON.stringify(config));
+    return true;
+  }
+
   // ── Backward Compatible Specific Methods ──────────────────
   async getTerms(filters = {}) {
     return this.getItems('terms', filters);

@@ -126,5 +126,41 @@ window.Glosaurio.CMS_MODULES = {
       { id: 'logos', label: 'Logos SVG', type: 'json' },
       { id: 'isDraft', label: 'Borrador', type: 'boolean', default: true }
     ]
+  },
+
+  // ── ✈️ MÓDULO VIAJE ───────────────────────────────────────────
+  travel: {
+    id: 'travel',
+    label: 'Viaje',
+    icon: 'flight_takeoff',
+    description: 'Gestiona itinerarios, destinos, vuelos, cotizaciones y guías de viajes.',
+    collection: 'cms_travels',
+    titleField: 'title',
+    schema: [
+      { id: 'title', label: 'Título del Viaje', type: 'text', required: true, placeholder: 'Ej: Aventura por la Patagonia' },
+      { id: 'destination', label: 'Destino', type: 'text', required: true, placeholder: 'Ej: Patagonia Chilena' },
+      { id: 'duration', label: 'Duración (Días)', type: 'text', placeholder: 'Ej: 7 días' },
+      { id: 'price', label: 'Precio Base ($)', type: 'number', placeholder: 'Ej: 1500' },
+      { id: 'description', label: 'Descripción', type: 'textarea', rows: 4, placeholder: 'Detalles del viaje...' },
+      { id: 'isDraft', label: 'Borrador', type: 'boolean', default: true }
+    ]
+  },
+
+  // ── 📍 MÓDULO UBICACIÓN / LUGAR ────────────────────────────────
+  location: {
+    id: 'location',
+    label: 'Ubicación / Lugar',
+    icon: 'pin_drop',
+    description: 'Administra localizaciones geográficas, hoteles, puntos de interés y direcciones.',
+    collection: 'cms_locations',
+    titleField: 'name',
+    schema: [
+      { id: 'name', label: 'Nombre del Lugar', type: 'text', required: true, placeholder: 'Ej: Hotel EcoLodge' },
+      { id: 'address', label: 'Dirección', type: 'text', placeholder: 'Ej: Av. Costanera 123' },
+      { id: 'city', label: 'Ciudad', type: 'text', placeholder: 'Ej: Puerto Varas' },
+      { id: 'country', label: 'País', type: 'text', placeholder: 'Ej: Chile' },
+      { id: 'description', label: 'Descripción del Lugar', type: 'textarea', rows: 3, placeholder: 'Servicios, comodidades, etc.' },
+      { id: 'isDraft', label: 'Borrador', type: 'boolean', default: true }
+    ]
   }
 };

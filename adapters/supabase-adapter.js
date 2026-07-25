@@ -123,6 +123,55 @@ window.Glosaurio.SupabaseAdapter = class SupabaseAdapter {
     if (!res.ok) throw new Error(`Error deleting item from ${collection}: ${res.status}`);
   }
 
+  async getDbConfig() {
+    try {
+      const res = await fetch(`${this._getUrl('cms_config')}?id=eq.global&select=*`, {
+        headers: this._headers({ 'Prefer': '' })
+      });
+      if (!res.ok) return null;
+      const rows = await res.json();
+      if (rows.length === 0) return null;
+      const row = rows[0];
+      return {
+        activeModules: row.active_modules,
+        taxonomies: row.taxonomies,
+        branding: row.branding
+      };
+    } catch (e) {
+      console.warn('[SupabaseAdapter] No se pudo leer la tabla cms_config:', e);
+      return null;
+    }
+  }
+
+  async saveDbConfig(config) {
+    try {
+      const body = {
+        id: 'global',
+        active_modules: config.activeModules,
+        taxonomies: config.taxonomies || {},
+        branding: config.branding || {},
+        updated_at: new Date().toISOString()
+      };
+      const res = await fetch(`${this._getUrl('cms_config')}?id=eq.global`, {
+        method: 'POST',
+        headers: this._headers({ 'Prefer': 'resolution=merge-duplicates' }),
+        body: JSON.stringify(body)
+      });
+      if (!res.ok) {
+        const res2 = await fetch(`${this._getUrl('cms_config')}?id=eq.global`, {
+          method: 'PATCH',
+          headers: this._headers(),
+          body: JSON.stringify(body)
+        });
+        if (!res2.ok) throw new Error(`Status ${res2.status}`);
+      }
+      return true;
+    } catch (e) {
+      console.error('[SupabaseAdapter] Error al guardar config en la BD:', e);
+      throw e;
+    }
+  }
+
   // ── Backward Compatible Specific Methods ──────────────────
   async getTerms(filters = {}) {
     return this.getItems('terms', filters);
