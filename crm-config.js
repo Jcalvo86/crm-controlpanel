@@ -16,6 +16,22 @@ window.CRM_CONFIG = {
     appName: "Alexandria",
     logoUrl: "../favicon.png", // Path or URL to the logo
     backUrl: "../index.html"          // Path or URL to go back
+  },
+
+  // 4. Custom Taxonomies (Work Areas & Content Types)
+  taxonomies: {
+    workAreas: [
+      { val: 'codigo', label: 'Código', icon: '💻', chipClass: 'chip-primary' },
+      { val: 'diseño', label: 'Diseño', icon: '🎨', chipClass: 'chip-secondary' },
+      { val: 'mrkt', label: 'Marketing', icon: '📈', chipClass: 'chip-tertiary' },
+      { val: 'gestion', label: 'Gestión', icon: '📋', chipClass: 'chip-error' }
+    ],
+    contentTypes: [
+      { val: 'herramienta', label: 'Herramienta', icon: '🔧', chipClass: 'chip-neutral' },
+      { val: 'framework', label: 'Framework', icon: '📦', chipClass: 'chip-neutral' },
+      { val: 'regla', label: 'Regla', icon: '📜', chipClass: 'chip-neutral' },
+      { val: 'metodologia', label: 'Metodología', icon: '💡', chipClass: 'chip-neutral' }
+    ]
   }
 };
 
