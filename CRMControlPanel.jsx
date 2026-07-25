@@ -184,6 +184,31 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
   const [authError, setAuthError] = useState('');
   const [loadingAuth, setLoadingAuth] = useState(false);
 
+  // Taxonomies defaults and resolution
+  const DEFAULT_WORK_AREAS = [
+    { val: 'codigo', label: '💻 Código' },
+    { val: 'diseño', label: '🎨 Diseño' },
+    { val: 'mrkt', label: '📈 Marketing' },
+    { val: 'gestion', label: '📋 Gestión' }
+  ];
+
+  const DEFAULT_CONTENT_TYPES = [
+    { val: 'herramienta', label: '🔧 Herramienta' },
+    { val: 'framework', label: '📦 Framework' },
+    { val: 'regla', label: '📜 Regla' },
+    { val: 'metodologia', label: '💡 Metodología' }
+  ];
+
+  const workAreas = config.taxonomies?.workAreas?.map(wa => ({
+    val: wa.val,
+    label: `${wa.icon || ''} ${wa.label}`.trim()
+  })) || DEFAULT_WORK_AREAS;
+
+  const contentTypes = config.taxonomies?.contentTypes?.map(ct => ({
+    val: ct.val,
+    label: `${ct.icon || ''} ${ct.label}`.trim()
+  })) || DEFAULT_CONTENT_TYPES;
+
   // CMS state
   const [items, setItems] = useState([]);
   const [loadingData, setLoadingData] = useState(false);
@@ -197,8 +222,8 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
   const [formData, setFormData] = useState({
     title: '',
     category: 'Diseño & Marca',
-    workArea: 'codigo',
-    contentType: 'metodologia',
+    workArea: workAreas[0]?.val || 'codigo',
+    contentType: contentTypes[0]?.val || 'metodologia',
     targetResult: 'otro',
     description: '',
     url: '',
@@ -578,8 +603,8 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
       setFormData({
         title: '',
         category: 'Diseño & Marca',
-        workArea: 'codigo',
-        contentType: 'metodologia',
+        workArea: workAreas[0]?.val || 'codigo',
+        contentType: contentTypes[0]?.val || 'metodologia',
         targetResult: 'otro',
         description: '',
         url: '',
@@ -999,9 +1024,18 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
             <span className="font-headline-md" style={{ color: 'var(--primary)', letterSpacing: '-0.02em' }}>{appName}</span>
           </a>
           <span className="chip chip-neutral text-xs">CRM Panel</span>
+          <span className="chip chip-tertiary text-xs font-mono uppercase tracking-wider">Provider: {config.provider}</span>
         </div>
 
         <div className="flex items-center gap-3">
+          <a 
+            href="/crm-controlpanel/setup.html" 
+            className="btn-secondary flex items-center gap-2"
+            style={{ padding: '10px 20px', fontSize: '0.8rem', textDecoration: 'none' }}
+          >
+            <span className="material-symbols-outlined text-sm">settings</span>
+            Configuración
+          </a>
           {session && config.provider === 'supabase' && (
             <button 
               onClick={handleLogout} 
@@ -1094,7 +1128,7 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
   return (
     <div className="min-h-screen bg-[var(--background)]">
       {renderHeader()}
-      <div className="pt-[72px] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <div className="pt-[100px] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       {/* Header bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-[var(--outline-variant)] pb-4 gap-4">
         <div className="flex items-center gap-4 flex-wrap">
@@ -1114,113 +1148,112 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
           )}
           <h2 className="text-xl md:text-2xl font-bold text-[var(--on-surface)] whitespace-nowrap">
             {showForm 
-              ? (!creatingTypeSelected ? 'Añadir Nuevo Registro' : (activeModule === 'design_tokens' ? 'Editor de UI Kit' : 'Editor de Entrada'))
-              : (activeModule === 'design_tokens' ? 'Gestión de UI Kit / Marca' : 'Panel de Control de Alexandria')}
+              ? (!creatingTypeSelected ? 'Añadir Nuevo Registro' : (activeModule === 'design_tokens' ? 'Editor de UI Kit' : 'Editor de Concepto'))
+              : (activeModule === 'design_tokens' ? 'Gestión de UI Kit / Marca' : 'Panel de Control')}
           </h2>
-          
-          {/* Module Selector Tabs next to title */}
-          {!showForm && config.activeModules && config.activeModules.length > 1 && (
-            <div className="flex gap-1 p-0.5 rounded-lg w-fit bg-[var(--surface-container-high)]">
-              {config.activeModules.map(modKey => {
-                const label = modKey === 'design_tokens' ? '🎨 UI Kit' : (modKey === 'terms' ? '📚 Entrada' : modKey);
-                const isActive = activeModule === modKey;
-                return (
-                  <button
-                    key={modKey}
-                    onClick={() => {
-                      setActiveModule(modKey);
-                      setShowForm(false);
-                      setIsEditing(false);
-                    }}
-                    className={`tab-btn ${isActive ? 'active' : ''}`}
-                    style={{
-                      background: isActive ? 'var(--primary-container)' : 'transparent',
-                      color: isActive ? 'var(--on-primary-container)' : 'var(--on-surface-variant)',
-                      padding: '4px 12px',
-                      borderRadius: '6px',
-                      fontSize: '0.8rem',
-                      fontWeight: '600'
-                    }}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
-          )}
         </div>
 
         {/* Right Action Row */}
         <div className="flex flex-wrap items-center gap-3">
-          {showForm && creatingTypeSelected ? (
-            <>
-              {/* Dropdown for Plantilla actions */}
-              <div className="relative">
+          {showForm ? (
+            creatingTypeSelected && (
+              <>
+                {/* Dropdown for Plantilla actions */}
+                <div className="relative">
+                  <button 
+                    type="button" 
+                    onClick={() => setTemplateDropdownOpen(!templateDropdownOpen)} 
+                    className="btn-secondary flex items-center gap-2"
+                    style={{ padding: '8px 16px', fontSize: '0.85rem' }}
+                  >
+                    <span className="material-symbols-outlined text-sm">folder_open</span>
+                    Plantilla
+                    <span className="material-symbols-outlined text-sm">expand_more</span>
+                  </button>
+                  {templateDropdownOpen && (
+                    <div className="absolute right-0 mt-2 w-max rounded-xl bg-[var(--surface-container-high)] border border-[var(--outline-variant)] shadow-lg z-50 py-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleDownloadTemplate();
+                          setTemplateDropdownOpen(false);
+                        }}
+                        className="w-full text-left px-4 py-2 text-sm text-[var(--on-surface)] hover:bg-[var(--surface-container-highest)] flex items-center gap-2 border-none bg-transparent cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined text-sm">download</span>
+                        Descargar Plantilla
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          document.getElementById('form-template-input').click();
+                          setTemplateDropdownOpen(false);
+                        }}
+                        className="w-full text-left px-4 py-2 text-sm text-[var(--on-surface)] hover:bg-[var(--surface-container-highest)] flex items-center gap-2 border-none bg-transparent cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined text-sm">upload_file</span>
+                        Cargar Plantilla
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <input 
+                  type="file" 
+                  id="form-template-input" 
+                  accept=".json" 
+                  className="hidden" 
+                  onChange={handleUploadFormTemplate}
+                />
                 <button 
                   type="button" 
-                  onClick={() => setTemplateDropdownOpen(!templateDropdownOpen)} 
-                  className="btn-secondary flex items-center gap-2"
+                  onClick={(e) => handleSave(e, true)} 
+                  className="btn-secondary"
                   style={{ padding: '8px 16px', fontSize: '0.85rem' }}
                 >
-                  <span className="material-symbols-outlined text-sm">folder_open</span>
-                  Plantilla
-                  <span className="material-symbols-outlined text-sm">expand_more</span>
+                  <span className="material-symbols-outlined text-sm">save</span>
+                  Guardar Borrador
                 </button>
-                {templateDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-max rounded-xl bg-[var(--surface-container-high)] border border-[var(--outline-variant)] shadow-lg z-50 py-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        handleDownloadTemplate();
-                        setTemplateDropdownOpen(false);
-                      }}
-                      className="w-full text-left px-4 py-2 text-sm text-[var(--on-surface)] hover:bg-[var(--surface-container-highest)] flex items-center gap-2 border-none bg-transparent cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-sm">download</span>
-                      Descargar Plantilla
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        document.getElementById('form-template-input').click();
-                        setTemplateDropdownOpen(false);
-                      }}
-                      className="w-full text-left px-4 py-2 text-sm text-[var(--on-surface)] hover:bg-[var(--surface-container-highest)] flex items-center gap-2 border-none bg-transparent cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-sm">upload_file</span>
-                      Cargar Plantilla
-                    </button>
-                  </div>
-                )}
-              </div>
-              <input 
-                type="file" 
-                id="form-template-input" 
-                accept=".json" 
-                className="hidden" 
-                onChange={handleUploadFormTemplate}
-              />
-              <button 
-                type="button" 
-                onClick={(e) => handleSave(e, true)} 
-                className="btn-secondary"
-                style={{ padding: '8px 16px', fontSize: '0.85rem' }}
-              >
-                <span className="material-symbols-outlined text-sm">save</span>
-                Guardar Borrador
-              </button>
-              <button 
-                type="button" 
-                onClick={(e) => handleSave(e, false)} 
-                className="btn-primary"
-                style={{ padding: '8px 16px', fontSize: '0.85rem' }}
-              >
-                <span className="material-symbols-outlined text-sm">publish</span>
-                {activeModule === 'design_tokens' ? 'Publicar UI Kit' : 'Publicar Entrada'}
-              </button>
-            </>
+                <button 
+                  type="button" 
+                  onClick={(e) => handleSave(e, false)} 
+                  className="btn-primary"
+                  style={{ padding: '8px 16px', fontSize: '0.85rem' }}
+                >
+                  <span className="material-symbols-outlined text-sm">publish</span>
+                  {activeModule === 'design_tokens' ? 'Publicar UI Kit' : 'Publicar Concepto'}
+                </button>
+              </>
+            )
           ) : (
-            <span className="chip chip-neutral font-mono uppercase tracking-wider text-xs">Provider: {config.provider}</span>
+            config.activeModules && config.activeModules.length > 1 && (
+              <div className="flex gap-1 p-0.5 rounded-lg w-fit bg-[var(--surface-container-high)]">
+                {config.activeModules.map(modKey => {
+                  const label = modKey === 'design_tokens' ? '🎨 UI Kit' : (modKey === 'terms' ? '📚 Concepto' : modKey);
+                  const isActive = activeModule === modKey;
+                  return (
+                    <button
+                      key={modKey}
+                      onClick={() => {
+                        setActiveModule(modKey);
+                        setShowForm(false);
+                        setIsEditing(false);
+                      }}
+                      className={`tab-btn ${isActive ? 'active' : ''}`}
+                      style={{
+                        background: isActive ? 'var(--primary-container)' : 'transparent',
+                        color: isActive ? 'var(--on-primary-container)' : 'var(--on-surface-variant)',
+                        padding: '4px 12px',
+                        borderRadius: '6px',
+                        fontSize: '0.8rem',
+                        fontWeight: '600'
+                      }}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            )
           )}
         </div>
       </div>
@@ -1242,7 +1275,7 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
               >
                 <span className="material-symbols-outlined text-4xl text-[var(--primary)] group-hover:scale-110 transition-transform">menu_book</span>
                 <div>
-                  <h3 className="font-headline-sm text-[var(--on-surface)] mb-1">Entrada / Glosario</h3>
+                  <h3 className="font-headline-sm text-[var(--on-surface)] mb-1">Concepto / Glosario</h3>
                   <p className="text-xs text-[var(--on-surface-variant)]">Patrón de desarrollo, guía paso a paso, prompt template y videos.</p>
                 </div>
               </button>
@@ -1575,12 +1608,7 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
                       <div className="flex flex-col gap-2">
                         <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Área de Trabajo *</label>
                         <div className="flex flex-wrap gap-2 pt-1">
-                          {[
-                            { val: 'codigo', label: '💻 Código' },
-                            { val: 'diseño', label: '🎨 Diseño' },
-                            { val: 'mrkt', label: '📈 Marketing' },
-                            { val: 'gestion', label: '📋 Gestión' }
-                          ].map(area => {
+                          {workAreas.map(area => {
                             const selectedAreas = (formData.workArea || '').split(',').map(x => x.trim()).filter(Boolean);
                             const isSelected = selectedAreas.includes(area.val);
                             return (
@@ -1609,14 +1637,13 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
                         <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Tipo de Contenido *</label>
                         <div className="relative">
                           <select 
-                            value={formData.contentType || 'metodologia'}
+                            value={formData.contentType || contentTypes[0]?.val || 'metodologia'}
                             onChange={(e) => setFormData({ ...formData, contentType: e.target.value })}
                             className="form-select"
                           >
-                            <option value="herramienta">🔧 Herramienta</option>
-                            <option value="framework">📦 Framework</option>
-                            <option value="regla">📜 Regla</option>
-                            <option value="metodologia">💡 Metodología</option>
+                            {contentTypes.map(ct => (
+                              <option key={ct.val} value={ct.val}>{ct.label}</option>
+                            ))}
                           </select>
                           <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-lg" style={{ color: 'var(--outline)' }}>expand_more</span>
                         </div>
@@ -2320,7 +2347,7 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
         /* Term List Table */
         <div className="glass-panel p-6 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <h3 className="font-headline-sm">Entradas Registradas</h3>
+            <h3 className="font-headline-sm">Conceptos Registrados</h3>
             <div className="flex items-center gap-3">
               <div className="relative">
                 <input 
@@ -2342,10 +2369,9 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
                     style={{ padding: '6px 32px 6px 12px', width: '150px', height: '34px', lineHeight: '1.2' }}
                   >
                     <option value="all">Todas las áreas</option>
-                    <option value="codigo">💻 Código</option>
-                    <option value="diseño">🎨 Diseño</option>
-                    <option value="mrkt">📈 Marketing</option>
-                    <option value="gestion">📋 Gestión</option>
+                    {workAreas.map(wa => (
+                      <option key={wa.val} value={wa.val}>{wa.label}</option>
+                    ))}
                   </select>
                   <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-md" style={{ color: 'var(--outline)' }}>expand_more</span>
                 </div>
@@ -2375,8 +2401,8 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
                   setFormData({
                     title: '',
                     category: 'Diseño & Marca',
-                    workArea: 'codigo',
-                    contentType: 'metodologia',
+                    workArea: workAreas[0]?.val || 'codigo',
+                    contentType: contentTypes[0]?.val || 'metodologia',
                     targetResult: 'otro',
                     description: '',
                     url: '',
