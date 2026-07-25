@@ -3,12 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 const parseCategory = (catStr) => {
   try {
     if (catStr && catStr.startsWith('{') && catStr.endsWith('}')) {
-      const parsed = JSON.parse(catStr);
-      return {
-        workArea: parsed.workArea || 'codigo',
-        contentType: parsed.contentType || 'metodologia',
-        targetResult: parsed.targetResult || 'otro'
-      };
+      return JSON.parse(catStr);
     }
   } catch (e) {}
   
@@ -548,13 +543,22 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
         is_draft: finalDraftStatus
       };
     } else {
+      const catObj = {
+        targetResult: formData.targetResult || 'otro'
+      };
+      const activeTax = config.taxonomies || {};
+      const normalizedTax = (activeTax.workAreas && !activeTax.workArea) ? {
+        workArea: { label: 'Áreas de Trabajo', items: activeTax.workAreas },
+        contentType: { label: 'Tipos de Contenido', items: activeTax.contentTypes || [] }
+      } : activeTax;
+      
+      Object.keys(normalizedTax).forEach(taxKey => {
+        catObj[taxKey] = formData[taxKey] || (normalizedTax[taxKey].items && normalizedTax[taxKey].items[0]?.val) || 'all';
+      });
+
       formattedData = {
         title: formData.title,
-        category: JSON.stringify({
-          workArea: formData.workArea || 'codigo',
-          contentType: formData.contentType || 'metodologia',
-          targetResult: formData.targetResult || 'otro'
-        }),
+        category: JSON.stringify(catObj),
         description: formData.description,
         url: formData.url || '',
         video_url: JSON.stringify((formData.videos || []).filter(Boolean)),
@@ -689,11 +693,9 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
           }
         }
       }
-      setFormData({
+      const editFormData = {
         title: item.title || '',
         category: item.category || 'Diseño & Marca',
-        workArea: parsedCat.workArea,
-        contentType: parsedCat.contentType,
         targetResult: parsedCat.targetResult,
         description: item.description || '',
         url: urlFallback,
@@ -721,7 +723,19 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
         fontSize: '',
         fontSampleText: '',
         svgContent: ''
+      };
+      
+      const activeTax = config.taxonomies || {};
+      const normalizedTax = (activeTax.workAreas && !activeTax.workArea) ? {
+        workArea: { label: 'Áreas de Trabajo', items: activeTax.workAreas },
+        contentType: { label: 'Tipos de Contenido', items: activeTax.contentTypes || [] }
+      } : activeTax;
+      
+      Object.keys(normalizedTax).forEach(taxKey => {
+        editFormData[taxKey] = parsedCat[taxKey] || (normalizedTax[taxKey].items && normalizedTax[taxKey].items[0]?.val) || 'all';
       });
+      
+      setFormData(editFormData);
       setCreatingTypeSelected(true);
     }
 
@@ -1014,6 +1028,25 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
   const appName = config.branding?.appName || 'Alexandria';
   const logoUrl = config.branding?.logoUrl || '../favicon.png';
   const backUrl = config.branding?.backUrl || '#/';
+  const guessSetupUrl = () => {
+    if (config.branding?.setupUrl) return config.branding.setupUrl;
+    const scripts = Array.from(document.getElementsByTagName('script'));
+    const dsScript = scripts.find(s => s.src && s.src.includes('data-source-config.js'));
+    if (dsScript) {
+      try {
+        const url = new URL(dsScript.src);
+        const parts = url.pathname.split('/');
+        parts.pop();
+        return parts.join('/') + '/setup.html';
+      } catch (e) {
+        const idx = dsScript.src.indexOf('data-source-config.js');
+        if (idx !== -1) {
+          return dsScript.src.substring(0, idx) + 'setup.html';
+        }
+      }
+    }
+    return './crm-controlpanel/setup.html';
+  };
 
   const renderHeader = () => (
     <header className="nav-shell">
@@ -1029,7 +1062,7 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
 
         <div className="flex items-center gap-3">
           <a 
-            href="/crm-controlpanel/setup.html" 
+            href={guessSetupUrl()} 
             className="btn-secondary flex items-center gap-2"
             style={{ padding: '10px 20px', fontSize: '0.8rem', textDecoration: 'none' }}
           >
@@ -1605,49 +1638,32 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
                           style={{ fontSize: '1.1rem' }}
                         />
                       </div>
-                      <div className="flex flex-col gap-2">
-                        <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Área de Trabajo *</label>
-                        <div className="flex flex-wrap gap-2 pt-1">
-                          {workAreas.map(area => {
-                            const selectedAreas = (formData.workArea || '').split(',').map(x => x.trim()).filter(Boolean);
-                            const isSelected = selectedAreas.includes(area.val);
-                            return (
-                              <button
-                                key={area.val}
-                                type="button"
-                                onClick={() => {
-                                  let nextAreas;
-                                  if (isSelected) {
-                                    nextAreas = selectedAreas.filter(a => a !== area.val);
-                                  } else {
-                                    nextAreas = [...selectedAreas, area.val];
-                                  }
-                                  setFormData({ ...formData, workArea: nextAreas.join(',') });
-                                }}
-                                className={`chip ${isSelected ? 'chip-primary' : 'chip-neutral'}`}
-                                style={{ cursor: 'pointer', border: '1px solid var(--outline-variant)', textTransform: 'none', padding: '6px 12px' }}
+                      {(() => {
+                        const activeTax = config.taxonomies || {};
+                        const normalizedTax = (activeTax.workAreas && !activeTax.workArea) ? {
+                          workArea: { label: 'Áreas de Trabajo', items: activeTax.workAreas },
+                          contentType: { label: 'Tipos de Contenido', items: activeTax.contentTypes || [] }
+                        } : activeTax;
+                        
+                        return Object.entries(normalizedTax).map(([taxKey, tax]) => (
+                          <div key={taxKey} className="flex flex-col gap-2">
+                            <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>{tax.label} *</label>
+                            <div className="relative">
+                              <select 
+                                value={formData[taxKey] || (tax.items && tax.items[0]?.val) || 'all'}
+                                onChange={(e) => setFormData({ ...formData, [taxKey]: e.target.value })}
+                                className="form-select font-body-sm bg-[var(--surface-container-low)]"
+                                style={{ height: '42px' }}
                               >
-                                {area.label}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Tipo de Contenido *</label>
-                        <div className="relative">
-                          <select 
-                            value={formData.contentType || contentTypes[0]?.val || 'metodologia'}
-                            onChange={(e) => setFormData({ ...formData, contentType: e.target.value })}
-                            className="form-select"
-                          >
-                            {contentTypes.map(ct => (
-                              <option key={ct.val} value={ct.val}>{ct.label}</option>
-                            ))}
-                          </select>
-                          <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-lg" style={{ color: 'var(--outline)' }}>expand_more</span>
-                        </div>
-                      </div>
+                                {(tax.items || []).map(item => (
+                                  <option key={item.val} value={item.val}>{item.icon} {item.label}</option>
+                                ))}
+                              </select>
+                              <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-lg" style={{ color: 'var(--outline)' }}>expand_more</span>
+                            </div>
+                          </div>
+                        ));
+                      })()}
                       <div className="md:col-span-2 flex flex-col gap-3">
                         <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Resultado Objetivo / ¿Qué necesito? *</label>
                         <div className="flex flex-col gap-3">

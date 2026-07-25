@@ -37,23 +37,40 @@
         if (raw) local = JSON.parse(raw);
       } catch {}
 
+      let cachedDb = null;
+      try {
+        const rawDb = localStorage.getItem('glosaurio_cached_db_config');
+        if (rawDb) cachedDb = JSON.parse(rawDb);
+      } catch {}
+
       const fileConfig = window.CRM_CONFIG || window.GLOSAURIO_DEFAULT_CONFIG || null;
 
-      if (!local) return fileConfig;
-      
-      // Merge local config (db credentials) with file config (modules + branding)
       return {
         ...fileConfig,
+        ...cachedDb,
         ...local,
-        branding: { ...(fileConfig?.branding || {}), ...(local?.branding || {}) },
-        activeModules: local?.activeModules || fileConfig?.activeModules
+        branding: { ...(fileConfig?.branding || {}), ...(cachedDb?.branding || {}), ...(local?.branding || {}) },
+        taxonomies: local?.taxonomies || cachedDb?.taxonomies || fileConfig?.taxonomies,
+        activeModules: local?.activeModules || cachedDb?.activeModules || fileConfig?.activeModules
       };
     },
 
-    saveConfig(config) {
+    async saveConfig(config) {
       localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
-      // Reinicializa el adapter con la nueva config
       _initAdapter();
+
+      if (window.DataSource && typeof window.DataSource.saveDbConfig === 'function') {
+        try {
+          await window.DataSource.saveDbConfig(config);
+          localStorage.setItem('glosaurio_cached_db_config', JSON.stringify({
+            activeModules: config.activeModules,
+            taxonomies: config.taxonomies,
+            branding: config.branding
+          }));
+        } catch (e) {
+          console.error('[Glosaurio] Error al guardar la configuración en la base de datos:', e);
+        }
+      }
     },
 
     getProvider() {
@@ -63,6 +80,7 @@
 
     clearConfig() {
       localStorage.removeItem(CONFIG_KEY);
+      localStorage.removeItem('glosaurio_cached_db_config');
       _initAdapter();
     },
 
@@ -76,26 +94,37 @@
 
     if (!config || config.provider === 'localStorage') {
       window.DataSource = new window.Glosaurio.LocalStorageAdapter();
-      return;
-    }
-
-    if (config.provider === 'supabase' && 
+    } else if (config.provider === 'supabase' && 
         config.supabase?.url && 
         config.supabase?.anonKey &&
         !config.supabase.url.includes('PLACEHOLDER') &&
         !config.supabase.anonKey.includes('PLACEHOLDER')) {
       window.DataSource = new window.Glosaurio.SupabaseAdapter(config.supabase);
-      return;
-    }
-
-    if (config.provider === 'firebase' && config.firebase?.apiKey && config.firebase?.projectId) {
+    } else if (config.provider === 'firebase' && config.firebase?.apiKey && config.firebase?.projectId) {
       window.DataSource = new window.Glosaurio.FirebaseAdapter(config.firebase);
-      return;
+    } else {
+      console.warn('[Glosaurio] Config incompleta, usando localStorage como fallback.');
+      window.DataSource = new window.Glosaurio.LocalStorageAdapter();
     }
 
-    // Fallback si config incompleta
-    console.warn('[Glosaurio] Config incompleta, usando localStorage como fallback.');
-    window.DataSource = new window.Glosaurio.LocalStorageAdapter();
+    // Consulta asíncrona en segundo plano para obtener la config de la base de datos
+    if (window.DataSource && typeof window.DataSource.getDbConfig === 'function') {
+      (async function() {
+        try {
+          const dbConfig = await window.DataSource.getDbConfig();
+          if (dbConfig) {
+            const currentCached = localStorage.getItem('glosaurio_cached_db_config');
+            const stringified = JSON.stringify(dbConfig);
+            if (currentCached !== stringified) {
+              localStorage.setItem('glosaurio_cached_db_config', stringified);
+              window.dispatchEvent(new CustomEvent('GlosaurioConfigUpdated', { detail: dbConfig }));
+            }
+          }
+        } catch (e) {
+          console.warn('[Glosaurio] Error cargando config dinámica de la BD:', e);
+        }
+      })();
+    }
   }
 
   // Inicializa al cargar

@@ -135,6 +135,47 @@ window.Glosaurio.FirebaseAdapter = class FirebaseAdapter {
     if (!res.ok) throw new Error(`Firebase delete error in ${collection} — ${res.status}`);
   }
 
+  async getDbConfig() {
+    try {
+      const doc = await this.getItem('cms_config', 'global');
+      if (!doc) return null;
+      return {
+        activeModules: doc.activeModules,
+        taxonomies: doc.taxonomies,
+        branding: doc.branding
+      };
+    } catch (e) {
+      console.warn('[FirebaseAdapter] No se pudo leer cms_config:', e);
+      return null;
+    }
+  }
+
+  async saveDbConfig(config) {
+    try {
+      const data = {
+        activeModules: config.activeModules,
+        taxonomies: config.taxonomies || {},
+        branding: config.branding || {},
+        updatedAt: new Date().toISOString()
+      };
+      const exists = await this.getItem('cms_config', 'global');
+      if (exists) {
+        await this.updateItem('cms_config', 'global', data);
+      } else {
+        const res = await fetch(`https://firestore.googleapis.com/v1/projects/${this.projectId}/databases/(default)/documents/cms_config?documentId=global&key=${this.apiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(this._toFirestore(data))
+        });
+        if (!res.ok) throw new Error(`Firebase create global config error — ${res.status}: ${await res.text()}`);
+      }
+      return true;
+    } catch (e) {
+      console.error('[FirebaseAdapter] Error al guardar config en Firebase:', e);
+      throw e;
+    }
+  }
+
   // ── Backward Compatible Specific Methods ──────────────────
   async getTerms(filters = {}) {
     return this.getItems('terms', filters);

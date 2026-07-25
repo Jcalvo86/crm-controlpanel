@@ -1,30 +1,35 @@
 <!DOCTYPE html>
 <html lang="es" class="dark">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CMS Andreia — Panel CRM</title>
   <link rel="icon" type="image/png" href="../favicon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
-  
-  <!-- Tailwind CSS CDN para JIT en navegador -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap"
+    rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+    rel="stylesheet">
+
   <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
-  
+
   <!-- Variables y estilos del tema principal -->
   <link rel="stylesheet" href="../style.css">
-  
-  <!-- Configuración específica de la base de datos de Sueño Travel -->
-  <script src="../crm-config.js"></script>
-</head>
-<body class="font-body-md antialiased" style="background: var(--background); color: var(--on-surface);">
-  <div class="bg-grain"></div>
-  
-  <!-- Contenedor donde React montará la aplicación -->
-  <div id="root"></div>
 
-  <!-- Entrada de la aplicación React (Vite la procesará en desarrollo y producción) -->
-  <script type="module" src="./main.jsx"></script>
+  <script src="adapters/adapter-interface.js"></script>
+  <script src="adapters/supabase-adapter.js"></script>
+  <script src="adapters/firebase-adapter.js"></script>
+  <script src="../supabase-config.js"></script>
+  <script src="crm-config.js"></script>
+  <script src="data-source-config.js"></script>
+</head>
+
+<body class="font-body-md antialiased"
+  style="background: var(--background); color: var(--on-surface); min-height: 100vh;">
+  <div id="root"></div>
+  <script type="module" src="main.jsx"></script>
 </body>
+
 </html>
