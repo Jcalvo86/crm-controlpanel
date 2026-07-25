@@ -90,6 +90,7 @@ class SupabaseRESTService {
       method: 'POST',
       headers: {
         'apikey': this.anonKey,
+        'Authorization': `Bearer ${this.anonKey}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({ email, password })
@@ -985,69 +986,115 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
     e.target.value = ''; // Reset file input
   };
 
+  const appName = config.branding?.appName || 'Alexandria';
+  const logoUrl = config.branding?.logoUrl || '../favicon.png';
+  const backUrl = config.branding?.backUrl || '#/';
+
+  const renderHeader = () => (
+    <header className="nav-shell">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-[72px]">
+        <div className="flex items-center gap-3">
+          <a href={backUrl} className="flex items-center gap-3 group cursor-pointer text-left no-underline bg-transparent border-none p-0">
+            <img src={logoUrl} alt={`${appName} Logo`} className="w-10 h-10 rounded-xl shadow-lg object-cover" />
+            <span className="font-headline-md" style={{ color: 'var(--primary)', letterSpacing: '-0.02em' }}>{appName}</span>
+          </a>
+          <span className="chip chip-neutral text-xs">CRM Panel</span>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {session && config.provider === 'supabase' && (
+            <button 
+              onClick={handleLogout} 
+              className="btn-secondary flex items-center gap-2"
+              style={{ padding: '10px 20px', fontSize: '0.8rem' }}
+            >
+              <span className="material-symbols-outlined text-sm">logout</span>
+              Cerrar Sesión
+            </button>
+          )}
+          <a 
+            href={backUrl} 
+            className="btn-secondary flex items-center gap-2"
+            style={{ padding: '10px 20px', fontSize: '0.8rem', textDecoration: 'none' }}
+          >
+            <span className="material-symbols-outlined text-sm">arrow_back</span>
+            Volver al Sitio
+          </a>
+        </div>
+      </div>
+    </header>
+  );
+
   // Render Login View if not authenticated
   if (!session && config.provider === 'supabase') {
     return (
-      <div className="max-w-md mx-auto my-20 p-8 glass-card space-y-6">
-        <div className="text-center">
-          <span className="text-5xl block mb-2">🔒</span>
-          <h2 className="font-headline-md text-[var(--on-surface)]">Área Privada CRM</h2>
-          <p className="font-body-md text-[var(--on-surface-variant)] mt-1">Inicia sesión para gestionar el contenido.</p>
-        </div>
-
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div>
-            <label className="font-label-md block mb-1 text-[var(--on-surface-variant)]">Email</label>
-            <input 
-              type="email" 
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@glosaurio.com"
-              className="form-input w-full"
-            />
-          </div>
-
-          <div>
-            <label className="font-label-md block mb-1 text-[var(--on-surface-variant)]">Contraseña</label>
-            <input 
-              type="password" 
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="form-input w-full"
-            />
-          </div>
-
-          {authError && (
-            <div className="p-3 rounded-lg bg-[color-mix(in_srgb,var(--error)_15%,transparent)] border border-[var(--error)] text-xs text-[var(--error)]">
-              ⚠️ {authError}
+      <div className="min-h-screen bg-[var(--background)]">
+        {renderHeader()}
+        <div className="pt-[72px] flex items-center justify-center min-h-[calc(100vh-72px)] py-12 px-4">
+          <div className="max-w-md w-full p-8 glass-card space-y-6">
+            <div className="text-center">
+              <span className="text-5xl block mb-2">🔒</span>
+              <h2 className="font-headline-md text-[var(--on-surface)]">Área Privada CRM</h2>
+              <p className="font-body-md text-[var(--on-surface-variant)] mt-1">Inicia sesión para gestionar el contenido.</p>
             </div>
-          )}
 
-          <button 
-            type="submit" 
-            disabled={loadingAuth}
-            className="btn-primary w-full justify-center py-3 flex items-center gap-2"
-          >
-            {loadingAuth ? (
-              <span className="material-symbols-outlined spin text-lg">sync</span>
-            ) : (
-              <>
-                <span className="material-symbols-outlined text-sm">login</span>
-                Iniciar Sesión
-              </>
-            )}
-          </button>
-        </form>
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <label className="font-label-md block mb-1 text-[var(--on-surface-variant)]">Email</label>
+                <input 
+                  type="email" 
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="admin@glosaurio.com"
+                  className="form-input w-full"
+                />
+              </div>
+
+              <div>
+                <label className="font-label-md block mb-1 text-[var(--on-surface-variant)]">Contraseña</label>
+                <input 
+                  type="password" 
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="form-input w-full"
+                />
+              </div>
+
+              {authError && (
+                <div className="p-3 rounded-lg bg-[color-mix(in_srgb,var(--error)_15%,transparent)] border border-[var(--error)] text-xs text-[var(--error)]">
+                  ⚠️ {authError}
+                </div>
+              )}
+
+              <button 
+                type="submit" 
+                disabled={loadingAuth}
+                className="btn-primary w-full justify-center py-3 flex items-center gap-2"
+              >
+                {loadingAuth ? (
+                  <span className="material-symbols-outlined spin text-lg">sync</span>
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined text-sm">login</span>
+                    Iniciar Sesión
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
       </div>
     );
   }
 
   // Active Workspace
   return (
-    <div className="space-y-8">
+    <div className="min-h-screen bg-[var(--background)]">
+      {renderHeader()}
+      <div className="pt-[72px] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       {/* Header bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-[var(--outline-variant)] pb-4 gap-4">
         <div className="flex items-center gap-4 flex-wrap">
@@ -2275,14 +2322,17 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <h3 className="font-headline-sm">Entradas Registradas</h3>
             <div className="flex items-center gap-3">
-              <input 
-                type="text" 
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Buscar..."
-                className="form-input text-sm"
-                style={{ padding: '6px 12px', width: '180px', height: '34px' }}
-              />
+              <div className="relative">
+                <input 
+                  type="text" 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Buscar..."
+                  className="form-input text-sm"
+                  style={{ padding: '6px 12px 6px 32px', width: '160px', height: '34px' }}
+                />
+                <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-sm" style={{ color: 'var(--outline)' }}>search</span>
+              </div>
               {activeModule !== 'design_tokens' && (
                 <div className="relative">
                   <select
@@ -2385,7 +2435,7 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+              <table className="w-full text-left border-collapse" style={{ tableLayout: 'fixed' }}>
                 <thead>
                   <tr className="border-b border-[var(--outline-variant)] text-xs uppercase tracking-wider text-[var(--outline)]">
                     <th className="pb-3 pr-2" style={{ width: '45%' }}>
@@ -2444,13 +2494,13 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
                     })
                     .map(item => (
                       <tr key={item.id} className="text-sm">
-                        <td className="py-3 font-semibold text-[var(--on-surface)] pr-2">
+                        <td className="py-3 font-semibold text-[var(--on-surface)] pr-2 truncate">
                           {activeModule === 'design_tokens' ? (
-                            <span className="flex items-center gap-2">
-                              <span>{item.brandName}</span>
+                            <span className="flex items-center gap-2 truncate">
+                              <span className="truncate">{item.brandName}</span>
                             </span>
                           ) : (
-                            item.title
+                            <span className="truncate block">{item.title}</span>
                           )}
                         </td>
                         <td className="py-3 text-[var(--on-surface-variant)] pr-2">
@@ -2501,6 +2551,7 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
           )}
         </div>
       )}
+      </div>
     </div>
   );
 }
