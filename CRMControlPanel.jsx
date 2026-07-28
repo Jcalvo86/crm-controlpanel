@@ -239,7 +239,18 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
     brandName: '',
     colors: [{ hex: '', role: '', description: '' }],
     typographies: [{ fontFamily: '', weights: [], fontSize: '', sampleText: '' }],
-    logos: [{ name: '', svgContent: '' }]
+    logos: [{ name: '', svgContent: '' }],
+    // Travel fields
+    agency: 'Sueño Travel Chile',
+    durationDays: 1,
+    durationNights: 0,
+    destinationsSummary: '',
+    visaCostUSD: 0,
+    hotelTaxUSD: 0,
+    disclaimer: '',
+    servicesIncludedEgypt: '',
+    servicesIncludedTurkey: '',
+    servicesExcluded: ''
   });
   const [selectedId, setSelectedId] = useState(null);
   const [templateDropdownOpen, setTemplateDropdownOpen] = useState(false);
@@ -419,7 +430,7 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
   // Initialize service
   const service = config.provider === 'supabase' 
     ? new SupabaseRESTService(config.supabase, session?.token)
-    : null;
+    : (window.DataSource || null);
 
   // 1. Check local session storage on load
   useEffect(() => {
@@ -533,7 +544,35 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
     const finalDraftStatus = draftOverride !== null ? draftOverride : formData.isDraft;
     
     let formattedData = {};
-    if (activeModule === 'design_tokens') {
+    if (activeModule === 'travel') {
+      formattedData = {
+        title: formData.title,
+        agency: formData.agency || 'Sueño Travel Chile',
+        durationDays: parseInt(formData.durationDays) || 0,
+        durationNights: parseInt(formData.durationNights) || 0,
+        isPublished: !finalDraftStatus,
+        createdAt: new Date().toISOString(),
+        destinationsSummary: typeof formData.destinationsSummary === 'string'
+          ? formData.destinationsSummary.split(',').map(x => x.trim()).filter(Boolean)
+          : formData.destinationsSummary || [],
+        pricingAndNotes: {
+          visaCostUSD: parseFloat(formData.visaCostUSD) || 0,
+          hotelTaxUSD: parseFloat(formData.hotelTaxUSD) || 0,
+          disclaimer: formData.disclaimer || ''
+        },
+        servicesIncluded: {
+          egypt: typeof formData.servicesIncludedEgypt === 'string'
+            ? formData.servicesIncludedEgypt.split('\n').map(x => x.trim()).filter(Boolean)
+            : formData.servicesIncludedEgypt || [],
+          turkey: typeof formData.servicesIncludedTurkey === 'string'
+            ? formData.servicesIncludedTurkey.split('\n').map(x => x.trim()).filter(Boolean)
+            : formData.servicesIncludedTurkey || []
+        },
+        servicesExcluded: typeof formData.servicesExcluded === 'string'
+          ? formData.servicesExcluded.split('\n').map(x => x.trim()).filter(Boolean)
+          : formData.servicesExcluded || []
+      };
+    } else if (activeModule === 'design_tokens') {
       formattedData = {
         brand_name: formData.brandName,
         colors: formData.colors || [],
@@ -652,6 +691,25 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
   const startEdit = (item) => {
     setIsEditing(true);
     setSelectedId(item.id);
+    if (activeModule === 'travel') {
+      setFormData({
+        title: item.title || '',
+        agency: item.agency || 'Sueño Travel Chile',
+        durationDays: item.durationDays || 1,
+        durationNights: item.durationNights || 0,
+        destinationsSummary: Array.isArray(item.destinationsSummary) ? item.destinationsSummary.join(', ') : '',
+        visaCostUSD: item.pricingAndNotes?.visaCostUSD || 0,
+        hotelTaxUSD: item.pricingAndNotes?.hotelTaxUSD || 0,
+        disclaimer: item.pricingAndNotes?.disclaimer || '',
+        servicesIncludedEgypt: Array.isArray(item.servicesIncluded?.egypt) ? item.servicesIncluded.egypt.join('\n') : '',
+        servicesIncludedTurkey: Array.isArray(item.servicesIncluded?.turkey) ? item.servicesIncluded.turkey.join('\n') : '',
+        servicesExcluded: Array.isArray(item.servicesExcluded) ? item.servicesExcluded.join('\n') : '',
+        isDraft: !item.isPublished
+      });
+      setCreatingTypeSelected(true);
+      setShowForm(true);
+      return;
+    }
     if (activeModule === 'design_tokens') {
       setFormData({
         brandName: item.brandName || '',
@@ -1181,8 +1239,8 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
           )}
           <h2 className="text-xl md:text-2xl font-bold text-[var(--on-surface)] whitespace-nowrap">
             {showForm 
-              ? (!creatingTypeSelected ? 'Añadir Nuevo Registro' : (activeModule === 'design_tokens' ? 'Editor de UI Kit' : 'Editor de Concepto'))
-              : (activeModule === 'design_tokens' ? 'Gestión de UI Kit / Marca' : 'Panel de Control')}
+              ? (!creatingTypeSelected ? 'Añadir Nuevo Registro' : (activeModule === 'travel' ? 'Editor de Viaje' : activeModule === 'design_tokens' ? 'Editor de UI Kit' : 'Editor de Concepto'))
+              : (activeModule === 'travel' ? 'Gestión de Viajes' : activeModule === 'design_tokens' ? 'Gestión de UI Kit / Marca' : 'Panel de Control')}
           </h2>
         </div>
 
@@ -1253,7 +1311,7 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
                   style={{ padding: '8px 16px', fontSize: '0.85rem' }}
                 >
                   <span className="material-symbols-outlined text-sm">publish</span>
-                  {activeModule === 'design_tokens' ? 'Publicar UI Kit' : 'Publicar Concepto'}
+                  {activeModule === 'travel' ? 'Publicar Viaje' : activeModule === 'design_tokens' ? 'Publicar UI Kit' : 'Publicar Concepto'}
                 </button>
               </>
             )
@@ -1345,7 +1403,162 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             {/* MAIN FORM: (9 cols) */}
             <div className="lg:col-span-9 space-y-6">
-              {activeModule === 'design_tokens' ? (
+              {activeModule === 'travel' ? (
+                <>
+                  {/* Travel Identity Section */}
+                  <section className="glass-panel p-8">
+                    <h2 className="font-headline-sm mb-6 flex items-center gap-2" style={{ color: 'var(--on-surface)' }}>
+                      <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>flight_takeoff</span>
+                      Detalles del Plan de Viaje
+                    </h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <div className="flex flex-col gap-2">
+                        <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Título del Viaje *</label>
+                        <input 
+                          type="text" 
+                          required
+                          value={formData.title}
+                          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                          placeholder="Ej: Plan de Viaje: Egipto Clásico & Turquía Atractiva" 
+                          className="form-input" 
+                        />
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Agencia / Operador *</label>
+                        <input 
+                          type="text" 
+                          required
+                          value={formData.agency}
+                          onChange={(e) => setFormData({ ...formData, agency: e.target.value })}
+                          placeholder="Ej: Sueño Travel Chile" 
+                          className="form-input" 
+                        />
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Duración (Días) *</label>
+                        <input 
+                          type="number" 
+                          required
+                          value={formData.durationDays}
+                          onChange={(e) => setFormData({ ...formData, durationDays: e.target.value })}
+                          placeholder="Ej: 16" 
+                          className="form-input" 
+                        />
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Duración (Noches) *</label>
+                        <input 
+                          type="number" 
+                          required
+                          value={formData.durationNights}
+                          onChange={(e) => setFormData({ ...formData, durationNights: e.target.value })}
+                          placeholder="Ej: 15" 
+                          className="form-input" 
+                        />
+                      </div>
+                      <div className="md:col-span-2 flex flex-col gap-2">
+                        <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Resumen de Destinos (Separados por coma) *</label>
+                        <input 
+                          type="text" 
+                          required
+                          value={formData.destinationsSummary}
+                          onChange={(e) => setFormData({ ...formData, destinationsSummary: e.target.value })}
+                          placeholder="Ej: El Cairo, Luxor, Asuán, Estambul, Capadocia" 
+                          className="form-input" 
+                        />
+                      </div>
+                    </div>
+                  </section>
+
+                  {/* Pricing and Notes Section */}
+                  <section className="glass-panel p-8">
+                    <h2 className="font-headline-sm mb-6 flex items-center gap-2" style={{ color: 'var(--on-surface)' }}>
+                      <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>payments</span>
+                      Precios y Notas Adicionales
+                    </h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <div className="flex flex-col gap-2">
+                        <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Costo de Visa (USD)</label>
+                        <input 
+                          type="number" 
+                          value={formData.visaCostUSD}
+                          onChange={(e) => setFormData({ ...formData, visaCostUSD: e.target.value })}
+                          placeholder="Ej: 30" 
+                          className="form-input" 
+                        />
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Tasa Hotelera (USD)</label>
+                        <input 
+                          type="number" 
+                          value={formData.hotelTaxUSD}
+                          onChange={(e) => setFormData({ ...formData, hotelTaxUSD: e.target.value })}
+                          placeholder="Ej: 55" 
+                          className="form-input" 
+                        />
+                      </div>
+                      <div className="md:col-span-2 flex flex-col gap-2">
+                        <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Nota de Descargo (Disclaimer)</label>
+                        <textarea 
+                          value={formData.disclaimer}
+                          onChange={(e) => setFormData({ ...formData, disclaimer: e.target.value })}
+                          placeholder="Ej: El itinerario puede sufrir modificaciones manteniendo siempre los servicios incluidos." 
+                          rows="2"
+                          className="form-textarea"
+                        />
+                      </div>
+                    </div>
+                  </section>
+
+                  {/* Services Included Section */}
+                  <section className="glass-panel p-8">
+                    <h2 className="font-headline-sm mb-6 flex items-center gap-2" style={{ color: 'var(--on-surface)' }}>
+                      <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>done_all</span>
+                      Servicios Incluidos
+                    </h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <div className="flex flex-col gap-2">
+                        <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Servicios en Egipto (Un servicio por línea)</label>
+                        <textarea 
+                          value={formData.servicesIncludedEgypt}
+                          onChange={(e) => setFormData({ ...formData, servicesIncludedEgypt: e.target.value })}
+                          placeholder="Ej: 4 noches crucero por el Nilo&#10;3 noches hotel El Cairo" 
+                          rows="6"
+                          className="form-textarea font-mono text-sm"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Servicios en Turquía (Un servicio por línea)</label>
+                        <textarea 
+                          value={formData.servicesIncludedTurkey}
+                          onChange={(e) => setFormData({ ...formData, servicesIncludedTurkey: e.target.value })}
+                          placeholder="Ej: 4 noches Estambul&#10;2 noches Capadocia" 
+                          rows="6"
+                          className="form-textarea font-mono text-sm"
+                        />
+                      </div>
+                    </div>
+                  </section>
+
+                  {/* Services Excluded Section */}
+                  <section className="glass-panel p-8">
+                    <h2 className="font-headline-sm mb-6 flex items-center gap-2" style={{ color: 'var(--on-surface)' }}>
+                      <span className="material-symbols-outlined text-[var(--error)]">cancel</span>
+                      Servicios Excluidos
+                    </h2>
+                    <div className="flex flex-col gap-2">
+                      <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Servicios Excluidos (Un servicio por línea)</label>
+                      <textarea 
+                        value={formData.servicesExcluded}
+                        onChange={(e) => setFormData({ ...formData, servicesExcluded: e.target.value })}
+                        placeholder="Ej: Vuelos internacionales&#10;Tasas hoteleras&#10;Propinas" 
+                        rows="4"
+                        className="form-textarea font-mono text-sm"
+                      />
+                    </div>
+                  </section>
+                </>
+              ) : activeModule === 'design_tokens' ? (
                 <>
                   {/* Token Identity Section */}
                   <section id="sec-identity" className="glass-panel p-8">
@@ -2459,7 +2672,7 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
                     typography: false,
                     logo: false
                   });
-                  setCreatingTypeSelected(false);
+                  setCreatingTypeSelected(true);
                   setShowForm(true);
                 }}
                 className="btn-primary flex items-center gap-2 text-sm whitespace-nowrap"
@@ -2517,11 +2730,11 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
                     .filter(i => {
                       const searchStr = activeModule === 'design_tokens'
                         ? `${i.brandName || i.brand_name || ''}`
-                        : `${i.title} ${i.category}`;
+                        : `${i.title} ${activeModule === 'travel' ? '' : i.category}`;
                       const matchesSearch = searchStr.toLowerCase().includes(searchTerm.toLowerCase());
                       
                       let matchesCategory = true;
-                      if (activeModule !== 'design_tokens' && filterCategory !== 'all') {
+                      if (activeModule !== 'design_tokens' && activeModule !== 'travel' && filterCategory !== 'all') {
                         const parsed = parseCategory(i.category);
                         matchesCategory = parsed.workArea === filterCategory;
                       }
@@ -2534,41 +2747,50 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
                       const valB = (activeModule === 'design_tokens' ? b.brandName : b.title) || '';
                       return valA.localeCompare(valB);
                     })
-                    .map(item => (
-                      <tr key={item.id} className="text-sm">
-                        <td className="py-3 font-semibold text-[var(--on-surface)] pr-2 truncate">
-                          {activeModule === 'design_tokens' ? (
-                            <span className="flex items-center gap-2 truncate">
-                              <span className="truncate">{item.brandName}</span>
+                    .map(item => {
+                      const isDraft = activeModule === 'travel' ? !item.isPublished : item.isDraft;
+                      return (
+                        <tr key={item.id} className="text-sm">
+                          <td className="py-3 font-semibold text-[var(--on-surface)] pr-2 truncate">
+                            {activeModule === 'design_tokens' ? (
+                              <span className="flex items-center gap-2 truncate">
+                                <span className="truncate">{item.brandName}</span>
+                              </span>
+                            ) : (
+                              <span className="truncate block">{item.title}</span>
+                            )}
+                          </td>
+                          <td className="py-3 text-[var(--on-surface-variant)] pr-2">
+                            {activeModule === 'travel' ? (
+                              <div className="flex flex-wrap gap-1 text-xs">
+                                <span className="chip chip-neutral font-bold">{item.durationDays} Días / {item.durationNights} Noches</span>
+                                {item.destinationsSummary && item.destinationsSummary.map((dest, idx) => (
+                                  <span key={idx} className="chip chip-tertiary">{dest}</span>
+                                ))}
+                              </div>
+                            ) : activeModule === 'design_tokens' ? (
+                              <div className="flex flex-wrap gap-2 text-xs">
+                                {item.colors && item.colors.length > 0 && <span className="chip chip-neutral">{item.colors.length} Colores</span>}
+                                {item.typographies && item.typographies.length > 0 && <span className="chip chip-neutral">{item.typographies.length} Fuentes</span>}
+                                {item.logos && item.logos.length > 0 && <span className="chip chip-neutral">{item.logos.length} Logos</span>}
+                              </div>
+                            ) : (
+                              (() => {
+                                const parsed = parseCategory(item.category);
+                                return (
+                                  <div className="flex flex-wrap gap-1 text-xs">
+                                    <span className="chip chip-neutral font-mono">{parsed.workArea}</span>
+                                    <span className="chip chip-neutral font-mono">{parsed.contentType}</span>
+                                  </div>
+                                );
+                              })()
+                            )}
+                          </td>
+                          <td className="py-3 pr-2">
+                            <span className={`chip ${isDraft ? 'chip-neutral' : 'chip-tertiary'}`}>
+                              {isDraft ? 'Borrador' : 'Publicado'}
                             </span>
-                          ) : (
-                            <span className="truncate block">{item.title}</span>
-                          )}
-                        </td>
-                        <td className="py-3 text-[var(--on-surface-variant)] pr-2">
-                          {activeModule === 'design_tokens' ? (
-                            <div className="flex flex-wrap gap-2 text-xs">
-                              {item.colors && item.colors.length > 0 && <span className="chip chip-neutral">{item.colors.length} Colores</span>}
-                              {item.typographies && item.typographies.length > 0 && <span className="chip chip-neutral">{item.typographies.length} Fuentes</span>}
-                              {item.logos && item.logos.length > 0 && <span className="chip chip-neutral">{item.logos.length} Logos</span>}
-                            </div>
-                          ) : (
-                            (() => {
-                              const parsed = parseCategory(item.category);
-                              return (
-                                <div className="flex flex-wrap gap-1 text-xs">
-                                  <span className="chip chip-neutral font-mono">{parsed.workArea}</span>
-                                  <span className="chip chip-neutral font-mono">{parsed.contentType}</span>
-                                </div>
-                              );
-                            })()
-                          )}
-                        </td>
-                        <td className="py-3 pr-2">
-                          <span className={`chip ${item.isDraft ? 'chip-neutral' : 'chip-tertiary'}`}>
-                            {item.isDraft ? 'Borrador' : 'Publicado'}
-                          </span>
-                        </td>
+                          </td>
                         <td className="py-3 text-right space-x-2">
                           <button 
                             onClick={() => startEdit(item)}
@@ -2586,7 +2808,8 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
                           </HoldToConfirmButton>
                         </td>
                       </tr>
-                    ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

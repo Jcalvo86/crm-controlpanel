@@ -24,6 +24,7 @@
 
   const CONFIG_KEY = `glosaurio_datasource_config${projectSuffix}`;
   const THEME_KEY = `glosaurio_theme${projectSuffix}`;
+  const CACHED_DB_KEY = `glosaurio_cached_db_config${projectSuffix}`;
 
   // Inicialización inmediata de tema para evitar flashes blancos
   const isDark = localStorage.getItem(THEME_KEY) !== 'light';
@@ -39,7 +40,7 @@
 
       let cachedDb = null;
       try {
-        const rawDb = localStorage.getItem('glosaurio_cached_db_config');
+        const rawDb = localStorage.getItem(CACHED_DB_KEY);
         if (rawDb) cachedDb = JSON.parse(rawDb);
       } catch {}
 
@@ -62,7 +63,7 @@
       if (window.DataSource && typeof window.DataSource.saveDbConfig === 'function') {
         try {
           await window.DataSource.saveDbConfig(config);
-          localStorage.setItem('glosaurio_cached_db_config', JSON.stringify({
+          localStorage.setItem(CACHED_DB_KEY, JSON.stringify({
             activeModules: config.activeModules,
             taxonomies: config.taxonomies,
             branding: config.branding
@@ -80,7 +81,7 @@
 
     clearConfig() {
       localStorage.removeItem(CONFIG_KEY);
-      localStorage.removeItem('glosaurio_cached_db_config');
+      localStorage.removeItem(CACHED_DB_KEY);
       _initAdapter();
     },
 
@@ -113,11 +114,19 @@
         try {
           const dbConfig = await window.DataSource.getDbConfig();
           if (dbConfig) {
-            const currentCached = localStorage.getItem('glosaurio_cached_db_config');
+            const currentCached = localStorage.getItem(CACHED_DB_KEY);
             const stringified = JSON.stringify(dbConfig);
             if (currentCached !== stringified) {
-              localStorage.setItem('glosaurio_cached_db_config', stringified);
+              localStorage.setItem(CACHED_DB_KEY, stringified);
               window.dispatchEvent(new CustomEvent('GlosaurioConfigUpdated', { detail: dbConfig }));
+            }
+          } else {
+            // Si no existe la configuración en la base de datos, la inicializamos automáticamente
+            console.log('[Glosaurio] Inicializando configuración en la base de datos...');
+            const localConfig = Config.getConfig();
+            if (window.DataSource && typeof window.DataSource.saveDbConfig === 'function') {
+              await window.DataSource.saveDbConfig(localConfig);
+              console.log('[Glosaurio] Configuración inicial guardada en la base de datos correctamente.');
             }
           }
         } catch (e) {

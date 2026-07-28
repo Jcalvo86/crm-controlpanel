@@ -134,7 +134,7 @@ window.Glosaurio.CMS_MODULES = {
     label: 'Viaje',
     icon: 'flight_takeoff',
     description: 'Gestiona itinerarios, destinos, vuelos, cotizaciones y guías de viajes.',
-    collection: 'cms_travels',
+    collection: 'tours',
     titleField: 'title',
     schema: [
       { id: 'title', label: 'Título del Viaje', type: 'text', required: true, placeholder: 'Ej: Aventura por la Patagonia' },

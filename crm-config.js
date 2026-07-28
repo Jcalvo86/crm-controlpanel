@@ -1,7 +1,7 @@
 // Configuration file for ControlPanel CRM
 window.CRM_CONFIG = {
   // 1. Data Source Provider Configuration
-  provider: "firebase", // 'firebase' | 'supabase' | 'localStorage'
+  provider: "supabase", // 'firebase' | 'supabase' | 'localStorage'
   
   supabase: {
     url: 'https://dzksclkscwljussvyrzx.supabase.co',
