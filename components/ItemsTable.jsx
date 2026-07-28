@@ -104,6 +104,15 @@ export default function ItemsTable({
                   isDraft: true
                 });
                 setCreatingTypeSelected(true);
+              } else if (activeModule === 'design_tokens') {
+                setFormData({
+                  brandName: '',
+                  colors: [],
+                  typographies: [],
+                  logos: [],
+                  isDraft: true
+                });
+                setCreatingTypeSelected(true);
               } else {
                 setFormData({
                   title: '',
@@ -131,7 +140,7 @@ export default function ItemsTable({
                   code: false,
                   videos: false
                 });
-                setCreatingTypeSelected(false);
+                setCreatingTypeSelected(true);
               }
               setShowForm(true);
             }}
@@ -153,7 +162,7 @@ export default function ItemsTable({
           <table className="w-full text-left border-collapse" style={{ tableLayout: 'fixed' }}>
             <thead>
               <tr className="border-b border-[var(--outline-variant)] text-xs uppercase tracking-wider text-[var(--outline)]">
-                <th className="pb-3 pr-2" style={{ width: '28%' }}>
+                <th className="pb-3 pr-2" style={{ width: activeModule === 'travel' ? '28%' : '45%' }}>
                   <div className="flex items-center gap-2">
                     <span>{activeModule === 'design_tokens' ? 'Marca / Sistema de Diseño' : 'Nombre'}</span>
                     <button
@@ -176,12 +185,12 @@ export default function ItemsTable({
                     </button>
                   </div>
                 </th>
-                <th className="pb-3 pr-2" style={{ width: '21%' }}>
+                <th className="pb-3 pr-2" style={{ width: activeModule === 'travel' ? '21%' : '37%' }}>
                   <div className="flex items-center gap-2">
                     <span>{activeModule === 'design_tokens' ? 'Elementos' : 'Categoría'}</span>
                   </div>
                 </th>
-                <th className="pb-3 pr-2" style={{ width: '33%' }}>Ubicación</th>
+                {activeModule === 'travel' && <th className="pb-3 pr-2" style={{ width: '33%' }}>Ubicación</th>}
                 <th className="pb-3 pr-2" style={{ width: '9%' }}>Estado</th>
                 <th className="pb-3 text-right" style={{ width: '9%' }}>Acciones</th>
               </tr>
@@ -245,9 +254,9 @@ export default function ItemsTable({
                         )}
                       </td>
                       
-                      {/* Location column displaying only countries summary */}
-                      <td className="py-3 pr-2 text-xs">
-                        {activeModule === 'travel' ? (
+                      {activeModule === 'travel' && (
+                        /* Location column displaying only countries summary */
+                        <td className="py-3 pr-2 text-xs">
                           <div
                             className="flex flex-wrap gap-1 max-w-full overflow-hidden"
                             style={{
@@ -274,10 +283,8 @@ export default function ItemsTable({
                               })()
                             )}
                           </div>
-                        ) : (
-                          <span className="text-[var(--outline)] italic text-xs">-</span>
-                        )}
-                      </td>
+                        </td>
+                      )}
 
                       <td className="py-3 pr-2">
                         <span className={`chip ${isDraft ? 'chip-neutral' : 'chip-tertiary'}`}>
