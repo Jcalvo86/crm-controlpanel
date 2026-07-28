@@ -1,174 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
+import { parseCategory } from './utils/parseCategory.js';
+import { SupabaseRESTService } from './adapters/SupabaseRESTService.js';
+import HoldToConfirmButton from './components/HoldToConfirmButton.jsx';
+import { createEmptyFormData, derivePanelsFromItem, normalizeTaxonomies } from './utils/formDefaults.js';
+import { buildTravelPayload, buildDesignTokensPayload, buildTermsPayload } from './utils/buildPayload.js';
+import TravelFormEditor from './editors/TravelFormEditor.jsx';
+import DesignTokensFormEditor from './editors/DesignTokensFormEditor.jsx';
+import TermsFormEditor from './editors/TermsFormEditor.jsx';
+import AppHeader from './components/AppHeader.jsx';
+import LoginView from './components/LoginView.jsx';
+import ItemsTable from './components/ItemsTable.jsx';
 
-const parseCategory = (catStr) => {
-  try {
-    if (catStr && catStr.startsWith('{') && catStr.endsWith('}')) {
-      return JSON.parse(catStr);
-    }
-  } catch (e) { }
-
-  const normalized = (catStr || '').trim();
-  if (normalized === 'Diseño & Marca') return { workArea: 'diseño', contentType: 'metodologia', targetResult: 'crear_marca' };
-  if (normalized === 'Vibe Coding') return { workArea: 'codigo', contentType: 'herramienta', targetResult: 'no_parezca_ai' };
-  if (normalized === 'Gestión' || normalized === 'Gestión de Proyectos') return { workArea: 'gestion', contentType: 'metodologia', targetResult: 'otro' };
-  if (normalized === 'Automatización') return { workArea: 'codigo', contentType: 'herramienta', targetResult: 'reducir_tokens' };
-  if (normalized === 'Tech' || normalized === 'Tech & Tooling') return { workArea: 'codigo', contentType: 'herramienta', targetResult: 'otro' };
-
-  return { workArea: 'codigo', contentType: 'metodologia', targetResult: 'otro' };
-};
-
-// Reusable REST Adapters inside the component structure
-class SupabaseRESTService {
-  constructor(config, sessionToken = null) {
-    this.url = config.url.replace(/\/$/, '');
-    this.anonKey = config.anonKey;
-    this.sessionToken = sessionToken;
-  }
-
-  _headers(extra = {}) {
-    const authHeader = this.sessionToken
-      ? `Bearer ${this.sessionToken}`
-      : `Bearer ${this.anonKey}`;
-    return {
-      'apikey': this.anonKey,
-      'Authorization': authHeader,
-      'Content-Type': 'application/json',
-      'Prefer': 'return=representation',
-      ...extra
-    };
-  }
-
-  async getItems(collection) {
-    const res = await fetch(`${this.url}/rest/v1/${collection}?select=*&order=created_at.desc`, {
-      headers: this._headers()
-    });
-    if (res.status === 401) throw new Error('Unauthorized');
-    if (!res.ok) throw new Error('Error al obtener datos');
-    return await res.json();
-  }
-
-  async createItem(collection, item) {
-    const res = await fetch(`${this.url}/rest/v1/${collection}`, {
-      method: 'POST',
-      headers: this._headers(),
-      body: JSON.stringify(item)
-    });
-    if (res.status === 401) throw new Error('Unauthorized');
-    if (!res.ok) throw new Error('Error al crear el registro');
-    return await res.json();
-  }
-
-  async updateItem(collection, id, item) {
-    const res = await fetch(`${this.url}/rest/v1/${collection}?id=eq.${id}`, {
-      method: 'PATCH',
-      headers: this._headers(),
-      body: JSON.stringify(item)
-    });
-    if (res.status === 401) throw new Error('Unauthorized');
-    if (!res.ok) throw new Error('Error al actualizar el registro');
-    return await res.json();
-  }
-
-  async deleteItem(collection, id) {
-    const res = await fetch(`${this.url}/rest/v1/${collection}?id=eq.${id}`, {
-      method: 'DELETE',
-      headers: this._headers()
-    });
-    if (res.status === 401) throw new Error('Unauthorized');
-    if (!res.ok) throw new Error('Error al eliminar el registro');
-    return await res.json();
-  }
-
-  // REST Auth actions
-  async signIn(email, password) {
-    const res = await fetch(`${this.url}/auth/v1/token?grant_type=password`, {
-      method: 'POST',
-      headers: {
-        'apikey': this.anonKey,
-        'Authorization': `Bearer ${this.anonKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ email, password })
-    });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error_description || err.message || 'Error de inicio de sesión');
-    }
-    const data = await res.json();
-    return {
-      token: data.access_token,
-      user: data.user
-    };
-  }
-}
-
-function HoldToConfirmButton({ onConfirm, children, className, style, title, duration = 2000 }) {
-  const [holding, setHolding] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const timerRef = useRef(null);
-  const intervalRef = useRef(null);
-  const startTimeRef = useRef(null);
-
-  const startHold = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setHolding(true);
-    setProgress(0);
-    startTimeRef.current = Date.now();
-
-    intervalRef.current = setInterval(() => {
-      const elapsed = Date.now() - startTimeRef.current;
-      const pct = Math.min((elapsed / duration) * 100, 100);
-      setProgress(pct);
-    }, 50);
-
-    timerRef.current = setTimeout(() => {
-      clearInterval(intervalRef.current);
-      setProgress(100);
-      setHolding(false);
-      onConfirm();
-    }, duration);
-  };
-
-  const cancelHold = (e) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-    if (timerRef.current) clearTimeout(timerRef.current);
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    setHolding(false);
-    setProgress(0);
-  };
-
-  return (
-    <button
-      onMouseDown={startHold}
-      onMouseUp={cancelHold}
-      onMouseLeave={cancelHold}
-      onTouchStart={startHold}
-      onTouchEnd={cancelHold}
-      className={`${className || ''} relative overflow-hidden`}
-      style={{ ...style, position: 'relative' }}
-      title={holding ? `Mantén presionado (${Math.round((duration - (progress * duration / 100)) / 1000)}s)...` : title}
-      type="button"
-    >
-      {holding && (
-        <div
-          className="absolute left-0 bottom-0 top-0 pointer-events-none transition-all duration-75"
-          style={{
-            width: `${progress}%`,
-            background: 'color-mix(in_srgb, var(--error) 25%, transparent)',
-            borderRight: '2px solid var(--error)'
-          }}
-        />
-      )}
-      <span className="relative z-10 flex items-center justify-center gap-1 w-full h-full">
-        {children}
-      </span>
-    </button>
-  );
-}
 
 export default function CRMControlPanel({ config, session: propSession, setSession: propSetSession }) {
   const [localSession, setLocalSession] = useState(null);
@@ -214,44 +56,7 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
   const [isEditing, setIsEditing] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [creatingTypeSelected, setCreatingTypeSelected] = useState(false);
-  const [formData, setFormData] = useState({
-    title: '',
-    category: 'Diseño & Marca',
-    workArea: workAreas[0]?.val || 'codigo',
-    contentType: contentTypes[0]?.val || 'metodologia',
-    targetResult: 'otro',
-    description: '',
-    url: '',
-    videos: [''],
-    tools: [],
-    isDraft: false,
-    prompt: '',
-    problems: '',
-    benefits: '',
-    steps: [{ label: '', detail: '' }],
-    results: '',
-    metrics: '',
-    promptVars: '',
-    recommendedScenarios: '',
-    criticalExclusions: '',
-    technicalExample: '',
-    // Design Tokens fields
-    brandName: '',
-    colors: [{ hex: '', role: '', description: '' }],
-    typographies: [{ fontFamily: '', weights: [], fontSize: '', sampleText: '' }],
-    logos: [{ name: '', svgContent: '' }],
-    // Travel fields
-    agency: 'Sueño Travel Chile',
-    durationDays: 1,
-    durationNights: 0,
-    destinationsSummary: '',
-    visaCostUSD: 0,
-    hotelTaxUSD: 0,
-    disclaimer: '',
-    servicesIncludedEgypt: '',
-    servicesIncludedTurkey: '',
-    servicesExcluded: ''
-  });
+  const [formData, setFormData] = useState(() => createEmptyFormData(workAreas, contentTypes));
   const [selectedId, setSelectedId] = useState(null);
   const [templateDropdownOpen, setTemplateDropdownOpen] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
@@ -450,9 +255,31 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
   }, [config.provider, config.supabase?.url]);
 
   // 2. Fetch data once session is active
+  const [locations, setLocations] = useState([]);
+
+  const fetchLocations = async () => {
+    try {
+      if (config.provider === 'localStorage') {
+        const cached = localStorage.getItem('glosaurio_location');
+        setLocations(cached ? JSON.parse(cached) : []);
+      } else {
+        const rawLocs = await service.getItems('location');
+        setLocations(rawLocs.map(l => ({
+          id: l.id,
+          name: l.name || '',
+          city: l.city || '',
+          country: l.country || ''
+        })));
+      }
+    } catch (e) {
+      console.error('Error fetching locations:', e);
+    }
+  };
+
   useEffect(() => {
     if (session) {
       fetchCMSData();
+      fetchLocations();
     }
   }, [session, activeModule]);
 
@@ -494,6 +321,29 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
           recommendedScenarios: Array.isArray(item.recommended_scenarios) ? item.recommended_scenarios : (Array.isArray(item.recommendedScenarios) ? item.recommendedScenarios : []),
           criticalExclusions: Array.isArray(item.critical_exclusions) ? item.critical_exclusions : (Array.isArray(item.criticalExclusions) ? item.criticalExclusions : []),
           technicalExample: item.technical_example || item.technicalExample || '',
+          // Load rich travel fields if present
+          agency: item.agency || 'Sueño Travel Chile',
+          durationDays: item.duration_days !== undefined ? item.duration_days : (item.durationDays || 1),
+          durationNights: item.duration_nights !== undefined ? item.duration_nights : (item.durationNights || 0),
+          destinationsSummary: Array.isArray(item.destinations_summary) ? item.destinations_summary : (Array.isArray(item.destinationsSummary) ? item.destinationsSummary : []),
+          visaCostUSD: item.pricing_and_notes?.visaCostUSD !== undefined ? item.pricing_and_notes.visaCostUSD : (item.pricingAndNotes?.visaCostUSD || 0),
+          hotelTaxUSD: item.pricing_and_notes?.hotelTaxUSD !== undefined ? item.pricing_and_notes.hotelTaxUSD : (item.pricingAndNotes?.hotelTaxUSD || 0),
+          disclaimer: item.pricing_and_notes?.disclaimer !== undefined ? item.pricing_and_notes.disclaimer : (item.pricingAndNotes?.disclaimer || ''),
+          
+          itinerary: Array.isArray(item.itinerary) ? item.itinerary : [],
+          servicesIncludedList: Array.isArray(item.servicesIncludedList) 
+            ? item.servicesIncludedList 
+            : (Array.isArray(item.services_included_list) ? item.services_included_list : []),
+          servicesExcludedList: Array.isArray(item.servicesExcludedList) 
+            ? item.servicesExcludedList 
+            : (Array.isArray(item.services_excluded_list) ? item.services_excluded_list : []),
+          hotelsPlanned: Array.isArray(item.hotelsPlanned) 
+            ? item.hotelsPlanned 
+            : (Array.isArray(item.hotels_planned) ? item.hotels_planned : []),
+          
+          isPublished: item.is_published !== undefined ? item.is_published : (item.isPublished !== undefined ? item.isPublished : true),
+          isDraft: item.is_published !== undefined ? !item.is_published : (item.isDraft || false),
+          
           steps: Array.isArray(item.steps) ? item.steps : [],
           results: item.results || '',
           metrics: item.metrics || ''
@@ -545,75 +395,11 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
 
     let formattedData = {};
     if (activeModule === 'travel') {
-      formattedData = {
-        title: formData.title,
-        agency: formData.agency || 'Sueño Travel Chile',
-        durationDays: parseInt(formData.durationDays) || 0,
-        durationNights: parseInt(formData.durationNights) || 0,
-        isPublished: !finalDraftStatus,
-        createdAt: new Date().toISOString(),
-        destinationsSummary: typeof formData.destinationsSummary === 'string'
-          ? formData.destinationsSummary.split(',').map(x => x.trim()).filter(Boolean)
-          : formData.destinationsSummary || [],
-        pricingAndNotes: {
-          visaCostUSD: parseFloat(formData.visaCostUSD) || 0,
-          hotelTaxUSD: parseFloat(formData.hotelTaxUSD) || 0,
-          disclaimer: formData.disclaimer || ''
-        },
-        servicesIncluded: {
-          egypt: typeof formData.servicesIncludedEgypt === 'string'
-            ? formData.servicesIncludedEgypt.split('\n').map(x => x.trim()).filter(Boolean)
-            : formData.servicesIncludedEgypt || [],
-          turkey: typeof formData.servicesIncludedTurkey === 'string'
-            ? formData.servicesIncludedTurkey.split('\n').map(x => x.trim()).filter(Boolean)
-            : formData.servicesIncludedTurkey || []
-        },
-        servicesExcluded: typeof formData.servicesExcluded === 'string'
-          ? formData.servicesExcluded.split('\n').map(x => x.trim()).filter(Boolean)
-          : formData.servicesExcluded || []
-      };
+      formattedData = buildTravelPayload(formData, finalDraftStatus);
     } else if (activeModule === 'design_tokens') {
-      formattedData = {
-        brand_name: formData.brandName,
-        colors: formData.colors || [],
-        typographies: formData.typographies || [],
-        logos: formData.logos || [],
-        url: formData.url || '',
-        is_draft: finalDraftStatus
-      };
+      formattedData = buildDesignTokensPayload(formData, finalDraftStatus);
     } else {
-      const catObj = {
-        targetResult: formData.targetResult || 'otro'
-      };
-      const activeTax = config.taxonomies || {};
-      const normalizedTax = (activeTax.workAreas && !activeTax.workArea) ? {
-        workArea: { label: 'Áreas de Trabajo', items: activeTax.workAreas },
-        contentType: { label: 'Tipos de Contenido', items: activeTax.contentTypes || [] }
-      } : activeTax;
-
-      Object.keys(normalizedTax).forEach(taxKey => {
-        catObj[taxKey] = formData[taxKey] || (normalizedTax[taxKey].items && normalizedTax[taxKey].items[0]?.val) || 'all';
-      });
-
-      formattedData = {
-        title: formData.title,
-        category: JSON.stringify(catObj),
-        description: formData.description,
-        url: formData.url || '',
-        video_url: JSON.stringify((formData.videos || []).filter(Boolean)),
-        is_draft: finalDraftStatus,
-        prompt: formData.prompt,
-        tools: formData.tools || [],
-        problems: typeof formData.problems === 'string' ? formData.problems.split('\n').map(x => x.trim()).filter(Boolean) : formData.problems,
-        benefits: typeof formData.benefits === 'string' ? formData.benefits.split('\n').map(x => x.trim()).filter(Boolean) : formData.benefits,
-        recommended_scenarios: typeof formData.recommendedScenarios === 'string' ? formData.recommendedScenarios.split('\n').map(x => x.trim()).filter(Boolean) : formData.recommendedScenarios,
-        critical_exclusions: typeof formData.criticalExclusions === 'string' ? formData.criticalExclusions.split('\n').map(x => x.trim()).filter(Boolean) : formData.criticalExclusions,
-        technical_example: formData.technicalExample || '',
-        steps: formData.steps || [],
-        results: formData.results || '',
-        metrics: formData.metrics || '',
-        prompt_vars: typeof formData.promptVars === 'string' ? formData.promptVars.split(',').map(x => x.trim()).filter(Boolean) : formData.promptVars
-      };
+      formattedData = buildTermsPayload(formData, config.taxonomies, finalDraftStatus);
     }
 
     try {
@@ -622,10 +408,10 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
         if (isEditing) {
           const idx = localItems.findIndex(i => i.id === selectedId);
           if (idx !== -1) {
-            localItems[idx] = { ...localItems[idx], ...formData, id: selectedId, isDraft: finalDraftStatus };
+            localItems[idx] = { ...formattedData, id: selectedId };
           }
         } else {
-          const newItem = { ...formData, id: `${activeModule}-${Date.now()}`, isDraft: finalDraftStatus };
+          const newItem = { ...formattedData, id: `${activeModule}-${Date.now()}` };
           localItems.unshift(newItem);
         }
         localStorage.setItem(`glosaurio_${activeModule}`, JSON.stringify(localItems));
@@ -643,38 +429,7 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
       setIsEditing(false);
       setSelectedId(null);
       setShowForm(false);
-      setFormData({
-        title: '',
-        category: 'Diseño & Marca',
-        workArea: workAreas[0]?.val || 'codigo',
-        contentType: contentTypes[0]?.val || 'metodologia',
-        targetResult: 'otro',
-        description: '',
-        url: '',
-        tools: [],
-        isDraft: false,
-        prompt: '',
-        problems: '',
-        benefits: '',
-        steps: [{ label: '', detail: '' }],
-        results: '',
-        metrics: '',
-        promptVars: '',
-        recommendedScenarios: '',
-        criticalExclusions: '',
-        technicalExample: '',
-        brandName: '',
-        tokenName: '',
-        tokenType: 'color',
-        colorHex: '',
-        colorRole: '',
-        colorPaletteDescription: '',
-        fontFamily: '',
-        fontWeights: [],
-        fontSize: '',
-        fontSampleText: '',
-        svgContent: ''
-      });
+      setFormData(createEmptyFormData(workAreas, contentTypes));
     } catch (err) {
       if (err.message === 'Unauthorized') {
         if (config.provider === 'supabase') {
@@ -697,14 +452,20 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
         agency: item.agency || 'Sueño Travel Chile',
         durationDays: item.durationDays || 1,
         durationNights: item.durationNights || 0,
-        destinationsSummary: Array.isArray(item.destinationsSummary) ? item.destinationsSummary.join(', ') : '',
-        visaCostUSD: item.pricingAndNotes?.visaCostUSD || 0,
-        hotelTaxUSD: item.pricingAndNotes?.hotelTaxUSD || 0,
-        disclaimer: item.pricingAndNotes?.disclaimer || '',
+        destinationsSummary: Array.isArray(item.destinationsSummary) ? item.destinationsSummary.join(', ') : (item.destinationsSummary || ''),
+        visaCostUSD: item.visaCostUSD !== undefined ? item.visaCostUSD : (item.pricingAndNotes?.visaCostUSD || 0),
+        hotelTaxUSD: item.hotelTaxUSD !== undefined ? item.hotelTaxUSD : (item.pricingAndNotes?.hotelTaxUSD || 0),
+        disclaimer: item.disclaimer !== undefined ? item.disclaimer : (item.pricingAndNotes?.disclaimer || ''),
         servicesIncludedEgypt: Array.isArray(item.servicesIncluded?.egypt) ? item.servicesIncluded.egypt.join('\n') : '',
         servicesIncludedTurkey: Array.isArray(item.servicesIncluded?.turkey) ? item.servicesIncluded.turkey.join('\n') : '',
         servicesExcluded: Array.isArray(item.servicesExcluded) ? item.servicesExcluded.join('\n') : '',
-        isDraft: !item.isPublished
+        
+        // Load rich travel fields
+        itinerary: item.itinerary || [],
+        servicesIncludedList: item.servicesIncludedList || [],
+        servicesExcludedList: item.servicesExcludedList && item.servicesExcludedList.length > 0 ? item.servicesExcludedList : [''],
+        hotelsPlanned: item.hotelsPlanned || [],
+        isDraft: item.is_published !== undefined ? !item.is_published : (item.isPublished !== undefined ? !item.isPublished : false)
       });
       setCreatingTypeSelected(true);
       setShowForm(true);
@@ -783,11 +544,7 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
         svgContent: ''
       };
 
-      const activeTax = config.taxonomies || {};
-      const normalizedTax = (activeTax.workAreas && !activeTax.workArea) ? {
-        workArea: { label: 'Áreas de Trabajo', items: activeTax.workAreas },
-        contentType: { label: 'Tipos de Contenido', items: activeTax.contentTypes || [] }
-      } : activeTax;
+      const normalizedTax = normalizeTaxonomies(config.taxonomies);
 
       Object.keys(normalizedTax).forEach(taxKey => {
         editFormData[taxKey] = parsedCat[taxKey] || (normalizedTax[taxKey].items && normalizedTax[taxKey].items[0]?.val) || 'all';
@@ -797,64 +554,9 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
       setCreatingTypeSelected(true);
     }
 
-    if (activeModule === 'design_tokens') {
-      const hasColor = !!(item.colors && item.colors.length > 0 && item.colors.some(c => (c.hex || '').trim() || (c.role || '').trim()));
-      const hasTypography = !!(item.typographies && item.typographies.length > 0 && item.typographies.some(t => (t.fontFamily || '').trim()));
-      const hasLogo = !!(item.logos && item.logos.length > 0 && item.logos.some(l => (l.name || '').trim() || (l.svgContent || '').trim()));
-
-      setActivePanels({
-        steps: false,
-        problems: false,
-        metrics: false,
-        prompt: false,
-        color: hasColor,
-        typography: hasTypography,
-        logo: hasLogo
-      });
-
-      setExpandedSections({
-        identity: true,
-        steps: false,
-        problems: false,
-        metrics: false,
-        prompt: false,
-        color: hasColor,
-        typography: hasTypography,
-        logo: hasLogo
-      });
-    } else {
-      const hasSteps = !!(item.steps && item.steps.length > 0 && item.steps.some(s => (s.label || '').trim() || (s.detail || '').trim()));
-      const hasProblems = !!((item.problems && item.problems.length > 0) || (item.benefits && item.benefits.length > 0));
-      const hasMetrics = !!((item.results && item.results.trim()) || (item.metrics && item.metrics.trim()));
-      const hasPrompt = !!(item.prompt && item.prompt.trim());
-      const hasScenarios = !!((item.recommendedScenarios && item.recommendedScenarios.length > 0) || (item.criticalExclusions && item.criticalExclusions.length > 0));
-      const hasCode = !!(item.technicalExample && item.technicalExample.trim());
-
-      setActivePanels({
-        steps: hasSteps,
-        problems: hasProblems,
-        metrics: hasMetrics,
-        prompt: hasPrompt,
-        scenarios: hasScenarios,
-        code: hasCode,
-        color: false,
-        typography: false,
-        logo: false
-      });
-
-      setExpandedSections({
-        identity: true,
-        steps: hasSteps,
-        problems: hasProblems,
-        metrics: hasMetrics,
-        prompt: hasPrompt,
-        scenarios: hasScenarios,
-        code: hasCode,
-        color: false,
-        typography: false,
-        logo: false
-      });
-    }
+    const { activePanels: derivedPanels, expandedSections: derivedSections } = derivePanelsFromItem(item, activeModule);
+    setActivePanels(derivedPanels);
+    setExpandedSections(derivedSections);
     setShowForm(true);
   };
 
@@ -1042,37 +744,9 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
           promptVars: Array.isArray(item.promptVars) ? item.promptVars.join(', ') : (item.prompt_vars ? item.prompt_vars.join(', ') : (item.promptVars || ''))
         });
 
-        const hasSteps = !!(item.steps && item.steps.length > 0 && item.steps.some(s => (s.label || '').trim() || (s.detail || '').trim()));
-        const hasProblems = !!((item.problems && item.problems.length > 0) || (item.benefits && item.benefits.length > 0));
-        const hasMetrics = !!((item.results && item.results.trim()) || (item.metrics && item.metrics.trim()));
-        const hasPrompt = !!(item.prompt && item.prompt.trim());
-        const hasScenarios = !!((item.recommendedScenarios && item.recommendedScenarios.length > 0) || (item.criticalExclusions && item.criticalExclusions.length > 0));
-        const hasCode = !!(item.technicalExample && item.technicalExample.trim());
-
-        setActivePanels({
-          steps: hasSteps,
-          problems: hasProblems,
-          metrics: hasMetrics,
-          prompt: hasPrompt,
-          scenarios: hasScenarios,
-          code: hasCode,
-          color: false,
-          typography: false,
-          logo: false
-        });
-
-        setExpandedSections({
-          identity: true,
-          steps: hasSteps,
-          problems: hasProblems,
-          metrics: hasMetrics,
-          prompt: hasPrompt,
-          scenarios: hasScenarios,
-          code: hasCode,
-          color: false,
-          typography: false,
-          logo: false
-        });
+        const { activePanels: derivedPanels, expandedSections: derivedSections } = derivePanelsFromItem(item, 'terms');
+        setActivePanels(derivedPanels);
+        setExpandedSections(derivedSections);
 
         alert("¡Formulario rellenado desde el archivo JSON!");
       } catch (err) {
@@ -1107,119 +781,44 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
   };
 
 
-  const renderHeader = () => (
-    <header className="nav-shell">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-[72px]">
-        <div className="flex items-center gap-3">
-          <a href={backUrl} className="flex items-center gap-3 group cursor-pointer text-left no-underline bg-transparent border-none p-0">
-            <img src={logoUrl} alt={`${appName} Logo`} className="w-10 h-10 rounded-xl shadow-lg object-cover" />
-            <span className="font-headline-md" style={{ color: 'var(--primary)', letterSpacing: '-0.02em' }}>{appName}</span>
-          </a>
-          <span className="chip chip-neutral text-xs">CRM Panel</span>
-          <span className="chip chip-tertiary text-xs font-mono uppercase tracking-wider">Provider: {config.provider}</span>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <a
-            href={guessSetupUrl()}
-            className="btn-secondary flex items-center gap-2"
-            style={{ padding: '10px 20px', fontSize: '0.8rem', textDecoration: 'none' }}
-          >
-            <span className="material-symbols-outlined text-sm">settings</span>
-            Configuración
-          </a>
-          {session && config.provider === 'supabase' && (
-            <button
-              onClick={handleLogout}
-              className="btn-secondary flex items-center gap-2"
-              style={{ padding: '10px 20px', fontSize: '0.8rem' }}
-            >
-              <span className="material-symbols-outlined text-sm">logout</span>
-              Cerrar Sesión
-            </button>
-          )}
-          <a
-            href={backUrl}
-            className="btn-secondary flex items-center gap-2"
-            style={{ padding: '10px 20px', fontSize: '0.8rem', textDecoration: 'none' }}
-          >
-            <span className="material-symbols-outlined text-sm">arrow_back</span>
-            Volver al Sitio
-          </a>
-        </div>
-      </div>
-    </header>
-  );
-
   // Render Login View if not authenticated
   if (!session && config.provider === 'supabase') {
     return (
-      <div className="min-h-screen bg-[var(--background)]">
-        {renderHeader()}
-        <div className="pt-[72px] flex items-center justify-center min-h-[calc(100vh-72px)] py-12 px-4">
-          <div className="max-w-md w-full p-8 glass-card space-y-6">
-            <div className="text-center">
-              <span className="text-5xl block mb-2">🔒</span>
-              <h2 className="font-headline-md text-[var(--on-surface)]">Área Privada CRM</h2>
-              <p className="font-body-md text-[var(--on-surface-variant)] mt-1">Inicia sesión para gestionar el contenido.</p>
-            </div>
-
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <label className="font-label-md block mb-1 text-[var(--on-surface-variant)]">Email</label>
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@glosaurio.com"
-                  className="form-input w-full"
-                />
-              </div>
-
-              <div>
-                <label className="font-label-md block mb-1 text-[var(--on-surface-variant)]">Contraseña</label>
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="form-input w-full"
-                />
-              </div>
-
-              {authError && (
-                <div className="p-3 rounded-lg bg-[color-mix(in_srgb,var(--error)_15%,transparent)] border border-[var(--error)] text-xs text-[var(--error)]">
-                  ⚠️ {authError}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={loadingAuth}
-                className="btn-primary w-full justify-center py-3 flex items-center gap-2"
-              >
-                {loadingAuth ? (
-                  <span className="material-symbols-outlined spin text-lg">sync</span>
-                ) : (
-                  <>
-                    <span className="material-symbols-outlined text-sm">login</span>
-                    Iniciar Sesión
-                  </>
-                )}
-              </button>
-            </form>
-          </div>
-        </div>
-      </div>
+      <LoginView
+        email={email}
+        setEmail={setEmail}
+        password={password}
+        setPassword={setPassword}
+        authError={authError}
+        loadingAuth={loadingAuth}
+        onSubmit={handleLogin}
+        renderHeader={() => (
+          <AppHeader
+            config={config}
+            session={session}
+            onLogout={handleLogout}
+            guessSetupUrl={guessSetupUrl}
+            appName={appName}
+            logoUrl={logoUrl}
+            backUrl={backUrl}
+          />
+        )}
+      />
     );
   }
 
   // Active Workspace
   return (
     <div className="min-h-screen bg-[var(--background)]">
-      {renderHeader()}
+      <AppHeader
+        config={config}
+        session={session}
+        onLogout={handleLogout}
+        guessSetupUrl={guessSetupUrl}
+        appName={appName}
+        logoUrl={logoUrl}
+        backUrl={backUrl}
+      />
       <div className="pt-[100px] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         {/* Header bar */}
         <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-[var(--outline-variant)] pb-4 gap-4">
@@ -1400,994 +999,53 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
             </div>
           ) : (
             <div className="space-y-6">
-
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 {/* MAIN FORM: (9 cols) */}
                 <div className="lg:col-span-9 space-y-6">
                   {activeModule === 'travel' ? (
-                    <>
-                      {/* Travel Identity Section */}
-                      <section className="glass-panel p-8">
-                        <h2 className="font-headline-sm mb-6 flex items-center gap-2" style={{ color: 'var(--on-surface)' }}>
-                          <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>flight_takeoff</span>
-                          Detalles del Plan de Viaje
-                        </h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                          <div className="flex flex-col gap-2">
-                            <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Título del Viaje *</label>
-                            <input
-                              type="text"
-                              required
-                              value={formData.title}
-                              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                              placeholder="Ej: Plan de Viaje: Egipto Clásico & Turquía Atractiva"
-                              className="form-input"
-                            />
-                          </div>
-                          <div className="flex flex-col gap-2">
-                            <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Agencia / Operador *</label>
-                            <input
-                              type="text"
-                              required
-                              value={formData.agency}
-                              onChange={(e) => setFormData({ ...formData, agency: e.target.value })}
-                              placeholder="Ej: Sueño Travel Chile"
-                              className="form-input"
-                            />
-                          </div>
-                          <div className="flex flex-col gap-2">
-                            <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Duración (Días) *</label>
-                            <input
-                              type="number"
-                              required
-                              value={formData.durationDays}
-                              onChange={(e) => setFormData({ ...formData, durationDays: e.target.value })}
-                              placeholder="Ej: 16"
-                              className="form-input"
-                            />
-                          </div>
-                          <div className="flex flex-col gap-2">
-                            <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Duración (Noches) *</label>
-                            <input
-                              type="number"
-                              required
-                              value={formData.durationNights}
-                              onChange={(e) => setFormData({ ...formData, durationNights: e.target.value })}
-                              placeholder="Ej: 15"
-                              className="form-input"
-                            />
-                          </div>
-                          <div className="md:col-span-2 flex flex-col gap-2">
-                            <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Resumen de Destinos (Separados por coma) *</label>
-                            <input
-                              type="text"
-                              required
-                              value={formData.destinationsSummary}
-                              onChange={(e) => setFormData({ ...formData, destinationsSummary: e.target.value })}
-                              placeholder="Ej: El Cairo, Luxor, Asuán, Estambul, Capadocia"
-                              className="form-input"
-                            />
-                          </div>
-                        </div>
-                      </section>
-
-                      {/* Pricing and Notes Section */}
-                      <section className="glass-panel p-8">
-                        <h2 className="font-headline-sm mb-6 flex items-center gap-2" style={{ color: 'var(--on-surface)' }}>
-                          <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>payments</span>
-                          Precios y Notas Adicionales
-                        </h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                          <div className="flex flex-col gap-2">
-                            <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Costo de Visa (USD)</label>
-                            <input
-                              type="number"
-                              value={formData.visaCostUSD}
-                              onChange={(e) => setFormData({ ...formData, visaCostUSD: e.target.value })}
-                              placeholder="Ej: 30"
-                              className="form-input"
-                            />
-                          </div>
-                          <div className="flex flex-col gap-2">
-                            <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Tasa Hotelera (USD)</label>
-                            <input
-                              type="number"
-                              value={formData.hotelTaxUSD}
-                              onChange={(e) => setFormData({ ...formData, hotelTaxUSD: e.target.value })}
-                              placeholder="Ej: 55"
-                              className="form-input"
-                            />
-                          </div>
-                          <div className="md:col-span-2 flex flex-col gap-2">
-                            <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Nota de Descargo (Disclaimer)</label>
-                            <textarea
-                              value={formData.disclaimer}
-                              onChange={(e) => setFormData({ ...formData, disclaimer: e.target.value })}
-                              placeholder="Ej: El itinerario puede sufrir modificaciones manteniendo siempre los servicios incluidos."
-                              rows="2"
-                              className="form-textarea"
-                            />
-                          </div>
-                        </div>
-                      </section>
-
-                      {/* Services Included Section */}
-                      <section className="glass-panel p-8">
-                        <h2 className="font-headline-sm mb-6 flex items-center gap-2" style={{ color: 'var(--on-surface)' }}>
-                          <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>done_all</span>
-                          Servicios Incluidos
-                        </h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                          <div className="flex flex-col gap-2">
-                            <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Servicios en Egipto (Un servicio por línea)</label>
-                            <textarea
-                              value={formData.servicesIncludedEgypt}
-                              onChange={(e) => setFormData({ ...formData, servicesIncludedEgypt: e.target.value })}
-                              placeholder="Ej: 4 noches crucero por el Nilo&#10;3 noches hotel El Cairo"
-                              rows="6"
-                              className="form-textarea font-mono text-sm"
-                            />
-                          </div>
-                          <div className="flex flex-col gap-2">
-                            <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Servicios en Turquía (Un servicio por línea)</label>
-                            <textarea
-                              value={formData.servicesIncludedTurkey}
-                              onChange={(e) => setFormData({ ...formData, servicesIncludedTurkey: e.target.value })}
-                              placeholder="Ej: 4 noches Estambul&#10;2 noches Capadocia"
-                              rows="6"
-                              className="form-textarea font-mono text-sm"
-                            />
-                          </div>
-                        </div>
-                      </section>
-
-                      {/* Services Excluded Section */}
-                      <section className="glass-panel p-8">
-                        <h2 className="font-headline-sm mb-6 flex items-center gap-2" style={{ color: 'var(--on-surface)' }}>
-                          <span className="material-symbols-outlined text-[var(--error)]">cancel</span>
-                          Servicios Excluidos
-                        </h2>
-                        <div className="flex flex-col gap-2">
-                          <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Servicios Excluidos (Un servicio por línea)</label>
-                          <textarea
-                            value={formData.servicesExcluded}
-                            onChange={(e) => setFormData({ ...formData, servicesExcluded: e.target.value })}
-                            placeholder="Ej: Vuelos internacionales&#10;Tasas hoteleras&#10;Propinas"
-                            rows="4"
-                            className="form-textarea font-mono text-sm"
-                          />
-                        </div>
-                      </section>
-                    </>
+                    <TravelFormEditor
+                      formData={formData}
+                      setFormData={setFormData}
+                      locations={locations}
+                    />
                   ) : activeModule === 'design_tokens' ? (
-                    <>
-                      {/* Token Identity Section */}
-                      <section id="sec-identity" className="glass-panel p-8">
-                        <h2 className="font-headline-sm mb-6 flex items-center gap-2" style={{ color: 'var(--on-surface)' }}>
-                          <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>palette</span>
-                          Identidad del Sistema de Diseño
-                        </h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                          <div className="flex flex-col gap-2">
-                            <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Nombre de la Marca *</label>
-                            <input
-                              type="text"
-                              required
-                              value={formData.brandName}
-                              onChange={(e) => setFormData({ ...formData, brandName: e.target.value })}
-                              placeholder="Ej: Glosaurio, Nike"
-                              className="form-input"
-                            />
-                          </div>
-                          <div className="flex flex-col gap-2">
-                            <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Enlace URL (UI Kit / Web)</label>
-                            <input
-                              type="url"
-                              value={formData.url || ''}
-                              onChange={(e) => setFormData({ ...formData, url: e.target.value })}
-                              placeholder="Ej: https://figma.com/... o https://ejemplo.com"
-                              className="form-input"
-                            />
-                          </div>
-                        </div>
-                      </section>
-
-                      {/* Conditional Token Settings Section */}
-                      {activePanels.color && (
-                        <section id="sec-color" className="glass-panel p-8 space-y-6">
-                          <div className="flex justify-between items-center border-b border-[var(--outline-variant)] pb-4">
-                            <h2 className="font-headline-sm flex items-center gap-2" style={{ color: 'var(--on-surface)' }}>
-                              <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>color_lens</span>
-                              Paleta de Colores
-                            </h2>
-                            <button
-                              type="button"
-                              onClick={addColor}
-                              className="btn-secondary text-xs flex items-center gap-1"
-                              style={{ padding: '6px 12px' }}
-                            >
-                              <span className="material-symbols-outlined text-sm">add</span> Añadir Color
-                            </button>
-                          </div>
-                          <div className="space-y-6 divide-y divide-[var(--outline-variant)]">
-                            {(formData.colors || []).map((color, idx) => (
-                              <div key={idx} className="pt-6 first:pt-0 space-y-4">
-                                <div className="flex justify-between items-center">
-                                  <span className="chip chip-neutral text-xs font-mono">Color #{idx + 1}</span>
-                                  {(formData.colors || []).length > 1 && (
-                                    <button
-                                      type="button"
-                                      onClick={() => removeColor(idx)}
-                                      className="btn-icon text-[var(--error)]"
-                                      title="Eliminar este color"
-                                    >
-                                      <span className="material-symbols-outlined text-sm">delete</span>
-                                    </button>
-                                  )}
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                  <div className="flex flex-col gap-2">
-                                    <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Código Color (HEX/RGB/HSL)</label>
-                                    <div className="flex gap-2">
-                                      <input
-                                        type="text"
-                                        value={color.hex || ''}
-                                        onChange={(e) => handleColorChange(idx, 'hex', e.target.value)}
-                                        placeholder="Ej: #2563EB"
-                                        className="form-input flex-1"
-                                      />
-                                      <div
-                                        className="w-12 h-12 rounded-xl border border-[var(--outline-variant)] shadow-sm shrink-0"
-                                        style={{ backgroundColor: color.hex || 'transparent' }}
-                                      />
-                                    </div>
-                                  </div>
-                                  <div className="flex flex-col gap-2">
-                                    <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Rol / Nombre del Color</label>
-                                    <input
-                                      type="text"
-                                      value={color.role || ''}
-                                      onChange={(e) => handleColorChange(idx, 'role', e.target.value)}
-                                      placeholder="Ej: Primary Button, Text Accent"
-                                      className="form-input"
-                                    />
-                                  </div>
-                                  <div className="flex flex-col gap-2 md:col-span-2">
-                                    <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Descripción de la Paleta & Uso</label>
-                                    <textarea
-                                      value={color.description || ''}
-                                      onChange={(e) => handleColorChange(idx, 'description', e.target.value)}
-                                      placeholder="Describe cómo y cuándo debe utilizarse este color..."
-                                      rows="3"
-                                      className="form-textarea"
-                                    />
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </section>
-                      )}
-
-                      {activePanels.typography && (
-                        <section id="sec-typography" className="glass-panel p-8 space-y-6">
-                          <div className="flex justify-between items-center border-b border-[var(--outline-variant)] pb-4">
-                            <h2 className="font-headline-sm flex items-center gap-2" style={{ color: 'var(--on-surface)' }}>
-                              <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>text_fields</span>
-                              Tipografías
-                            </h2>
-                            <button
-                              type="button"
-                              onClick={addTypography}
-                              className="btn-secondary text-xs flex items-center gap-1"
-                              style={{ padding: '6px 12px' }}
-                            >
-                              <span className="material-symbols-outlined text-sm">add</span> Añadir Fuente
-                            </button>
-                          </div>
-                          <div className="space-y-6 divide-y divide-[var(--outline-variant)]">
-                            {(formData.typographies || []).map((typo, idx) => (
-                              <div key={idx} className="pt-6 first:pt-0 space-y-4">
-                                <div className="flex justify-between items-center">
-                                  <span className="chip chip-neutral text-xs font-mono">Fuente #{idx + 1}</span>
-                                  {(formData.typographies || []).length > 1 && (
-                                    <button
-                                      type="button"
-                                      onClick={() => removeTypography(idx)}
-                                      className="btn-icon text-[var(--error)]"
-                                      title="Eliminar esta fuente"
-                                    >
-                                      <span className="material-symbols-outlined text-sm">delete</span>
-                                    </button>
-                                  )}
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                  <div className="flex flex-col gap-2">
-                                    <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Google Font Family</label>
-                                    <input
-                                      type="text"
-                                      value={typo.fontFamily || ''}
-                                      onChange={(e) => handleTypographyChange(idx, 'fontFamily', e.target.value)}
-                                      placeholder="Ej: Plus Jakarta Sans o Inter"
-                                      className="form-input"
-                                    />
-                                  </div>
-                                  <div className="flex flex-col gap-2">
-                                    <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Tamaño de Fuente (Base)</label>
-                                    <input
-                                      type="text"
-                                      value={typo.fontSize || ''}
-                                      onChange={(e) => handleTypographyChange(idx, 'fontSize', e.target.value)}
-                                      placeholder="Ej: 16px o 1.25rem"
-                                      className="form-input"
-                                    />
-                                  </div>
-                                  <div className="flex flex-col gap-2 md:col-span-2">
-                                    <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Pesos Disponibles (Separados por coma)</label>
-                                    <input
-                                      type="text"
-                                      value={Array.isArray(typo.weights) ? typo.weights.join(', ') : typo.weights || ''}
-                                      onChange={(e) => handleTypographyChange(idx, 'weights', e.target.value.split(',').map(x => x.trim()))}
-                                      placeholder="Ej: 400, 600, 700"
-                                      className="form-input"
-                                    />
-                                  </div>
-                                  <div className="flex flex-col gap-2 md:col-span-2">
-                                    <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Texto de Muestra</label>
-                                    <textarea
-                                      value={typo.fontSampleText || ''}
-                                      onChange={(e) => handleTypographyChange(idx, 'fontSampleText', e.target.value)}
-                                      placeholder="Muestra de texto para probar la tipografía..."
-                                      rows="3"
-                                      className="form-textarea"
-                                    />
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </section>
-                      )}
-
-                      {activePanels.logo && (
-                        <section id="sec-logo" className="glass-panel p-8 space-y-6">
-                          <div className="flex justify-between items-center border-b border-[var(--outline-variant)] pb-4">
-                            <h2 className="font-headline-sm flex items-center gap-2" style={{ color: 'var(--on-surface)' }}>
-                              <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>crop_schema</span>
-                              Logos SVG
-                            </h2>
-                            <button
-                              type="button"
-                              onClick={addLogo}
-                              className="btn-secondary text-xs flex items-center gap-1"
-                              style={{ padding: '6px 12px' }}
-                            >
-                              <span className="material-symbols-outlined text-sm">add</span> Añadir Logo
-                            </button>
-                          </div>
-                          <div className="space-y-6 divide-y divide-[var(--outline-variant)]">
-                            {(formData.logos || []).map((logo, idx) => (
-                              <div key={idx} className="pt-6 first:pt-0 space-y-4">
-                                <div className="flex justify-between items-center">
-                                  <span className="chip chip-neutral text-xs font-mono">Logo #{idx + 1}</span>
-                                  {(formData.logos || []).length > 1 && (
-                                    <button
-                                      type="button"
-                                      onClick={() => removeLogo(idx)}
-                                      className="btn-icon text-[var(--error)]"
-                                      title="Eliminar este logo"
-                                    >
-                                      <span className="material-symbols-outlined text-sm">delete</span>
-                                    </button>
-                                  )}
-                                </div>
-                                <div className="flex flex-col gap-4">
-                                  <div className="flex flex-col gap-2">
-                                    <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Nombre del Logotipo</label>
-                                    <input
-                                      type="text"
-                                      value={logo.name || ''}
-                                      onChange={(e) => handleLogoChange(idx, 'name', e.target.value)}
-                                      placeholder="Ej: Logo Principal, Isotipo, Logo Versión Oscura"
-                                      className="form-input"
-                                    />
-                                  </div>
-                                  <div className="flex flex-col gap-2">
-                                    <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Código SVG Crudo</label>
-                                    <div className="code-editor">
-                                      <div className="flex items-center justify-between mb-4">
-                                        <div className="flex gap-2">
-                                          <span className="w-3 h-3 rounded-full bg-[var(--error)]"></span>
-                                          <span className="w-3 h-3 rounded-full bg-[var(--secondary)]"></span>
-                                          <span className="w-3 h-3 rounded-full bg-[var(--primary)]"></span>
-                                        </div>
-                                        <span className="font-caption text-[var(--outline)]">logo-{idx + 1}.svg</span>
-                                      </div>
-                                      <textarea
-                                        value={logo.svgContent || ''}
-                                        onChange={(e) => handleLogoChange(idx, 'svgContent', e.target.value)}
-                                        placeholder="<svg viewBox='0 0 100 100' ...>&#10;  <path ... />&#10;</svg>"
-                                        rows="10"
-                                        spellCheck="false"
-                                        className="code-textarea"
-                                      />
-                                    </div>
-                                  </div>
-
-                                  {/* SVG Live Preview */}
-                                  {logo.svgContent && (
-                                    <div className="flex flex-col gap-2">
-                                      <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Previsualización SVG</label>
-                                      <div
-                                        className="p-8 rounded-2xl flex items-center justify-center border border-dashed border-[var(--outline-variant)] bg-[var(--surface-container-low)] min-h-[140px] max-h-[260px] overflow-auto"
-                                        dangerouslySetInnerHTML={{ __html: logo.svgContent }}
-                                      />
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </section>
-                      )}
-                    </>
+                    <DesignTokensFormEditor
+                      formData={formData}
+                      setFormData={setFormData}
+                      activePanels={activePanels}
+                      handlers={{
+                        handleColorChange,
+                        addColor,
+                        removeColor,
+                        handleTypographyChange,
+                        addTypography,
+                        removeTypography,
+                        handleLogoChange,
+                        addLogo,
+                        removeLogo
+                      }}
+                    />
                   ) : (
-                    <>
-                      {/* Identity Section */}
-                      <section id="sec-identity" className="glass-panel p-8">
-                        <h2 className="font-headline-sm mb-6 flex items-center gap-2" style={{ color: 'var(--on-surface)' }}>
-                          <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>fingerprint</span>
-                          Identidad de la Entrada
-                        </h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                          <div className="md:col-span-2 flex flex-col gap-2">
-                            <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Título de la Entrada *</label>
-                            <input
-                              type="text"
-                              required
-                              value={formData.title}
-                              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                              placeholder="Ej: Vibe Coding Essentials"
-                              className="form-input font-headline-sm"
-                              style={{ fontSize: '1.1rem' }}
-                            />
-                          </div>
-                          {(() => {
-                            const activeTax = config.taxonomies || {};
-                            const normalizedTax = (activeTax.workAreas && !activeTax.workArea) ? {
-                              workArea: { label: 'Áreas de Trabajo', items: activeTax.workAreas },
-                              contentType: { label: 'Tipos de Contenido', items: activeTax.contentTypes || [] }
-                            } : activeTax;
-
-                            return Object.entries(normalizedTax).map(([taxKey, tax]) => (
-                              <div key={taxKey} className="flex flex-col gap-2">
-                                <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>{tax.label} *</label>
-                                <div className="relative">
-                                  <select
-                                    value={formData[taxKey] || (tax.items && tax.items[0]?.val) || 'all'}
-                                    onChange={(e) => setFormData({ ...formData, [taxKey]: e.target.value })}
-                                    className="form-select font-body-sm bg-[var(--surface-container-low)]"
-                                    style={{ height: '42px' }}
-                                  >
-                                    {(tax.items || []).map(item => (
-                                      <option key={item.val} value={item.val}>{item.icon} {item.label}</option>
-                                    ))}
-                                  </select>
-                                  <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-lg" style={{ color: 'var(--outline)' }}>expand_more</span>
-                                </div>
-                              </div>
-                            ));
-                          })()}
-                          <div className="md:col-span-2 flex flex-col gap-3">
-                            <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Resultado Objetivo / ¿Qué necesito? *</label>
-                            <div className="flex flex-col gap-3">
-                              <div className="flex flex-wrap gap-2">
-                                {(() => {
-                                  const visibleOptions = showAllResults ? mergedResultsOptions : mergedResultsOptions.slice(0, 12);
-                                  const selectedResults = (formData.targetResult || '').split(',').map(x => x.trim()).filter(Boolean);
-                                  return (
-                                    <>
-                                      {visibleOptions.map(opt => {
-                                        const isSelected = selectedResults.includes(opt.val);
-                                        return (
-                                          <button
-                                            key={opt.val}
-                                            type="button"
-                                            onClick={() => {
-                                              let nextResults;
-                                              if (isSelected) {
-                                                nextResults = selectedResults.filter(r => r !== opt.val);
-                                              } else {
-                                                nextResults = [...selectedResults, opt.val];
-                                              }
-                                              setFormData({ ...formData, targetResult: nextResults.join(',') });
-                                            }}
-                                            className={`chip ${isSelected ? 'chip-secondary' : 'chip-neutral'}`}
-                                            style={{ cursor: 'pointer', border: '1px solid var(--outline-variant)', textTransform: 'none', padding: '6px 12px' }}
-                                          >
-                                            {opt.label}
-                                          </button>
-                                        );
-                                      })}
-                                      {mergedResultsOptions.length > 12 && (
-                                        <button
-                                          type="button"
-                                          onClick={() => setShowAllResults(!showAllResults)}
-                                          className="chip chip-neutral flex items-center gap-1 font-semibold text-xs"
-                                          style={{ cursor: 'pointer', border: '1px solid var(--outline-variant)', textTransform: 'none', padding: '6px 12px' }}
-                                        >
-                                          {showAllResults ? 'Ver menos' : `Ver todos (${mergedResultsOptions.length})`}
-                                          <span className="material-symbols-outlined text-[14px]">
-                                            {showAllResults ? 'expand_less' : 'expand_more'}
-                                          </span>
-                                        </button>
-                                      )}
-                                    </>
-                                  );
-                                })()}
-                              </div>
-                              <div className="flex gap-2">
-                                <input
-                                  type="text"
-                                  id="custom-result-input"
-                                  placeholder="Escribe un resultado objetivo personalizado y pulsa Añadir..."
-                                  className="form-input flex-1"
-                                  style={{ padding: '8px 12px', fontSize: '0.85rem' }}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                      e.preventDefault();
-                                      const val = e.target.value.trim();
-                                      if (val) {
-                                        const formatted = val.toLowerCase().replace(/\s+/g, '_');
-                                        const selectedResults = (formData.targetResult || '').split(',').map(x => x.trim()).filter(Boolean);
-                                        if (!selectedResults.includes(formatted)) {
-                                          const nextResults = [...selectedResults, formatted];
-                                          setFormData({ ...formData, targetResult: nextResults.join(',') });
-                                        }
-                                        e.target.value = '';
-                                      }
-                                    }
-                                  }}
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const input = document.getElementById('custom-result-input');
-                                    if (input && input.value.trim()) {
-                                      const val = input.value.trim();
-                                      const formatted = val.toLowerCase().replace(/\s+/g, '_');
-                                      const selectedResults = (formData.targetResult || '').split(',').map(x => x.trim()).filter(Boolean);
-                                      if (!selectedResults.includes(formatted)) {
-                                        const nextResults = [...selectedResults, formatted];
-                                        setFormData({ ...formData, targetResult: nextResults.join(',') });
-                                      }
-                                      input.value = '';
-                                    }
-                                  }}
-                                  className="btn-secondary text-xs"
-                                  style={{ padding: '6px 14px' }}
-                                >
-                                  Añadir
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex flex-col gap-2">
-                            <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Enlace URL (Documentación / Web)</label>
-                            <input
-                              type="url"
-                              value={formData.url || ''}
-                              onChange={(e) => setFormData({ ...formData, url: e.target.value })}
-                              placeholder="Ej: https://ejemplo.com"
-                              className="form-input"
-                            />
-                          </div>
-                          <div className="md:col-span-2 flex flex-col gap-2">
-                            <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Descripción Corta *</label>
-                            <textarea
-                              required
-                              value={formData.description}
-                              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                              placeholder="Descripción del término que aparecerá en la tarjeta del glosario..."
-                              rows="3"
-                              className="form-textarea"
-                            />
-                          </div>
-                        </div>
-                      </section>
-
-                      {/* Process Steps Section */}
-                      {activePanels.steps && (
-                        <section id="sec-steps" className="glass-panel p-8">
-                          <div className="flex items-center justify-between cursor-pointer select-none mb-6" onClick={() => toggleSection('steps')}>
-                            <h2 className="font-headline-sm flex items-center gap-2" style={{ color: 'var(--on-surface)', margin: 0 }}>
-                              <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>route</span>
-                              Proceso Paso a Paso
-                            </h2>
-                            <div className="flex items-center gap-2">
-                              <span className={`chip ${expandedSections.steps ? 'chip-primary' : 'chip-neutral'}`}>{expandedSections.steps ? 'Desplegado' : 'Plegado'}</span>
-                              <HoldToConfirmButton
-                                onConfirm={() => {
-                                  setActivePanels(prev => ({ ...prev, steps: false }));
-                                  setFormData(prev => ({ ...prev, steps: [{ label: '', detail: '' }] }));
-                                }}
-                                className="btn-icon text-[var(--error)]"
-                                style={{ border: 'none', background: 'transparent', width: '28px', height: '28px' }}
-                                title="Mantén presionado para quitar sección"
-                              >
-                                <span className="material-symbols-outlined text-lg">delete</span>
-                              </HoldToConfirmButton>
-                              <span className="material-symbols-outlined transition-transform duration-200" style={{ transform: expandedSections.steps ? 'rotate(180deg)' : 'none' }}>expand_more</span>
-                            </div>
-                          </div>
-                          {expandedSections.steps && (
-                            <div className="space-y-4">
-                              {(formData.steps || []).map((step, idx) => (
-                                <div key={idx} className="p-4 rounded-xl space-y-2 relative" style={{ background: 'var(--surface-container-low)', border: '1px solid var(--outline-variant)' }}>
-                                  <div className="flex items-center justify-between">
-                                    <span className="font-caption uppercase tracking-wider text-xs" style={{ color: 'var(--outline)' }}>Paso {idx + 1}</span>
-                                    {formData.steps.length > 1 && (
-                                      <button
-                                        type="button"
-                                        onClick={() => removeStep(idx)}
-                                        className="text-[var(--error)] hover:underline flex items-center gap-1 text-xs"
-                                        style={{ background: 'none', border: 'none', cursor: 'pointer' }}
-                                      >
-                                        <span className="material-symbols-outlined text-sm">close</span>
-                                        Quitar
-                                      </button>
-                                    )}
-                                  </div>
-                                  <input
-                                    type="text"
-                                    value={step.label}
-                                    onChange={(e) => handleStepChange(idx, 'label', e.target.value)}
-                                    placeholder="Título del paso"
-                                    className="form-input text-sm"
-                                    style={{ padding: '10px 14px' }}
-                                  />
-                                  <textarea
-                                    value={step.detail}
-                                    onChange={(e) => handleStepChange(idx, 'detail', e.target.value)}
-                                    placeholder="Descripción del paso..."
-                                    rows="2"
-                                    className="form-textarea text-sm"
-                                    style={{ padding: '10px 14px' }}
-                                  />
-                                </div>
-                              ))}
-                              <button
-                                type="button"
-                                onClick={addStep}
-                                className="btn-secondary w-full justify-center text-sm py-2.5 flex items-center gap-2"
-                              >
-                                <span className="material-symbols-outlined text-sm">add</span>
-                                Agregar Paso
-                              </button>
-                            </div>
-                          )}
-                        </section>
-                      )}
-
-                      {/* Problems Section */}
-                      {activePanels.problems && (
-                        <section id="sec-problems" className="glass-panel p-8">
-                          <div className="flex items-center justify-between cursor-pointer select-none mb-6" onClick={() => toggleSection('problems')}>
-                            <h2 className="font-headline-sm flex items-center gap-2" style={{ color: 'var(--on-surface)', margin: 0 }}>
-                              <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>balance</span>
-                              Problemas y Beneficios
-                            </h2>
-                            <div className="flex items-center gap-2">
-                              <span className={`chip ${expandedSections.problems ? 'chip-primary' : 'chip-neutral'}`}>{expandedSections.problems ? 'Desplegado' : 'Plegado'}</span>
-                              <HoldToConfirmButton
-                                onConfirm={() => {
-                                  setActivePanels(prev => ({ ...prev, problems: false }));
-                                  setFormData(prev => ({ ...prev, problems: '', benefits: '' }));
-                                }}
-                                className="btn-icon text-[var(--error)]"
-                                style={{ border: 'none', background: 'transparent', width: '28px', height: '28px' }}
-                                title="Mantén presionado para quitar sección"
-                              >
-                                <span className="material-symbols-outlined text-lg">delete</span>
-                              </HoldToConfirmButton>
-                              <span className="material-symbols-outlined transition-transform duration-200" style={{ transform: expandedSections.problems ? 'rotate(180deg)' : 'none' }}>expand_more</span>
-                            </div>
-                          </div>
-                          {expandedSections.problems && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                              <div className="flex flex-col gap-2">
-                                <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Problemas que Resuelve (uno por línea)</label>
-                                <textarea
-                                  value={formData.problems}
-                                  onChange={(e) => setFormData({ ...formData, problems: e.target.value })}
-                                  placeholder="Ej: Decisiones de diseño lentas&#10;Ciclos de feedback muy largos"
-                                  rows="4"
-                                  className="form-textarea text-sm"
-                                />
-                              </div>
-                              <div className="flex flex-col gap-2">
-                                <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Beneficios Clave (uno por línea)</label>
-                                <textarea
-                                  value={formData.benefits}
-                                  onChange={(e) => setFormData({ ...formData, benefits: e.target.value })}
-                                  placeholder="Ej: Reduce semanas de trabajo a días&#10;Valida ideas rápidamente"
-                                  rows="4"
-                                  className="form-textarea text-sm"
-                                />
-                              </div>
-                            </div>
-                          )}
-                        </section>
-                      )}
-
-                      {/* Results & Metrics Section */}
-                      {activePanels.metrics && (
-                        <section id="sec-metrics" className="glass-panel p-8">
-                          <div className="flex items-center justify-between cursor-pointer select-none mb-6" onClick={() => toggleSection('metrics')}>
-                            <h2 className="font-headline-sm flex items-center gap-2" style={{ color: 'var(--on-surface)', margin: 0 }}>
-                              <span className="material-symbols-outlined" style={{ color: 'var(--secondary)' }}>insights</span>
-                              Resultados y Métricas
-                            </h2>
-                            <div className="flex items-center gap-2">
-                              <span className={`chip ${expandedSections.metrics ? 'chip-primary' : 'chip-neutral'}`}>{expandedSections.metrics ? 'Desplegado' : 'Plegado'}</span>
-                              <HoldToConfirmButton
-                                onConfirm={() => {
-                                  setActivePanels(prev => ({ ...prev, metrics: false }));
-                                  setFormData(prev => ({ ...prev, results: '', metrics: '' }));
-                                }}
-                                className="btn-icon text-[var(--error)]"
-                                style={{ border: 'none', background: 'transparent', width: '28px', height: '28px' }}
-                                title="Mantén presionado para quitar sección"
-                              >
-                                <span className="material-symbols-outlined text-lg">delete</span>
-                              </HoldToConfirmButton>
-                              <span className="material-symbols-outlined transition-transform duration-200" style={{ transform: expandedSections.metrics ? 'rotate(180deg)' : 'none' }}>expand_more</span>
-                            </div>
-                          </div>
-                          {expandedSections.metrics && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                              <div className="flex flex-col gap-2">
-                                <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Entregables Esperados</label>
-                                <textarea
-                                  value={formData.results}
-                                  onChange={(e) => setFormData({ ...formData, results: e.target.value })}
-                                  placeholder="¿Qué se obtiene al aplicar este término?"
-                                  rows="4"
-                                  className="form-textarea"
-                                />
-                              </div>
-                              <div className="flex flex-col gap-2">
-                                <label class="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Métricas de Éxito</label>
-                                <textarea
-                                  value={formData.metrics}
-                                  onChange={(e) => setFormData({ ...formData, metrics: e.target.value })}
-                                  placeholder="¿Cómo saber si se aplicó correctamente?"
-                                  rows="4"
-                                  className="form-textarea"
-                                />
-                              </div>
-                            </div>
-                          )}
-                        </section>
-                      )}
-
-                      {/* Prompt Template Section */}
-                      {activePanels.prompt && (
-                        <section id="sec-prompt" className="glass-panel p-8">
-                          <div className="flex items-center justify-between cursor-pointer select-none mb-6" onClick={() => toggleSection('prompt')}>
-                            <h2 className="font-headline-sm flex items-center gap-2" style={{ color: 'var(--on-surface)', margin: 0 }}>
-                              <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>prompt_suggestion</span>
-                              Prompt Template
-                            </h2>
-                            <div className="flex items-center gap-2">
-                              <span className={`chip ${expandedSections.prompt ? 'chip-primary' : 'chip-neutral'}`}>{expandedSections.prompt ? 'Desplegado' : 'Plegado'}</span>
-                              <HoldToConfirmButton
-                                onConfirm={() => {
-                                  setActivePanels(prev => ({ ...prev, prompt: false }));
-                                  setFormData(prev => ({ ...prev, prompt: '', promptVars: '' }));
-                                }}
-                                className="btn-icon text-[var(--error)]"
-                                style={{ border: 'none', background: 'transparent', width: '28px', height: '28px' }}
-                                title="Mantén presionado para quitar sección"
-                              >
-                                <span className="material-symbols-outlined text-lg">delete</span>
-                              </HoldToConfirmButton>
-                              <span className="material-symbols-outlined transition-transform duration-200" style={{ transform: expandedSections.prompt ? 'rotate(180deg)' : 'none' }}>expand_more</span>
-                            </div>
-                          </div>
-                          {expandedSections.prompt && (
-                            <>
-                              <div className="flex flex-col gap-2 mb-4">
-                                <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Variables rápidas (separadas por coma)</label>
-                                <input
-                                  type="text"
-                                  value={formData.promptVars}
-                                  onChange={(e) => setFormData({ ...formData, promptVars: e.target.value })}
-                                  placeholder="Ej: nombre_marca, industria, tono"
-                                  className="form-input"
-                                />
-                              </div>
-                              <div className="code-editor">
-                                <div className="flex items-center justify-between mb-4">
-                                  <div className="flex gap-2">
-                                    <span className="w-3 h-3 rounded-full bg-[var(--error)]"></span>
-                                    <span className="w-3 h-3 rounded-full bg-[var(--secondary)]"></span>
-                                    <span className="w-3 h-3 rounded-full bg-[var(--primary)]"></span>
-                                  </div>
-                                  <span className="font-caption text-[var(--outline)]">prompt.md</span>
-                                </div>
-                                <textarea
-                                  value={formData.prompt}
-                                  onChange={(e) => setFormData({ ...formData, prompt: e.target.value })}
-                                  placeholder="/* Escribe aquí el prompt template */&#10;&#10;Actúa como un experto en [campo].&#10;Tu objetivo es..."
-                                  rows="10"
-                                  spellCheck="false"
-                                  className="code-textarea"
-                                />
-                              </div>
-                            </>
-                          )}
-                        </section>
-                      )}
-
-                      {/* Videos Section */}
-                      {activePanels.videos && (
-                        <section id="sec-videos" className="glass-panel p-8 space-y-6">
-                          <div className="flex justify-between items-center border-b border-[var(--outline-variant)] pb-4">
-                            <h2 className="font-headline-sm flex items-center gap-2" style={{ color: 'var(--on-surface)', margin: 0 }}>
-                              <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>video_library</span>
-                              Videos Relacionados
-                            </h2>
-                            <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={addVideo}
-                                className="btn-secondary text-xs flex items-center gap-1"
-                                style={{ padding: '6px 12px' }}
-                              >
-                                <span className="material-symbols-outlined text-sm">add</span> Añadir Video
-                              </button>
-                              <HoldToConfirmButton
-                                onConfirm={() => {
-                                  setActivePanels(prev => ({ ...prev, videos: false }));
-                                  setFormData(prev => ({ ...prev, videos: [''] }));
-                                }}
-                                className="btn-icon text-[var(--error)]"
-                                style={{ border: 'none', background: 'transparent', width: '28px', height: '28px' }}
-                                title="Mantén presionado para quitar sección"
-                              >
-                                <span className="material-symbols-outlined text-lg">delete</span>
-                              </HoldToConfirmButton>
-                              <span className={`chip ${expandedSections.videos ? 'chip-primary' : 'chip-neutral'}`}>{expandedSections.videos ? 'Desplegado' : 'Plegado'}</span>
-                              <span className="material-symbols-outlined transition-transform duration-200" onClick={() => toggleSection('videos')} style={{ transform: expandedSections.videos ? 'rotate(180deg)' : 'none', cursor: 'pointer' }}>expand_more</span>
-                            </div>
-                          </div>
-                          {expandedSections.videos && (
-                            <div className="space-y-4">
-                              {(formData.videos || []).map((videoUrl, idx) => (
-                                <div key={idx} className="flex gap-2 items-center">
-                                  <input
-                                    type="url"
-                                    value={videoUrl}
-                                    onChange={(e) => handleVideoChange(idx, e.target.value)}
-                                    placeholder="Enlace del video (ej. YouTube, Loom, Vimeo)"
-                                    className="form-input flex-1"
-                                  />
-                                  {(formData.videos || []).length > 1 && (
-                                    <button
-                                      type="button"
-                                      onClick={() => removeVideo(idx)}
-                                      className="btn-icon text-[var(--error)]"
-                                      title="Eliminar este video"
-                                    >
-                                      <span className="material-symbols-outlined text-sm">delete</span>
-                                    </button>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </section>
-                      )}
-
-                      {/* Scenarios Section */}
-                      {activePanels.scenarios && (
-                        <section id="sec-scenarios" className="glass-panel p-8">
-                          <div className="flex items-center justify-between cursor-pointer select-none mb-6" onClick={() => toggleSection('scenarios')}>
-                            <h2 className="font-headline-sm flex items-center gap-2" style={{ color: 'var(--on-surface)', margin: 0 }}>
-                              <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>check_circle</span>
-                              Casos de Uso y Contraindicaciones
-                            </h2>
-                            <div className="flex items-center gap-2">
-                              <span className={`chip ${expandedSections.scenarios ? 'chip-primary' : 'chip-neutral'}`}>{expandedSections.scenarios ? 'Desplegado' : 'Plegado'}</span>
-                              <HoldToConfirmButton
-                                onConfirm={() => {
-                                  setActivePanels(prev => ({ ...prev, scenarios: false }));
-                                  setFormData(prev => ({ ...prev, recommendedScenarios: '', criticalExclusions: '' }));
-                                }}
-                                className="btn-icon text-[var(--error)]"
-                                style={{ border: 'none', background: 'transparent', width: '28px', height: '28px' }}
-                                title="Mantén presionado para quitar sección"
-                              >
-                                <span className="material-symbols-outlined text-lg">delete</span>
-                              </HoldToConfirmButton>
-                              <span className="material-symbols-outlined transition-transform duration-200" style={{ transform: expandedSections.scenarios ? 'rotate(180deg)' : 'none' }}>expand_more</span>
-                            </div>
-                          </div>
-                          {expandedSections.scenarios && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                              <div className="flex flex-col gap-2">
-                                <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Dónde SÍ aplicarlo / Casos de Uso Ideales (uno por línea)</label>
-                                <textarea
-                                  value={formData.recommendedScenarios}
-                                  onChange={(e) => setFormData({ ...formData, recommendedScenarios: e.target.value })}
-                                  placeholder="Ej: Pantallas iterativas de planificación (Cartas Gantt, matrices RACI)&#10;Formularios extensos o fichas de configuración"
-                                  rows="4"
-                                  className="form-textarea text-sm"
-                                />
-                              </div>
-                              <div className="flex flex-col gap-2">
-                                <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Dónde NO aplicarlo / Contraindicaciones (uno por línea)</label>
-                                <textarea
-                                  value={formData.criticalExclusions}
-                                  onChange={(e) => setFormData({ ...formData, criticalExclusions: e.target.value })}
-                                  placeholder="Ej: Colaboración multiusuario en tiempo real&#10;Creación o eliminación de entidades principales"
-                                  rows="4"
-                                  className="form-textarea text-sm"
-                                />
-                              </div>
-                            </div>
-                          )}
-                        </section>
-                      )}
-
-                      {/* Technical Example / Code Snippet Section */}
-                      {activePanels.code && (
-                        <section id="sec-code" className="glass-panel p-8">
-                          <div className="flex items-center justify-between cursor-pointer select-none mb-6" onClick={() => toggleSection('code')}>
-                            <h2 className="font-headline-sm flex items-center gap-2" style={{ color: 'var(--on-surface)', margin: 0 }}>
-                              <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>code</span>
-                              Snippet de Código / Ejemplo Técnico
-                            </h2>
-                            <div className="flex items-center gap-2">
-                              <span className={`chip ${expandedSections.code ? 'chip-primary' : 'chip-neutral'}`}>{expandedSections.code ? 'Desplegado' : 'Plegado'}</span>
-                              <HoldToConfirmButton
-                                onConfirm={() => {
-                                  setActivePanels(prev => ({ ...prev, code: false }));
-                                  setFormData(prev => ({ ...prev, technicalExample: '' }));
-                                }}
-                                className="btn-icon text-[var(--error)]"
-                                style={{ border: 'none', background: 'transparent', width: '28px', height: '28px' }}
-                                title="Mantén presionado para quitar sección"
-                              >
-                                <span className="material-symbols-outlined text-lg">delete</span>
-                              </HoldToConfirmButton>
-                              <span className="material-symbols-outlined transition-transform duration-200" style={{ transform: expandedSections.code ? 'rotate(180deg)' : 'none' }}>expand_more</span>
-                            </div>
-                          </div>
-                          {expandedSections.code && (
-                            <div className="code-editor">
-                              <div className="flex items-center justify-between mb-4">
-                                <div className="flex gap-2">
-                                  <span className="w-3 h-3 rounded-full bg-[var(--error)]"></span>
-                                  <span className="w-3 h-3 rounded-full bg-[var(--secondary)]"></span>
-                                  <span className="w-3 h-3 rounded-full bg-[var(--primary)]"></span>
-                                </div>
-                                <span className="font-caption text-[var(--outline)]">example.ts</span>
-                              </div>
-                              <textarea
-                                value={formData.technicalExample}
-                                onChange={(e) => setFormData({ ...formData, technicalExample: e.target.value })}
-                                placeholder="// Escribe aquí tu snippet de código o implementación estándar..."
-                                rows="10"
-                                spellCheck="false"
-                                className="code-textarea"
-                              />
-                            </div>
-                          )}
-                        </section>
-                      )}
-                    </>
+                    <TermsFormEditor
+                      formData={formData}
+                      setFormData={setFormData}
+                      activePanels={activePanels}
+                      setActivePanels={setActivePanels}
+                      expandedSections={expandedSections}
+                      toggleSection={toggleSection}
+                      config={config}
+                      mergedResultsOptions={mergedResultsOptions}
+                      showAllResults={showAllResults}
+                      setShowAllResults={setShowAllResults}
+                      handlers={{
+                        handleStepChange,
+                        addStep,
+                        removeStep,
+                        handleVideoChange,
+                        addVideo,
+                        removeVideo
+                      }}
+                    />
                   )}
                 </div>
 
@@ -2448,7 +1106,7 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
                   ) : (
                     <>
                       {/* Secciones Disponibles */}
-                      {activeModule !== 'design_tokens' && Object.values(activePanels).includes(false) && (
+                      {activeModule === 'terms' && Object.values(activePanels).includes(false) && (
                         <div className="glass-panel p-6">
                           <h3 className="font-headline-sm mb-2 text-[var(--on-surface)]">Añadir Secciones</h3>
                           <p className="text-xs text-[var(--on-surface-variant)] mb-4">Haz clic en una sección para agregarla al formulario:</p>
@@ -2500,53 +1158,55 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
                       )}
 
                       {/* Associated Tools */}
-                      <div className="glass-panel p-6">
-                        <h3 className="font-headline-sm mb-4 text-[var(--on-surface)]">Herramientas Asociadas</h3>
-                        <div className="flex flex-wrap gap-2 mb-4">
-                          {(formData.tools || []).map((t, idx) => (
-                            <span key={idx} className="chip chip-primary" style={{ cursor: 'pointer' }}>
-                              {t}
-                              <button
-                                type="button"
-                                onClick={() => removeTool(idx)}
-                                className="btn-remove-tool ml-1 bg-transparent border-none cursor-pointer color-inherit p-0 text-[12px]"
-                              >
-                                ✕
-                              </button>
-                            </span>
-                          ))}
+                      {activeModule !== 'travel' && (
+                        <div className="glass-panel p-6">
+                          <h3 className="font-headline-sm mb-4 text-[var(--on-surface)]">Herramientas Asociadas</h3>
+                          <div className="flex flex-wrap gap-2 mb-4">
+                            {(formData.tools || []).map((t, idx) => (
+                              <span key={idx} className="chip chip-primary" style={{ cursor: 'pointer' }}>
+                                {t}
+                                <button
+                                  type="button"
+                                  onClick={() => removeTool(idx)}
+                                  className="btn-remove-tool ml-1 bg-transparent border-none cursor-pointer color-inherit p-0 text-[12px]"
+                                >
+                                  ✕
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              id="tool-input"
+                              placeholder="Añadir herramienta..."
+                              className="form-input flex-1"
+                              style={{ padding: '10px 14px' }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  addTool(e.target.value);
+                                  e.target.value = '';
+                                }
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const input = document.getElementById('tool-input');
+                                if (input) {
+                                  addTool(input.value);
+                                  input.value = '';
+                                }
+                              }}
+                              className="btn-icon"
+                              title="Agregar herramienta"
+                            >
+                              <span className="material-symbols-outlined text-sm">add</span>
+                            </button>
+                          </div>
                         </div>
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            id="tool-input"
-                            placeholder="Añadir herramienta..."
-                            className="form-input flex-1"
-                            style={{ padding: '10px 14px' }}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                addTool(e.target.value);
-                                e.target.value = '';
-                              }
-                            }}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const input = document.getElementById('tool-input');
-                              if (input) {
-                                addTool(input.value);
-                                input.value = '';
-                              }
-                            }}
-                            className="btn-icon"
-                            title="Agregar herramienta"
-                          >
-                            <span className="material-symbols-outlined text-sm">add</span>
-                          </button>
-                        </div>
-                      </div>
+                      )}
                     </>
                   )}
 
@@ -2574,248 +1234,28 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
             </div>
           )
         ) : (
-          /* Term List Table */
-          <div className="glass-panel p-6 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <h3 className="font-headline-sm">Conceptos Registrados</h3>
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Buscar..."
-                    className="form-input text-sm"
-                    style={{ padding: '6px 12px 6px 32px', width: '160px', height: '34px' }}
-                  />
-                  <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-sm" style={{ color: 'var(--outline)' }}>search</span>
-                </div>
-                {activeModule !== 'design_tokens' && (
-                  <div className="relative">
-                    <select
-                      value={filterCategory}
-                      onChange={(e) => setFilterCategory(e.target.value)}
-                      className="form-select text-sm pr-8"
-                      style={{ padding: '6px 32px 6px 12px', width: '150px', height: '34px', lineHeight: '1.2' }}
-                    >
-                      <option value="all">Todas las áreas</option>
-                      {workAreas.map(wa => (
-                        <option key={wa.val} value={wa.val}>{wa.label}</option>
-                      ))}
-                    </select>
-                    <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-md" style={{ color: 'var(--outline)' }}>expand_more</span>
-                  </div>
-                )}
-
-
-                <button
-                  onClick={() => document.getElementById('import-file-input').click()}
-                  className="btn-secondary flex items-center gap-2 text-sm whitespace-nowrap"
-                  style={{ padding: '6px 16px' }}
-                  title="Importar JSON"
-                >
-                  <span className="material-symbols-outlined text-sm">upload_file</span>
-                  Importar JSON
-                </button>
-                <input
-                  type="file"
-                  id="import-file-input"
-                  accept=".json"
-                  className="hidden"
-                  onChange={handleImportFile}
-                />
-                <button
-                  onClick={() => {
-                    setIsEditing(false);
-                    setSelectedId(null);
-                    setFormData({
-                      title: '',
-                      category: 'Diseño & Marca',
-                      workArea: workAreas[0]?.val || 'codigo',
-                      contentType: contentTypes[0]?.val || 'metodologia',
-                      targetResult: 'otro',
-                      description: '',
-                      url: '',
-                      videos: [''],
-                      tools: [],
-                      isDraft: false,
-                      prompt: '',
-                      problems: '',
-                      benefits: '',
-                      steps: [{ label: '', detail: '' }],
-                      results: '',
-                      metrics: '',
-                      promptVars: '',
-                      recommendedScenarios: '',
-                      criticalExclusions: '',
-                      technicalExample: '',
-                      brandName: '',
-                      tokenName: '',
-                      tokenType: 'color',
-                      colorHex: '',
-                      colorRole: '',
-                      colorPaletteDescription: '',
-                      fontFamily: '',
-                      fontWeights: [],
-                      fontSize: '',
-                      fontSampleText: '',
-                      svgContent: ''
-                    });
-                    setActivePanels({
-                      steps: false,
-                      problems: false,
-                      metrics: false,
-                      prompt: false,
-                      scenarios: false,
-                      code: false,
-                      videos: false,
-                      color: false,
-                      typography: false,
-                      logo: false
-                    });
-                    setCreatingTypeSelected(true);
-                    setShowForm(true);
-                  }}
-                  className="btn-primary flex items-center gap-2 text-sm whitespace-nowrap"
-                  style={{ padding: '6px 16px' }}
-                >
-                  <span className="material-symbols-outlined text-sm">add</span>
-                  Añadir Nuevo
-                </button>
-              </div>
-            </div>
-
-            {loadingData ? (
-              <div className="text-center py-10">
-                <span className="material-symbols-outlined spin text-3xl" style={{ color: 'var(--primary)' }}>sync</span>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse" style={{ tableLayout: 'fixed' }}>
-                  <thead>
-                    <tr className="border-b border-[var(--outline-variant)] text-xs uppercase tracking-wider text-[var(--outline)]">
-                      <th className="pb-3 pr-2" style={{ width: '45%' }}>
-                        <div className="flex items-center gap-2">
-                          <span>{activeModule === 'design_tokens' ? 'Marca / Sistema de Diseño' : 'Nombre'}</span>
-                          <button
-                            type="button"
-                            onClick={() => setSortAlphabetical(!sortAlphabetical)}
-                            className="inline-flex items-center justify-center rounded-md p-1 transition-colors"
-                            style={{
-                              background: sortAlphabetical ? 'var(--primary-container)' : 'transparent',
-                              color: sortAlphabetical ? 'var(--primary)' : 'var(--outline)',
-                              border: '1px solid var(--outline-variant)',
-                              cursor: 'pointer',
-                              width: '24px',
-                              height: '24px'
-                            }}
-                            title={sortAlphabetical ? "Ordenado A-Z (clic para desactivar)" : "Ordenar A-Z"}
-                          >
-                            <span className="material-symbols-outlined text-xs">
-                              {sortAlphabetical ? 'sort_by_alpha' : 'sort'}
-                            </span>
-                          </button>
-                        </div>
-                      </th>
-                      <th className="pb-3 pr-2" style={{ width: '25%' }}>
-                        <div className="flex items-center gap-2">
-                          <span>{activeModule === 'design_tokens' ? 'Elementos' : 'Categoría'}</span>
-                        </div>
-                      </th>
-                      <th className="pb-3 pr-2" style={{ width: '15%' }}>Estado</th>
-                      <th className="pb-3 text-right" style={{ width: '15%' }}>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[var(--outline-variant)]">
-                    {items
-                      .filter(i => {
-                        const searchStr = activeModule === 'design_tokens'
-                          ? `${i.brandName || i.brand_name || ''}`
-                          : `${i.title} ${activeModule === 'travel' ? '' : i.category}`;
-                        const matchesSearch = searchStr.toLowerCase().includes(searchTerm.toLowerCase());
-
-                        let matchesCategory = true;
-                        if (activeModule !== 'design_tokens' && activeModule !== 'travel' && filterCategory !== 'all') {
-                          const parsed = parseCategory(i.category);
-                          matchesCategory = parsed.workArea === filterCategory;
-                        }
-
-                        return matchesSearch && matchesCategory;
-                      })
-                      .sort((a, b) => {
-                        if (!sortAlphabetical) return 0;
-                        const valA = (activeModule === 'design_tokens' ? a.brandName : a.title) || '';
-                        const valB = (activeModule === 'design_tokens' ? b.brandName : b.title) || '';
-                        return valA.localeCompare(valB);
-                      })
-                      .map(item => {
-                        const isDraft = activeModule === 'travel' ? !item.isPublished : item.isDraft;
-                        return (
-                          <tr key={item.id} className="text-sm">
-                            <td className="py-3 font-semibold text-[var(--on-surface)] pr-2 truncate">
-                              {activeModule === 'design_tokens' ? (
-                                <span className="flex items-center gap-2 truncate">
-                                  <span className="truncate">{item.brandName}</span>
-                                </span>
-                              ) : (
-                                <span className="truncate block">{item.title}</span>
-                              )}
-                            </td>
-                            <td className="py-3 text-[var(--on-surface-variant)] pr-2">
-                              {activeModule === 'travel' ? (
-                                <div className="flex flex-wrap gap-1 text-xs">
-                                  <span className="chip chip-neutral font-bold">{item.durationDays} Días / {item.durationNights} Noches</span>
-                                  {item.destinationsSummary && item.destinationsSummary.map((dest, idx) => (
-                                    <span key={idx} className="chip chip-tertiary">{dest}</span>
-                                  ))}
-                                </div>
-                              ) : activeModule === 'design_tokens' ? (
-                                <div className="flex flex-wrap gap-2 text-xs">
-                                  {item.colors && item.colors.length > 0 && <span className="chip chip-neutral">{item.colors.length} Colores</span>}
-                                  {item.typographies && item.typographies.length > 0 && <span className="chip chip-neutral">{item.typographies.length} Fuentes</span>}
-                                  {item.logos && item.logos.length > 0 && <span className="chip chip-neutral">{item.logos.length} Logos</span>}
-                                </div>
-                              ) : (
-                                (() => {
-                                  const parsed = parseCategory(item.category);
-                                  return (
-                                    <div className="flex flex-wrap gap-1 text-xs">
-                                      <span className="chip chip-neutral font-mono">{parsed.workArea}</span>
-                                      <span className="chip chip-neutral font-mono">{parsed.contentType}</span>
-                                    </div>
-                                  );
-                                })()
-                              )}
-                            </td>
-                            <td className="py-3 pr-2">
-                              <span className={`chip ${isDraft ? 'chip-neutral' : 'chip-tertiary'}`}>
-                                {isDraft ? 'Borrador' : 'Publicado'}
-                              </span>
-                            </td>
-                            <td className="py-3 text-right space-x-2">
-                              <button
-                                onClick={() => startEdit(item)}
-                                className="btn-icon text-sm inline-flex items-center justify-center"
-                                title="Editar"
-                              >
-                                <span className="material-symbols-outlined text-sm">edit</span>
-                              </button>
-                              <HoldToConfirmButton
-                                onConfirm={() => handleDelete(item.id)}
-                                className="btn-icon text-sm inline-flex items-center justify-center text-[var(--error)]"
-                                title="Mantén presionado para eliminar"
-                              >
-                                <span className="material-symbols-outlined text-sm">delete</span>
-                              </HoldToConfirmButton>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+          <ItemsTable
+            items={items}
+            activeModule={activeModule}
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            filterCategory={filterCategory}
+            setFilterCategory={setFilterCategory}
+            sortAlphabetical={sortAlphabetical}
+            setSortAlphabetical={setSortAlphabetical}
+            workAreas={workAreas}
+            contentTypes={contentTypes}
+            loadingData={loadingData}
+            startEdit={startEdit}
+            handleDelete={handleDelete}
+            handleImportFile={handleImportFile}
+            setIsEditing={setIsEditing}
+            setSelectedId={setSelectedId}
+            setFormData={setFormData}
+            setActivePanels={setActivePanels}
+            setCreatingTypeSelected={setCreatingTypeSelected}
+            setShowForm={setShowForm}
+          />
         )}
       </div>
     </div>

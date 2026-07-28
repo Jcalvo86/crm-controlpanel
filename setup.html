@@ -735,15 +735,23 @@ CREATE POLICY "public_read_design_tokens" ON public.design_tokens FOR SELECT USI
 CREATE POLICY "anon_all_design_tokens" ON public.design_tokens FOR ALL USING (true) WITH CHECK (true);`,
 
   travel: `CREATE TABLE IF NOT EXISTS public.cms_travels (
-  id                    uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  title                 text NOT NULL,
-  destination           text NOT NULL,
-  duration              text DEFAULT '',
-  price                 numeric DEFAULT 0,
-  description           text DEFAULT '',
-  is_draft              boolean DEFAULT true,
-  created_at            timestamptz DEFAULT now(),
-  updated_at            timestamptz DEFAULT now()
+  id                     uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  title                  text NOT NULL,
+  agency                 text DEFAULT 'Sueño Travel Chile',
+  duration_days          integer DEFAULT 1,
+  duration_nights        integer DEFAULT 0,
+  destinations_summary   text[] DEFAULT '{}',
+  pricing_and_notes      jsonb DEFAULT '{}',
+  services_included      jsonb DEFAULT '{}',
+  services_excluded      text[] DEFAULT '{}',
+  itinerary              jsonb DEFAULT '[]',
+  services_included_list jsonb DEFAULT '[]',
+  services_excluded_list text[] DEFAULT '{}',
+  hotels_planned         jsonb DEFAULT '[]',
+  is_published           boolean DEFAULT false,
+  is_draft               boolean DEFAULT true,
+  created_at             timestamptz DEFAULT now(),
+  updated_at             timestamptz DEFAULT now()
 );
 
 -- RLS & Policies
