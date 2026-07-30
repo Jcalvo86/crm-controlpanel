@@ -98,3 +98,51 @@ export const buildTermsPayload = (formData, taxonomiesConfig, isDraft) => {
       : formData.promptVars
   };
 };
+
+/**
+ * Builds the payload object for the 'location' module.
+ * @param {Object} formData
+ * @param {boolean} isDraft
+ * @returns {Object}
+ */
+export const buildLocationPayload = (formData, isDraft) => {
+  const splitLines = (val) =>
+    typeof val === 'string' ? val.split('\n').map(x => x.trim()).filter(Boolean) : val;
+    
+  const splitComma = (val) =>
+    typeof val === 'string' ? val.split(',').map(x => x.trim()).filter(Boolean) : val;
+
+  return {
+    name: formData.name,
+    type: formData.type || 'location',
+    subtitle: formData.subtitle || '',
+    travel_styles: splitComma(formData.travelStyles || []),
+    guide_best_season: formData.guideBestSeason || '',
+    guide_how_to_get_around: formData.guideHowToGetAround || '',
+    guide_recommended_duration: formData.guideRecommendedDuration || '',
+    map_url: formData.mapUrl || '',
+    suggested_itineraries: formData.suggestedItineraries || [],
+    location_type: formData.locationType || '',
+    parent_region_id: formData.parentRegionId || null,
+    address: formData.address || '',
+    city: formData.city || '',
+    country: formData.country || '',
+    geolocation_url: formData.geolocationUrl || '',
+    opening_hours: formData.openingHours || '',
+    pricing: formData.pricing || '',
+    ticket_url: formData.ticketUrl || '',
+    estimated_visit_time: formData.estimatedVisitTime || '',
+    amenities: formData.amenities || {
+      parking: false,
+      accessibility: false,
+      restrooms: false,
+      petFriendly: false,
+      kidsFriendly: false
+    },
+    description: formData.description || '',
+    highlights: splitLines(formData.highlights || []),
+    traveler_tips: formData.travelerTips || '',
+    nearby_locations: splitLines(formData.nearbyLocations || []),
+    is_draft: isDraft
+  };
+};

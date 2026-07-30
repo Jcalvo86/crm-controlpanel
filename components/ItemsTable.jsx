@@ -104,6 +104,47 @@ export default function ItemsTable({
                   isDraft: true
                 });
                 setCreatingTypeSelected(true);
+              } else if (activeModule === 'location') {
+                setFormData({
+                  name: '',
+                  type: 'location',
+                  subtitle: '',
+                  travelStyles: [],
+                  guideBestSeason: '',
+                  guideHowToGetAround: '',
+                  guideRecommendedDuration: '',
+                  mapUrl: '',
+                  suggestedItineraries: [],
+                  locationType: '',
+                  parentRegionId: '',
+                  address: '',
+                  city: '',
+                  country: '',
+                  geolocationUrl: '',
+                  openingHours: '',
+                  pricing: '',
+                  ticketUrl: '',
+                  estimatedVisitTime: '',
+                  amenities: {
+                    parking: false,
+                    accessibility: false,
+                    restrooms: false,
+                    petFriendly: false,
+                    kidsFriendly: false
+                  },
+                  highlights: [],
+                  travelerTips: '',
+                  nearbyLocations: [],
+                  isDraft: true
+                });
+                setActivePanels({
+                  logistics: false,
+                  routes: false,
+                  practicalData: false,
+                  amenities: false,
+                  highlightsAndTips: false
+                });
+                setCreatingTypeSelected(true);
               } else {
                 setFormData({
                   title: '',
@@ -204,8 +245,8 @@ export default function ItemsTable({
                 })
                 .sort((a, b) => {
                   if (!sortAlphabetical) return 0;
-                  const valA = (activeModule === 'design_tokens' ? a.brandName : a.title) || '';
-                  const valB = (activeModule === 'design_tokens' ? b.brandName : b.title) || '';
+                  const valA = (activeModule === 'design_tokens' || activeModule === 'location' ? a.brandName || a.name : a.title) || '';
+                  const valB = (activeModule === 'design_tokens' || activeModule === 'location' ? b.brandName || b.name : b.title) || '';
                   return valA.localeCompare(valB);
                 })
                 .map(item => {
@@ -216,6 +257,10 @@ export default function ItemsTable({
                         {activeModule === 'design_tokens' ? (
                           <span className="flex items-center gap-2 truncate">
                             <span className="truncate">{item.brandName}</span>
+                          </span>
+                        ) : activeModule === 'location' ? (
+                          <span className="flex items-center gap-2 truncate">
+                            <span className="truncate">{item.name}</span>
                           </span>
                         ) : (
                           <span className="truncate block">{item.title}</span>
@@ -231,6 +276,17 @@ export default function ItemsTable({
                             {item.colors && item.colors.length > 0 && <span className="chip chip-neutral">{item.colors.length} Colores</span>}
                             {item.typographies && item.typographies.length > 0 && <span className="chip chip-neutral">{item.typographies.length} Fuentes</span>}
                             {item.logos && item.logos.length > 0 && <span className="chip chip-neutral">{item.logos.length} Logos</span>}
+                          </div>
+                        ) : activeModule === 'location' ? (
+                          <div className="flex flex-wrap gap-1 text-xs">
+                            <span className="chip chip-neutral font-mono font-bold">
+                              {item.type === 'region' ? '📍 Región' : '📌 Ubicación'}
+                            </span>
+                            {item.locationType && (
+                              <span className="chip chip-neutral font-mono">
+                                {item.locationType}
+                              </span>
+                            )}
                           </div>
                         ) : (
                           (() => {
@@ -272,6 +328,25 @@ export default function ItemsTable({
                                   );
                                 });
                               })()
+                            )}
+                          </div>
+                        ) : activeModule === 'location' ? (
+                          <div className="flex flex-col gap-0.5 text-xs truncate max-w-full">
+                            {item.type === 'region' ? (
+                              <span className="text-[var(--on-surface-variant)] truncate font-semibold">
+                                {item.subtitle || 'Sin subtítulo'}
+                              </span>
+                            ) : (
+                              <>
+                                <span className="text-[var(--on-surface-variant)] truncate">
+                                  {item.city ? `${item.city}, ${item.country || ''}` : item.address || '-'}
+                                </span>
+                                {item.parentRegionId && (
+                                  <span className="text-[var(--outline)] text-[10px] truncate">
+                                    Región: <strong>{items.find(i => i.id === item.parentRegionId)?.name || item.parentRegionId}</strong>
+                                  </span>
+                                )}
+                              </>
                             )}
                           </div>
                         ) : (

@@ -760,15 +760,34 @@ CREATE POLICY "public_read_travels" ON public.cms_travels FOR SELECT USING (is_d
 CREATE POLICY "anon_all_travels" ON public.cms_travels FOR ALL USING (true) WITH CHECK (true);`,
 
   location: `CREATE TABLE IF NOT EXISTS public.cms_locations (
-  id                    uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  name                  text NOT NULL,
-  address               text DEFAULT '',
-  city                  text DEFAULT '',
-  country               text DEFAULT '',
-  description           text DEFAULT '',
-  is_draft              boolean DEFAULT true,
-  created_at            timestamptz DEFAULT now(),
-  updated_at            timestamptz DEFAULT now()
+  id                         uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  name                       text NOT NULL,
+  type                       text DEFAULT 'location',
+  subtitle                   text DEFAULT '',
+  travel_styles              text[] DEFAULT '{}',
+  guide_best_season          text DEFAULT '',
+  guide_how_to_get_around    text DEFAULT '',
+  guide_recommended_duration text DEFAULT '',
+  map_url                    text DEFAULT '',
+  suggested_itineraries      jsonb DEFAULT '[]',
+  location_type              text DEFAULT '',
+  parent_region_id           uuid,
+  address                    text DEFAULT '',
+  city                       text DEFAULT '',
+  country                    text DEFAULT '',
+  geolocation_url            text DEFAULT '',
+  opening_hours              text DEFAULT '',
+  pricing                    text DEFAULT '',
+  ticket_url                 text DEFAULT '',
+  estimated_visit_time       text DEFAULT '',
+  amenities                  jsonb DEFAULT '{}',
+  description                text DEFAULT '',
+  highlights                 text[] DEFAULT '{}',
+  traveler_tips              text DEFAULT '',
+  nearby_locations           text[] DEFAULT '{}',
+  is_draft                   boolean DEFAULT true,
+  created_at                 timestamptz DEFAULT now(),
+  updated_at                 timestamptz DEFAULT now()
 );
 
 -- RLS & Policies

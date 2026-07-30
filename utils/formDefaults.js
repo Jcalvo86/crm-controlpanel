@@ -53,6 +53,37 @@ export const createEmptyFormData = (workAreas = [], contentTypes = []) => ({
   servicesExcludedList: [''],
   hotelsPlanned: [],
 
+  // Location fields
+  name: '',
+  type: 'location',
+  subtitle: '',
+  travelStyles: [],
+  guideBestSeason: '',
+  guideHowToGetAround: '',
+  guideRecommendedDuration: '',
+  mapUrl: '',
+  suggestedItineraries: [],
+  locationType: '',
+  parentRegionId: '',
+  address: '',
+  city: '',
+  country: '',
+  geolocationUrl: '',
+  openingHours: '',
+  pricing: '',
+  ticketUrl: '',
+  estimatedVisitTime: '',
+  amenities: {
+    parking: false,
+    accessibility: false,
+    restrooms: false,
+    petFriendly: false,
+    kidsFriendly: false
+  },
+  highlights: [],
+  travelerTips: '',
+  nearbyLocations: [],
+
   // Legacy / unused fields kept for backward compat
   tokenName: '',
   tokenType: 'color',
@@ -73,9 +104,41 @@ export const createEmptyFormData = (workAreas = [], contentTypes = []) => ({
  * Returns { activePanels, expandedSections } ready to call setState with.
  *
  * @param {Object} item        - The record being edited
- * @param {string} activeModule - 'terms' | 'design_tokens' | 'travel'
+ * @param {string} activeModule - 'terms' | 'design_tokens' | 'travel' | 'location'
  */
 export const derivePanelsFromItem = (item, activeModule) => {
+  if (activeModule === 'location') {
+    const isRegion = item.type === 'region';
+    
+    // Region optional panels
+    const hasLogistics = !!(item.guideBestSeason || item.guideHowToGetAround || item.guideRecommendedDuration);
+    const hasRoutes = !!(item.mapUrl || (item.suggestedItineraries && item.suggestedItineraries.length > 0));
+    
+    // Location optional panels
+    const hasPracticalData = !!(item.address || item.city || item.country || item.geolocationUrl || item.openingHours || item.pricing || item.ticketUrl || item.estimatedVisitTime);
+    const hasAmenities = !!(item.amenities && Object.values(item.amenities).some(Boolean));
+    const hasHighlightsAndTips = !!(item.description || (item.highlights && item.highlights.length > 0) || item.travelerTips || (item.nearbyLocations && item.nearbyLocations.length > 0));
+
+    const activePanels = {
+      logistics: hasLogistics,
+      routes: hasRoutes,
+      practicalData: hasPracticalData,
+      amenities: hasAmenities,
+      highlightsAndTips: hasHighlightsAndTips
+    };
+
+    const expandedSections = {
+      identity: true,
+      logistics: hasLogistics,
+      routes: hasRoutes,
+      practicalData: hasPracticalData,
+      amenities: hasAmenities,
+      highlightsAndTips: hasHighlightsAndTips
+    };
+
+    return { activePanels, expandedSections };
+  }
+
   if (activeModule === 'design_tokens') {
     const hasColor = !!(item.colors && item.colors.length > 0 && item.colors.some(c => (c.hex || '').trim() || (c.role || '').trim()));
     const hasTypography = !!(item.typographies && item.typographies.length > 0 && item.typographies.some(t => (t.fontFamily || '').trim()));
