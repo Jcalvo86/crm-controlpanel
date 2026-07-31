@@ -84,6 +84,15 @@ export const createEmptyFormData = (workAreas = [], contentTypes = []) => ({
   travelerTips: '',
   nearbyLocations: [],
 
+  // Departure fields
+  travelId: '',
+  departureDate: '',
+  endDate: '',
+  capacity: 10,
+  passengersCount: 0,
+  priceOverride: '',
+  status: 'open',
+
   // Legacy / unused fields kept for backward compat
   tokenName: '',
   tokenType: 'color',

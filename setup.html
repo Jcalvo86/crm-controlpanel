@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es" class="dark">
+<html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -373,6 +373,18 @@
                 <span class="font-headline-sm" style="color: var(--on-surface);">📍 Ubicación / Lugar</span>
               </div>
               <p class="font-body-sm" style="color: var(--on-surface-variant);">Administra localizaciones geográficas, hoteles, puntos de interés y direcciones.</p>
+            </div>
+          </label>
+
+          <!-- Departure Card -->
+          <label class="flex items-start gap-4 p-5 rounded-2xl border-2 border-outline-variant hover:border-primary cursor-pointer transition-all bg-[var(--surface-container-low)]">
+            <input type="checkbox" id="mod-departure" value="departure" class="mt-1 rounded text-primary focus:ring-primary" style="accent-color: var(--primary);">
+            <div class="flex-1">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="material-symbols-outlined" style="color: var(--primary);">calendar_month</span>
+                <span class="font-headline-sm" style="color: var(--on-surface);">📅 Salidas de Viaje</span>
+              </div>
+              <p class="font-body-sm" style="color: var(--on-surface-variant);">Gestiona fechas específicas, cupos y pasajeros para los viajes programados.</p>
             </div>
           </label>
         </div>
@@ -793,7 +805,26 @@ CREATE POLICY "anon_all_travels" ON public.cms_travels FOR ALL USING (true) WITH
 -- RLS & Policies
 ALTER TABLE public.cms_locations ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "public_read_locations" ON public.cms_locations FOR SELECT USING (is_draft = false);
-CREATE POLICY "anon_all_locations" ON public.cms_locations FOR ALL USING (true) WITH CHECK (true);`
+CREATE POLICY "anon_all_locations" ON public.cms_locations FOR ALL USING (true) WITH CHECK (true);`,
+
+  departure: `CREATE TABLE IF NOT EXISTS public.cms_departures (
+  id               uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  travel_id        uuid NOT NULL REFERENCES public.cms_travels(id) ON DELETE CASCADE,
+  departure_date   date NOT NULL,
+  end_date         date,
+  capacity         integer NOT NULL DEFAULT 10,
+  passengers_count integer NOT NULL DEFAULT 0,
+  price_override   numeric,
+  status           text NOT NULL DEFAULT 'open',
+  is_draft         boolean DEFAULT true,
+  created_at       timestamptz DEFAULT now(),
+  updated_at       timestamptz DEFAULT now()
+);
+
+-- RLS & Policies
+ALTER TABLE public.cms_departures ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "public_read_departures" ON public.cms_departures FOR SELECT USING (is_draft = false);
+CREATE POLICY "anon_all_departures" ON public.cms_departures FOR ALL USING (true) WITH CHECK (true);`
 };
 
 function updateSQLDisplay() {
@@ -811,6 +842,7 @@ function updateSQLDisplay() {
   if (document.getElementById('mod-design-tokens').checked) activeSqls.push(SQL_SCRIPTS.design_tokens);
   if (document.getElementById('mod-travel').checked) activeSqls.push(SQL_SCRIPTS.travel);
   if (document.getElementById('mod-location').checked) activeSqls.push(SQL_SCRIPTS.location);
+  if (document.getElementById('mod-departure').checked) activeSqls.push(SQL_SCRIPTS.departure);
 
   const block = document.getElementById('sql-block');
   if (activeSqls.length === 1) { // Solo categories
@@ -828,7 +860,7 @@ document.getElementById('btn-step3-next').addEventListener('click', () => {
   updateSQLDisplay();
 
   // Attach dynamic triggers to module checkboxes
-  ['mod-terms', 'mod-blog', 'mod-products', 'mod-design-tokens', 'mod-travel', 'mod-location'].forEach(id => {
+  ['mod-terms', 'mod-blog', 'mod-products', 'mod-design-tokens', 'mod-travel', 'mod-location', 'mod-departure'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.onchange = updateSQLDisplay;
   });
@@ -853,6 +885,7 @@ document.getElementById('btn-step4-next').addEventListener('click', () => {
   if (document.getElementById('mod-design-tokens').checked) activeModules.push('design_tokens');
   if (document.getElementById('mod-travel').checked) activeModules.push('travel');
   if (document.getElementById('mod-location').checked) activeModules.push('location');
+  if (document.getElementById('mod-departure').checked) activeModules.push('departure');
 
   if (activeModules.length === 0) {
     showToast('⚠️ Debes activar al menos 1 módulo de contenido.');

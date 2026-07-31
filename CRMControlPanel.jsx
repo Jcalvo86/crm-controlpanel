@@ -3,11 +3,12 @@ import { parseCategory } from './utils/parseCategory.js';
 import { SupabaseRESTService } from './adapters/SupabaseRESTService.js';
 import HoldToConfirmButton from './components/HoldToConfirmButton.jsx';
 import { createEmptyFormData, derivePanelsFromItem, normalizeTaxonomies } from './utils/formDefaults.js';
-import { buildTravelPayload, buildDesignTokensPayload, buildTermsPayload, buildLocationPayload } from './utils/buildPayload.js';
+import { buildTravelPayload, buildDesignTokensPayload, buildTermsPayload, buildLocationPayload, buildDeparturePayload } from './utils/buildPayload.js';
 import TravelFormEditor from './editors/TravelFormEditor.jsx';
 import DesignTokensFormEditor from './editors/DesignTokensFormEditor.jsx';
 import TermsFormEditor from './editors/TermsFormEditor.jsx';
 import LocationFormEditor from './editors/LocationFormEditor.jsx';
+import DepartureFormEditor from './editors/DepartureFormEditor.jsx';
 import AppHeader from './components/AppHeader.jsx';
 import LoginView from './components/LoginView.jsx';
 import ItemsTable from './components/ItemsTable.jsx';
@@ -257,6 +258,7 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
 
   // 2. Fetch data once session is active
   const [locations, setLocations] = useState([]);
+  const [travels, setTravels] = useState([]);
 
   const fetchLocations = async () => {
     try {
@@ -278,10 +280,28 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
     }
   };
 
+  const fetchTravels = async () => {
+    try {
+      if (config.provider === 'localStorage') {
+        const cached = localStorage.getItem('glosaurio_travel');
+        setTravels(cached ? JSON.parse(cached) : []);
+      } else {
+        const rawTravels = await service.getItems('travel');
+        setTravels(rawTravels.map(t => ({
+          id: t.id,
+          title: t.title || ''
+        })));
+      }
+    } catch (e) {
+      console.error('Error fetching travels:', e);
+    }
+  };
+
   useEffect(() => {
     if (session) {
       fetchCMSData();
       fetchLocations();
+      fetchTravels();
     }
   }, [session, activeModule]);
 
@@ -304,6 +324,19 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
             colors: Array.isArray(item.colors) ? item.colors : [],
             typographies: Array.isArray(item.typographies) ? item.typographies : [],
             logos: Array.isArray(item.logos) ? item.logos : [],
+            isDraft: item.is_draft || item.isDraft || false
+          };
+        }
+        if (activeModule === 'departure') {
+          return {
+            id: item.id,
+            travelId: item.travel_id || item.travelId || '',
+            departureDate: item.departure_date || item.departureDate || '',
+            endDate: item.end_date || item.endDate || '',
+            capacity: item.capacity !== undefined ? item.capacity : 10,
+            passengersCount: item.passengers_count !== undefined ? item.passengers_count : 0,
+            priceOverride: item.price_override || item.priceOverride || '',
+            status: item.status || 'open',
             isDraft: item.is_draft || item.isDraft || false
           };
         }
@@ -434,6 +467,8 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
     let formattedData = {};
     if (activeModule === 'travel') {
       formattedData = buildTravelPayload(formData, finalDraftStatus);
+    } else if (activeModule === 'departure') {
+      formattedData = buildDeparturePayload(formData, finalDraftStatus);
     } else if (activeModule === 'design_tokens') {
       formattedData = buildDesignTokensPayload(formData, finalDraftStatus);
     } else if (activeModule === 'location') {
@@ -463,6 +498,13 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
           await service.createItem(activeModule, formattedData);
         }
         await fetchCMSData();
+      }
+
+      if (activeModule === 'travel') {
+        fetchTravels();
+      }
+      if (activeModule === 'location') {
+        fetchLocations();
       }
 
       // Reset Form
@@ -506,6 +548,21 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
         servicesExcludedList: item.servicesExcludedList && item.servicesExcludedList.length > 0 ? item.servicesExcludedList : [''],
         hotelsPlanned: item.hotelsPlanned || [],
         isDraft: item.is_published !== undefined ? !item.is_published : (item.isPublished !== undefined ? !item.isPublished : false)
+      });
+      setCreatingTypeSelected(true);
+      setShowForm(true);
+      return;
+    }
+    if (activeModule === 'departure') {
+      setFormData({
+        travelId: item.travelId || '',
+        departureDate: item.departureDate || '',
+        endDate: item.endDate || '',
+        capacity: item.capacity !== undefined ? item.capacity : 10,
+        passengersCount: item.passengersCount !== undefined ? item.passengersCount : 0,
+        priceOverride: item.priceOverride || '',
+        status: item.status || 'open',
+        isDraft: item.isDraft || false
       });
       setCreatingTypeSelected(true);
       setShowForm(true);
@@ -872,6 +929,8 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
           
           if (activeModule === 'travel') {
             formattedData = buildTravelPayload(item, itemIsDraft);
+          } else if (activeModule === 'departure') {
+            formattedData = buildDeparturePayload(item, itemIsDraft);
           } else if (activeModule === 'location') {
             formattedData = buildLocationPayload(item, itemIsDraft);
           } else if (activeModule === 'design_tokens') {
@@ -931,6 +990,17 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
             servicesIncludedList: item.servicesIncludedList || item.services_included_list || [],
             servicesExcludedList: item.servicesExcludedList && item.servicesExcludedList.length > 0 ? item.servicesExcludedList : (item.services_excluded_list && item.services_excluded_list.length > 0 ? item.services_excluded_list : ['']),
             hotelsPlanned: item.hotelsPlanned || item.hotels_planned || [],
+            isDraft: item.isDraft !== undefined ? item.isDraft : (item.is_draft !== undefined ? item.is_draft : true)
+          });
+        } else if (activeModule === 'departure') {
+          setFormData({
+            travelId: item.travelId || item.travel_id || '',
+            departureDate: item.departureDate || item.departure_date || '',
+            endDate: item.endDate || item.end_date || '',
+            capacity: item.capacity !== undefined ? item.capacity : 10,
+            passengersCount: item.passengersCount !== undefined ? item.passengers_count : 0,
+            priceOverride: item.priceOverride || item.price_override || '',
+            status: item.status || 'open',
             isDraft: item.isDraft !== undefined ? item.isDraft : (item.is_draft !== undefined ? item.is_draft : true)
           });
         } else if (activeModule === 'location') {
@@ -1261,6 +1331,12 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
                       setFormData={setFormData}
                       locations={locations}
                     />
+                  ) : activeModule === 'departure' ? (
+                    <DepartureFormEditor
+                      formData={formData}
+                      setFormData={setFormData}
+                      travels={travels}
+                    />
                   ) : activeModule === 'location' ? (
                     <LocationFormEditor
                       formData={formData}
@@ -1578,6 +1654,7 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
             setActivePanels={setActivePanels}
             setCreatingTypeSelected={setCreatingTypeSelected}
             setShowForm={setShowForm}
+            travels={travels}
           />
         )}
       </div>

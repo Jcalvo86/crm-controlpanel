@@ -186,5 +186,37 @@ window.Glosaurio.CMS_MODULES = {
       { id: 'nearbyLocations', label: 'Lugares cercanos recomendados', type: 'lines', placeholder: 'Un lugar cercano por línea...' },
       { id: 'isDraft', label: 'Borrador', type: 'boolean', default: true }
     ]
+  },
+
+  // ── 📅 MÓDULO SALIDAS DE VIAJE ──────────────────────────────
+  departure: {
+    id: 'departure',
+    label: 'Salidas de Viaje',
+    icon: 'calendar_month',
+    description: 'Gestiona fechas específicas, cupos y pasajeros para los viajes programados.',
+    collection: 'cms_departures',
+    titleField: 'departureDate',
+    schema: [
+      { id: 'travelId', label: 'Viaje Base', type: 'select', required: true },
+      { id: 'departureDate', label: 'Fecha de Salida', type: 'date', required: true },
+      { id: 'endDate', label: 'Fecha de Retorno', type: 'date' },
+      { id: 'capacity', label: 'Cupos Totales', type: 'number', required: true, default: 10 },
+      { id: 'passengersCount', label: 'Pasajeros Registrados', type: 'number', default: 0 },
+      { id: 'priceOverride', label: 'Precio Especial', type: 'number', placeholder: 'En blanco para precio base' },
+      {
+        id: 'status',
+        label: 'Estado de la Salida',
+        type: 'select',
+        required: true,
+        default: 'open',
+        options: [
+          { value: 'open', label: 'Abierta / Recibiendo Reservas' },
+          { value: 'confirmed', label: 'Confirmada / Salida Asegurada' },
+          { value: 'closed', label: 'Cerrada / Sin Cupos' },
+          { value: 'cancelled', label: 'Cancelada' }
+        ]
+      },
+      { id: 'isDraft', label: 'Borrador', type: 'boolean', default: true }
+    ]
   }
 };

@@ -9,7 +9,7 @@ window.CRM_CONFIG = {
   },
 
   // 2. Active Modules for this project
-  activeModules: ["terms", "products", "design_tokens"], // Choose from: 'terms', 'blog', 'products', 'design_tokens'
+  activeModules: ["terms", "products", "design_tokens", "travel", "location", "departure"], // Choose from: 'terms', 'blog', 'products', 'design_tokens', 'travel', 'location', 'departure'
 
   // 3. Project Branding Customizations
   branding: {

@@ -146,3 +146,21 @@ export const buildLocationPayload = (formData, isDraft) => {
     is_draft: isDraft
   };
 };
+
+/**
+ * Builds the payload object for the 'departure' module.
+ * @param {Object} formData
+ * @param {boolean} isDraft
+ * @returns {Object}
+ */
+export const buildDeparturePayload = (formData, isDraft) => ({
+  travel_id: formData.travelId,
+  departure_date: formData.departureDate,
+  end_date: formData.endDate || null,
+  capacity: parseInt(formData.capacity) || 0,
+  passengers_count: parseInt(formData.passengersCount) || 0,
+  price_override: formData.priceOverride ? parseFloat(formData.priceOverride) : null,
+  status: formData.status || 'open',
+  is_draft: isDraft
+});
+

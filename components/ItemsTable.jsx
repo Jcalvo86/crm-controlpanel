@@ -22,7 +22,8 @@ export default function ItemsTable({
   setFormData,
   setActivePanels,
   setCreatingTypeSelected,
-  setShowForm
+  setShowForm,
+  travels = []
 }) {
   return (
     <div className="space-y-6">
@@ -219,10 +220,18 @@ export default function ItemsTable({
                 </th>
                 <th className="pb-3 pr-2" style={{ width: '21%' }}>
                   <div className="flex items-center gap-2">
-                    <span>{activeModule === 'design_tokens' ? 'Elementos' : 'Categoría'}</span>
+                    <span>
+                      {activeModule === 'design_tokens'
+                        ? 'Elementos'
+                        : activeModule === 'departure'
+                          ? 'Fecha Salida'
+                          : 'Categoría'}
+                    </span>
                   </div>
                 </th>
-                <th className="pb-3 pr-2" style={{ width: '33%' }}>Ubicación</th>
+                <th className="pb-3 pr-2" style={{ width: '33%' }}>
+                  {activeModule === 'departure' ? 'Cupos / Pasajeros' : 'Ubicación'}
+                </th>
                 <th className="pb-3 pr-2" style={{ width: '9%' }}>Estado</th>
                 <th className="pb-3 text-right" style={{ width: '9%' }}>Acciones</th>
               </tr>
@@ -232,11 +241,13 @@ export default function ItemsTable({
                 .filter(i => {
                   const searchStr = activeModule === 'design_tokens'
                     ? `${i.brandName || i.brand_name || ''}`
-                    : `${i.title} ${activeModule === 'travel' ? '' : i.category}`;
+                    : activeModule === 'departure'
+                      ? `${i.departureDate || ''} ${((travels || []).find(t => t.id === i.travelId)?.title || '')}`
+                      : `${i.title} ${activeModule === 'travel' ? '' : i.category}`;
                   const matchesSearch = searchStr.toLowerCase().includes(searchTerm.toLowerCase());
 
                   let matchesCategory = true;
-                  if (activeModule !== 'design_tokens' && activeModule !== 'travel' && filterCategory !== 'all') {
+                  if (activeModule !== 'design_tokens' && activeModule !== 'travel' && activeModule !== 'departure' && filterCategory !== 'all') {
                     const parsed = parseCategory(i.category);
                     matchesCategory = parsed.workArea === filterCategory;
                   }
@@ -245,8 +256,8 @@ export default function ItemsTable({
                 })
                 .sort((a, b) => {
                   if (!sortAlphabetical) return 0;
-                  const valA = (activeModule === 'design_tokens' || activeModule === 'location' ? a.brandName || a.name : a.title) || '';
-                  const valB = (activeModule === 'design_tokens' || activeModule === 'location' ? b.brandName || b.name : b.title) || '';
+                  const valA = (activeModule === 'design_tokens' || activeModule === 'location' ? a.brandName || a.name : activeModule === 'departure' ? a.departureDate : a.title) || '';
+                  const valB = (activeModule === 'design_tokens' || activeModule === 'location' ? b.brandName || b.name : activeModule === 'departure' ? b.departureDate : b.title) || '';
                   return valA.localeCompare(valB);
                 })
                 .map(item => {
@@ -262,6 +273,15 @@ export default function ItemsTable({
                           <span className="flex items-center gap-2 truncate">
                             <span className="truncate">{item.name}</span>
                           </span>
+                        ) : activeModule === 'departure' ? (
+                          (() => {
+                            const pTravel = (travels || []).find(t => t.id === item.travelId);
+                            return (
+                              <span className="flex items-center gap-2 truncate">
+                                <span className="truncate"><strong>{pTravel ? pTravel.title : 'Viaje no encontrado'}</strong></span>
+                              </span>
+                            );
+                          })()
                         ) : (
                           <span className="truncate block">{item.title}</span>
                         )}
@@ -270,6 +290,11 @@ export default function ItemsTable({
                         {activeModule === 'travel' ? (
                           <div className="flex flex-wrap gap-1 text-xs">
                             <span className="chip chip-neutral font-bold">{item.durationDays} Días / {item.durationNights} Noches</span>
+                          </div>
+                        ) : activeModule === 'departure' ? (
+                          <div className="flex flex-wrap gap-1 text-xs">
+                            <span className="chip chip-neutral font-bold">📅 {item.departureDate}</span>
+                            {item.endDate && <span className="chip chip-neutral">🔄 {item.endDate}</span>}
                           </div>
                         ) : activeModule === 'design_tokens' ? (
                           <div className="flex flex-wrap gap-2 text-xs">
@@ -330,6 +355,17 @@ export default function ItemsTable({
                               })()
                             )}
                           </div>
+                        ) : activeModule === 'departure' ? (
+                          <div className="flex flex-wrap gap-1 text-xs">
+                            <span className={`chip ${item.passengersCount >= item.capacity ? 'chip-error font-bold' : 'chip-primary font-bold'}`}>
+                              👥 {item.passengersCount} / {item.capacity} Pasajeros
+                            </span>
+                            {item.priceOverride && (
+                              <span className="chip chip-tertiary font-mono">
+                                💲 {item.priceOverride}
+                              </span>
+                            )}
+                          </div>
                         ) : activeModule === 'location' ? (
                           <div className="flex flex-col gap-0.5 text-xs truncate max-w-full">
                             {item.type === 'region' ? (
@@ -355,9 +391,24 @@ export default function ItemsTable({
                       </td>
 
                       <td className="py-3 pr-2">
-                        <span className={`chip ${isDraft ? 'chip-neutral' : 'chip-tertiary'}`}>
-                          {isDraft ? 'Borrador' : 'Publicado'}
-                        </span>
+                        {activeModule === 'departure' ? (
+                          (() => {
+                            let chipColor = 'chip-primary';
+                            let statusLabel = 'Abierta';
+                            if (item.status === 'confirmed') { chipColor = 'chip-tertiary'; statusLabel = 'Confirmada'; }
+                            if (item.status === 'closed') { chipColor = 'chip-error'; statusLabel = 'Cerrada'; }
+                            if (item.status === 'cancelled') { chipColor = 'chip-neutral'; statusLabel = 'Cancelada'; }
+                            return (
+                              <span className={`chip ${chipColor} font-bold`}>
+                                {statusLabel}
+                              </span>
+                            );
+                          })()
+                        ) : (
+                          <span className={`chip ${isDraft ? 'chip-neutral' : 'chip-tertiary'}`}>
+                            {isDraft ? 'Borrador' : 'Publicado'}
+                          </span>
+                        )}
                       </td>
                       <td className="py-3 text-right space-x-2">
                         <button
