@@ -194,7 +194,7 @@ export default function ItemsTable({
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse" style={{ tableLayout: 'fixed' }}>
             <thead>
-              <tr className="border-b border-[var(--outline-variant)] text-xs uppercase tracking-wider text-[var(--outline)]">
+              <tr className="border-b border-[var(--outline-variant)] text-xs font-semibold uppercase tracking-wider text-[var(--on-surface)]">
                 <th className="pb-3 pr-2" style={{ width: '28%' }}>
                   <div className="flex items-center gap-2">
                     <span>{activeModule === 'design_tokens' ? 'Marca / Sistema de Diseño' : 'Nombre'}</span>
@@ -243,8 +243,10 @@ export default function ItemsTable({
                     ? `${i.brandName || i.brand_name || ''}`
                     : activeModule === 'departure'
                       ? `${i.departureDate || ''} ${((travels || []).find(t => t.id === i.travelId)?.title || '')}`
-                      : `${i.title} ${activeModule === 'travel' ? '' : i.category}`;
-                  const matchesSearch = searchStr.toLowerCase().includes(searchTerm.toLowerCase());
+                      : activeModule === 'location'
+                        ? `${i.name || ''} ${i.locationType || ''} ${i.city || ''}`
+                        : `${i.title} ${activeModule === 'travel' ? '' : i.category}`;
+                  const matchesSearch = (searchStr || '').toLowerCase().includes(searchTerm.toLowerCase());
 
                   let matchesCategory = true;
                   if (activeModule !== 'design_tokens' && activeModule !== 'travel' && activeModule !== 'departure' && filterCategory !== 'all') {
@@ -305,12 +307,18 @@ export default function ItemsTable({
                         ) : activeModule === 'location' ? (
                           <div className="flex flex-wrap gap-1 text-xs">
                             <span className="chip chip-neutral font-mono font-bold">
-                              {item.type === 'region' ? '📍 Región' : '📌 Ubicación'}
+                              {item.type === 'region' ? '📍 Región' : item.type === 'city' ? '🏙️ Ciudad/Área' : '📌 Atracción'}
                             </span>
                             {item.locationType && (
-                              <span className="chip chip-neutral font-mono">
-                                {item.locationType}
-                              </span>
+                              item.locationType.split(',').map((typePart, idx) => {
+                                const trimmed = typePart.trim();
+                                if (!trimmed) return null;
+                                return (
+                                  <span key={idx} className="chip chip-neutral font-mono">
+                                    {trimmed}
+                                  </span>
+                                );
+                              })
                             )}
                           </div>
                         ) : (
@@ -380,6 +388,11 @@ export default function ItemsTable({
                                 {item.parentRegionId && (
                                   <span className="text-[var(--outline)] text-[10px] truncate">
                                     Región: <strong>{items.find(i => i.id === item.parentRegionId)?.name || item.parentRegionId}</strong>
+                                  </span>
+                                )}
+                                {item.parentCityId && (
+                                  <span className="text-[var(--outline)] text-[10px] truncate">
+                                    Ciudad: <strong>{items.find(i => i.id === item.parentCityId)?.name || item.parentCityId}</strong>
                                   </span>
                                 )}
                               </>

@@ -65,6 +65,7 @@ export const createEmptyFormData = (workAreas = [], contentTypes = []) => ({
   suggestedItineraries: [],
   locationType: '',
   parentRegionId: '',
+  parentCityId: '',
   address: '',
   city: '',
   country: '',
@@ -127,13 +128,20 @@ export const derivePanelsFromItem = (item, activeModule) => {
     const hasPracticalData = !!(item.address || item.city || item.country || item.geolocationUrl || item.openingHours || item.pricing || item.ticketUrl || item.estimatedVisitTime);
     const hasAmenities = !!(item.amenities && Object.values(item.amenities).some(Boolean));
     const hasHighlightsAndTips = !!(item.description || (item.highlights && item.highlights.length > 0) || item.travelerTips || (item.nearbyLocations && item.nearbyLocations.length > 0));
+    const hasMapPosition = !!(
+      (item.mapPosX !== undefined && item.mapPosX !== null && item.mapPosX !== '') || 
+      (item.mapPosY !== undefined && item.mapPosY !== null && item.mapPosY !== '') ||
+      (item.map_pos_x !== undefined && item.map_pos_x !== null && item.map_pos_x !== '') || 
+      (item.map_pos_y !== undefined && item.map_pos_y !== null && item.map_pos_y !== '')
+    );
 
     const activePanels = {
       logistics: hasLogistics,
       routes: hasRoutes,
       practicalData: hasPracticalData,
       amenities: hasAmenities,
-      highlightsAndTips: hasHighlightsAndTips
+      highlightsAndTips: hasHighlightsAndTips,
+      mapPosition: hasMapPosition
     };
 
     const expandedSections = {
@@ -142,7 +150,8 @@ export const derivePanelsFromItem = (item, activeModule) => {
       routes: hasRoutes,
       practicalData: hasPracticalData,
       amenities: hasAmenities,
-      highlightsAndTips: hasHighlightsAndTips
+      highlightsAndTips: hasHighlightsAndTips,
+      mapPosition: hasMapPosition
     };
 
     return { activePanels, expandedSections };

@@ -156,9 +156,10 @@ window.Glosaurio.CMS_MODULES = {
     titleField: 'name',
     schema: [
       { id: 'name', label: 'Nombre', type: 'text', required: true, placeholder: 'Ej: Chile Costa o Casa de Pablo Neruda' },
-      { id: 'type', label: 'Tipo de Entrada', type: 'select', required: true, default: 'location', options: [
+      { id: 'type', label: 'Tipo de Entrada', type: 'select', required: true, default: 'attraction', options: [
         { value: 'region', label: '📍 Región (Macro / Inspiración y Contexto)' },
-        { value: 'location', label: '📌 Ubicación (Micro / Ciudad o Punto de Interés)' }
+        { value: 'city', label: '🏙️ Ciudad o Área (Meso / Contexto Intermedio)' },
+        { value: 'attraction', label: '📌 Atracción (Micro / Punto de Interés)' }
       ]},
       // Región específicos
       { id: 'subtitle', label: 'Subtítulo inspirador', type: 'text', placeholder: 'Ej: Playas, gastronomía marina...' },
@@ -171,6 +172,9 @@ window.Glosaurio.CMS_MODULES = {
       // Ubicación específicos
       { id: 'locationType', label: 'Categoría / Tipo de Ubicación', type: 'text', placeholder: 'Ej: Museo / Sitio Histórico o Ciudad Costera' },
       { id: 'parentRegionId', label: 'Región Padre', type: 'text', placeholder: 'ID de la región' },
+      { id: 'parentCityId', label: 'Ciudad o Área Padre', type: 'text', placeholder: 'ID de la ciudad/área' },
+      { id: 'mapPosX', label: 'Posición X en el mapa (%)', type: 'number', placeholder: 'Ej: 45.5' },
+      { id: 'mapPosY', label: 'Posición Y en el mapa (%)', type: 'number', placeholder: 'Ej: 60.2' },
       { id: 'address', label: 'Dirección', type: 'text', placeholder: 'Ej: Av. Costanera 123' },
       { id: 'city', label: 'Ciudad', type: 'text', placeholder: 'Ej: Viña del Mar' },
       { id: 'country', label: 'País', type: 'text', placeholder: 'Ej: Chile' },

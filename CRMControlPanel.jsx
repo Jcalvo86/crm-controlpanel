@@ -12,6 +12,7 @@ import DepartureFormEditor from './editors/DepartureFormEditor.jsx';
 import AppHeader from './components/AppHeader.jsx';
 import LoginView from './components/LoginView.jsx';
 import ItemsTable from './components/ItemsTable.jsx';
+import DashboardView from './components/DashboardView.jsx';
 
 
 export default function CRMControlPanel({ config, session: propSession, setSession: propSetSession }) {
@@ -51,7 +52,9 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
   // CMS state
   const [items, setItems] = useState([]);
   const [loadingData, setLoadingData] = useState(false);
-  const [activeModule, setActiveModule] = useState(config.activeModules?.[0] || 'terms');
+  const [activeModule, setActiveModule] = useState('dashboard');
+  const [dashboardStats, setDashboardStats] = useState({});
+  const [loadingStats, setLoadingStats] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortAlphabetical, setSortAlphabetical] = useState(false);
   const [filterCategory, setFilterCategory] = useState('all');
@@ -86,6 +89,7 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
     videos: false,
     color: false,
     typography: false,
+    mapPosition: false,
   });
 
   const [showAllResults, setShowAllResults] = useState(false);
@@ -272,7 +276,12 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
           name: l.name || '',
           city: l.city || '',
           country: l.country || '',
-          type: l.type || 'location'
+          type: l.type || 'location',
+          parentRegionId: l.parent_region_id || l.parentRegionId || '',
+          parentCityId: l.parent_city_id || l.parentCityId || '',
+          mapUrl: l.mapUrl || l.map_url || '',
+          mapPosX: l.mapPosX !== undefined ? l.mapPosX : l.map_pos_x,
+          mapPosY: l.mapPosY !== undefined ? l.mapPosY : l.map_pos_y
         })));
       }
     } catch (e) {
@@ -297,9 +306,44 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
     }
   };
 
+  const fetchDashboardStats = async () => {
+    setLoadingStats(true);
+    try {
+      const stats = {};
+      const modulesToFetch = config.activeModules || ['terms', 'design_tokens'];
+      
+      await Promise.all(modulesToFetch.map(async (mod) => {
+        try {
+          let count = 0;
+          if (config.provider === 'localStorage') {
+            const cached = localStorage.getItem(`glosaurio_${mod}`);
+            count = cached ? JSON.parse(cached).length : 0;
+          } else {
+            const items = await service.getItems(mod);
+            count = items.length;
+          }
+          stats[mod] = count;
+        } catch (err) {
+          console.error(`Error loading stats for ${mod}:`, err);
+          stats[mod] = 0;
+        }
+      }));
+
+      setDashboardStats(stats);
+    } catch (e) {
+      console.error("Error loading dashboard stats:", e);
+    } finally {
+      setLoadingStats(false);
+    }
+  };
+
   useEffect(() => {
     if (session) {
-      fetchCMSData();
+      if (activeModule === 'dashboard') {
+        fetchDashboardStats();
+      } else {
+        fetchCMSData();
+      }
       fetchLocations();
       fetchTravels();
     }
@@ -354,6 +398,9 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
             suggestedItineraries: Array.isArray(item.suggested_itineraries) ? item.suggested_itineraries : (Array.isArray(item.suggestedItineraries) ? item.suggestedItineraries : []),
             locationType: item.location_type || item.locationType || '',
             parentRegionId: item.parent_region_id || item.parentRegionId || '',
+            parentCityId: item.parent_city_id || item.parentCityId || '',
+            mapPosX: item.map_pos_x !== undefined ? item.map_pos_x : (item.mapPosX !== undefined ? item.mapPosX : ''),
+            mapPosY: item.map_pos_y !== undefined ? item.map_pos_y : (item.mapPosY !== undefined ? item.mapPosY : ''),
             address: item.address || '',
             city: item.city || '',
             country: item.country || '',
@@ -581,6 +628,7 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
         suggestedItineraries: item.suggestedItineraries || [],
         locationType: item.locationType || '',
         parentRegionId: item.parentRegionId || '',
+        parentCityId: item.parentCityId || '',
         address: item.address || '',
         city: item.city || '',
         country: item.country || '',
@@ -730,6 +778,12 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
         durationDays: 8,
         durationNights: 7,
         destinationsSummary: "Egipto (El Cairo, Luxor, Aswan)",
+        countriesSummaryList: [
+          {
+            country: "Egipto",
+            cities: ["El Cairo", "Luxor", "Aswan"]
+          }
+        ],
         visaCostUSD: 25,
         hotelTaxUSD: 10,
         disclaimer: "Tarifas sujetas a cambio sin previo aviso.",
@@ -740,7 +794,6 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
         ],
         servicesIncludedList: [
           {
-            category: "Alojamiento",
             locationId: "",
             customLocationName: "El Cairo",
             items: [
@@ -748,7 +801,6 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
             ]
           },
           {
-            category: "Traslados y Excursiones",
             locationId: "",
             customLocationName: "El Cairo y Luxor",
             items: [
@@ -759,25 +811,35 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
         ],
         itinerary: [
           {
-            day: "Día 1",
-            title: "Llegada a El Cairo",
-            desc: "Llegada al Aeropuerto de El Cairo. Recepción por nuestro representante y traslado al hotel.",
-            info: "Alojamiento en Marriott Mena House.",
+            dayNumber: 1,
             locationId: "",
             customLocationName: "El Cairo",
-            image: "https://ejemplo.com/cairo.jpg",
-            items: [
-              "Traslado Aeropuerto - Hotel",
-              "Asistencia en el aeropuerto"
+            accommodationType: "Alojamiento y desayuno",
+            imageUrl: "https://images.unsplash.com/photo-1572252009286-268acec5a0af?auto=format&fit=crop&w=1200&q=80",
+            activities: [
+              {
+                type: "arrival",
+                description: "Llegada al Aeropuerto de El Cairo. Recepción por nuestro representante y traslado al hotel."
+              },
+              {
+                type: "night",
+                description: "Alojamiento en Marriott Mena House."
+              }
             ]
           }
         ],
         hotelsPlanned: [
           {
-            name: "Marriott Mena House",
-            category: "5 estrellas lujo",
+            country: "Egipto",
+            category: "5★ Lujo / Boutique",
             city: "El Cairo",
-            link: "https://www.marriott.com/..."
+            hotelName: "Marriott Mena House",
+            citiesList: [
+              {
+                cityName: "El Cairo",
+                hotelNames: ["Marriott Mena House"]
+              }
+            ]
           }
         ],
         isDraft: true
@@ -1016,6 +1078,7 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
             suggestedItineraries: item.suggestedItineraries || item.suggested_itineraries || [],
             locationType: item.locationType || item.location_type || '',
             parentRegionId: item.parentRegionId || item.parent_region_id || '',
+            parentCityId: item.parentCityId || item.parent_city_id || '',
             address: item.address || '',
             city: item.city || '',
             country: item.country || '',
@@ -1162,8 +1225,11 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
             )}
             <h2 className="text-xl md:text-2xl font-bold text-[var(--on-surface)] whitespace-nowrap">
               {showForm
-                ? (!creatingTypeSelected ? 'Añadir Nuevo Registro' : (activeModule === 'travel' ? 'Editor de Viaje' : activeModule === 'design_tokens' ? 'Editor de UI Kit' : 'Editor de Concepto'))
-                : (activeModule === 'travel' ? 'Gestión de Viajes' : activeModule === 'design_tokens' ? 'Gestión de UI Kit / Marca' : 'Panel de Control')}
+                ? (isEditing 
+                    ? (activeModule === 'travel' ? 'Editar Viaje' : activeModule === 'location' ? 'Editar Destino' : activeModule === 'departure' ? 'Editar Salida' : activeModule === 'terms' ? 'Editar Término / Condición' : activeModule === 'design_tokens' ? 'Editar UI Kit' : 'Editar Concepto')
+                    : (!creatingTypeSelected ? 'Añadir Nuevo Registro' : (activeModule === 'travel' ? 'Nuevo Viaje' : activeModule === 'location' ? 'Nuevo Destino' : activeModule === 'departure' ? 'Nueva Salida' : activeModule === 'terms' ? 'Nuevo Término / Condición' : activeModule === 'design_tokens' ? 'Nuevo UI Kit' : 'Nuevo Concepto'))
+                  )
+                : (activeModule === 'dashboard' ? 'Panel de Control' : activeModule === 'travel' ? 'Gestión de Viajes' : activeModule === 'design_tokens' ? 'Gestión de UI Kit / Marca' : activeModule === 'terms' ? 'Gestión de Conceptos / Glosario' : activeModule === 'products' ? 'Gestión de Productos' : activeModule === 'location' ? 'Gestión de Destinos' : activeModule === 'departure' ? 'Salidas Programadas' : 'Gestión de Contenidos')}
             </h2>
           </div>
 
@@ -1241,8 +1307,27 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
             ) : (
               config.activeModules && config.activeModules.length > 1 && (
                 <div className="flex gap-1 p-0.5 rounded-lg w-fit bg-[var(--surface-container-high)]">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveModule('dashboard');
+                      setShowForm(false);
+                      setIsEditing(false);
+                    }}
+                    className={`tab-btn ${activeModule === 'dashboard' ? 'active' : ''}`}
+                    style={{
+                      background: activeModule === 'dashboard' ? 'var(--primary-container)' : 'transparent',
+                      color: activeModule === 'dashboard' ? 'var(--on-primary-container)' : 'var(--on-surface-variant)',
+                      padding: '4px 12px',
+                      borderRadius: '6px',
+                      fontSize: '0.8rem',
+                      fontWeight: '600'
+                    }}
+                  >
+                    📊 Dashboard
+                  </button>
                   {config.activeModules.map(modKey => {
-                    const label = modKey === 'design_tokens' ? '🎨 UI Kit' : (modKey === 'terms' ? '📚 Concepto' : modKey);
+                    const label = modKey === 'design_tokens' ? '🎨 UI Kit' : (modKey === 'terms' ? '📚 Concepto' : modKey === 'travel' ? '✈️ Viajes' : modKey === 'location' ? '📍 Destinos' : modKey === 'departure' ? '📅 Salidas' : modKey === 'products' ? '🛍️ Productos' : modKey);
                     const isActive = activeModule === modKey;
                     return (
                       <button
@@ -1345,6 +1430,7 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
                       activePanels={activePanels}
                       expandedSections={expandedSections}
                       toggleSection={toggleSection}
+                      isEditing={isEditing}
                     />
                   ) : activeModule === 'design_tokens' ? (
                     <DesignTokensFormEditor
@@ -1477,6 +1563,15 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
                                     <span className="flex items-center gap-2">
                                       <span className="material-symbols-outlined text-sm">info</span>
                                       Datos Prácticos de Visita
+                                    </span>
+                                    <span className="material-symbols-outlined text-sm">add</span>
+                                  </span>
+                                )}
+                                {!activePanels.mapPosition && (
+                                  <span onClick={() => { setActivePanels(p => ({ ...p, mapPosition: true })); setExpandedSections(s => ({ ...s, mapPosition: true })); }} className="chip chip-neutral justify-between cursor-pointer hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]" style={{ display: 'flex', width: '100%', padding: '10px 14px' }}>
+                                    <span className="flex items-center gap-2">
+                                      <span className="material-symbols-outlined text-sm">map</span>
+                                      Ubicación en el Mapa
                                     </span>
                                     <span className="material-symbols-outlined text-sm">add</span>
                                   </span>
@@ -1632,6 +1727,17 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
               </div>
             </div>
           )
+        ) : activeModule === 'dashboard' ? (
+          <DashboardView
+            config={config}
+            stats={dashboardStats}
+            loading={loadingStats}
+            setActiveModule={setActiveModule}
+            setShowForm={setShowForm}
+            setCreatingTypeSelected={setCreatingTypeSelected}
+            setIsEditing={setIsEditing}
+            setSelectedId={setSelectedId}
+          />
         ) : (
           <ItemsTable
             items={items}
