@@ -1,9 +1,45 @@
 import React, { useState, useEffect } from 'react';
 import HoldToConfirmButton from '../components/HoldToConfirmButton.jsx';
+import { uploadFile } from '../utils/upload.js';
+
+const formatOptionLabel = (loc) => {
+  if (!loc) return '';
+  const parts = [];
+  if (loc.city) parts.push(loc.city);
+  if (loc.country) parts.push(loc.country);
+  return parts.length > 0 ? `${loc.name} (${parts.join(', ')})` : loc.name;
+};
 
 export default function TravelFormEditor({ formData, setFormData, locations = [] }) {
   // Estado para mantener la lista de días colapsados
   const [collapsedDays, setCollapsedDays] = useState({});
+  const fileInputRef = React.useRef(null);
+  const [uploadingDayIndex, setUploadingDayIndex] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleUploadFile = async (e, dayIdx) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      const url = await uploadFile(file);
+      handleItineraryChange(dayIdx, 'imageUrl', url);
+    } catch (err) {
+      console.error(err);
+      alert(`Error al subir el archivo: ${err.message}`);
+    } finally {
+      setIsUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const triggerUpload = (dayIdx) => {
+    setUploadingDayIndex(dayIdx);
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
 
   // Efecto para colapsar todos los días al cambiar de item (o al iniciar)
   useEffect(() => {
@@ -35,10 +71,16 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
   // ── ITINERARIO MANAGEMENT ──────────────────────────────────────────
   const itinerary = formData.itinerary || [];
 
-  const handleItineraryChange = (idx, field, val) => {
-    const nextIt = [...itinerary];
-    nextIt[idx] = { ...nextIt[idx], [field]: val };
-    setFormData({ ...formData, itinerary: nextIt });
+  const handleItineraryChange = (idx, fieldOrObject, val) => {
+    setFormData(prev => {
+      const nextIt = [...(prev.itinerary || [])];
+      if (typeof fieldOrObject === 'object' && fieldOrObject !== null) {
+        nextIt[idx] = { ...nextIt[idx], ...fieldOrObject };
+      } else {
+        nextIt[idx] = { ...nextIt[idx], [fieldOrObject]: val };
+      }
+      return { ...prev, itinerary: nextIt };
+    });
   };
 
   const addItineraryDay = () => {
@@ -389,13 +431,20 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
 
   return (
     <div className="space-y-8 max-w-full overflow-hidden">
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={(e) => handleUploadFile(e, uploadingDayIndex)}
+        className="hidden"
+        accept="image/*"
+      />
       {/* Travel Identity Section */}
       <section className="glass-panel p-8 max-w-full overflow-hidden">
         <h2 className="font-headline-sm mb-6 flex items-center gap-2" style={{ color: 'var(--on-surface)' }}>
           <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>flight_takeoff</span>
           Detalles del Plan de Viaje
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div className="flex flex-col gap-2">
             <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Título del Viaje *</label>
             <input
@@ -415,6 +464,26 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
               value={formData.agency || ''}
               onChange={(e) => setFormData({ ...formData, agency: e.target.value })}
               placeholder="Ej: Sueño Travel Chile"
+              className="form-input"
+            />
+          </div>
+          <div className="md:col-span-2 flex flex-col gap-2">
+            <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Texto de Introducción / Copete (Flavor Text)</label>
+            <input
+              type="text"
+              value={formData.subtitle || ''}
+              onChange={(e) => setFormData({ ...formData, subtitle: e.target.value })}
+              placeholder="Ej: Un recorrido exclusivo de lujo por el Nilo y las costas doradas del Bósforo."
+              className="form-input"
+            />
+          </div>
+          <div className="md:col-span-2 flex flex-col gap-2">
+            <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Descripción General del Viaje (Overview)</label>
+            <textarea
+              value={formData.description || ''}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              rows={4}
+              placeholder="Escribe una introducción detallada que se mostrará como el resumen o 'overview' del viaje en la web..."
               className="form-input"
             />
           </div>
@@ -456,7 +525,7 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
                       <HoldToConfirmButton
                         onConfirm={() => removeCountrySummaryField(cIdx)}
                         className="btn-icon text-[var(--error)]"
-                        title="Mantén presionado 2s para eliminar el país"
+                        title="Mantén presionado 2s para eliminar la región"
                         duration={2000}
                         style={{ width: '32px', height: '32px' }}
                       >
@@ -465,11 +534,11 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
                     </div>
                   )}
 
-                  {/* 3-Column Layout: Left (Country), Right (Cities) */}
+                  {/* 3-Column Layout: Left (Region), Right (Cities/Attractions) */}
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start pt-2">
                     {/* Column 1: Country (Span 4) */}
                     <div className="md:col-span-4 flex flex-col gap-2">
-                      <label className="font-label-md text-xs" style={{ color: 'var(--on-surface-variant)' }}>País</label>
+                      <label className="font-label-md text-xs" style={{ color: 'var(--on-surface-variant)' }}>Región *</label>
                       <input
                         type="text"
                         required
@@ -482,7 +551,7 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
 
                     {/* Column 2 & 3: Cities List (Span 8) */}
                     <div className="md:col-span-8 space-y-3 pl-0 md:pl-4 md:border-l border-[var(--outline-variant)]">
-                      <label className="font-label-md text-xs" style={{ color: 'var(--on-surface-variant)' }}>Ciudades / Localidades visitadas</label>
+                      <label className="font-label-md text-xs" style={{ color: 'var(--on-surface-variant)' }}>Ciudades / Atractivos visitados</label>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {(countryRow.cities || ['']).map((city, cityIdx) => (
                           <div key={cityIdx} className="flex gap-2 items-center">
@@ -494,7 +563,7 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
                                 required
                                 value={city || ''}
                                 onChange={(e) => handleCountryCitySummaryChange(cIdx, cityIdx, e.target.value)}
-                                placeholder="Ej: El Cairo"
+                                placeholder="Ej: El Cairo o Karnak"
                                 className="form-input text-xs w-full pr-8"
                                 style={{ paddingRight: '32px' }}
                               />
@@ -503,7 +572,7 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
                                   type="button"
                                   onClick={() => removeCountryCitySummaryField(cIdx, cityIdx)}
                                   className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center justify-center text-[var(--error)] hover:bg-[color-mix(in_srgb,var(--error)_10%,transparent)] border-none bg-transparent cursor-pointer rounded-full"
-                                  title="Eliminar esta ciudad"
+                                  title="Eliminar este destino"
                                   style={{ width: '24px', height: '24px' }}
                                 >
                                   <span className="material-symbols-outlined text-[14px]">close</span>
@@ -517,11 +586,11 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
                       {/* Add City Button - Placed at the bottom of list */}
                       <div className="flex justify-start pt-1">
                         <button
-                          type="button"
-                          onClick={() => addCountryCitySummaryField(cIdx)}
-                          className="text-xs text-[var(--primary)] hover:underline flex items-center gap-0.5 border-none bg-transparent cursor-pointer font-bold"
+                           type="button"
+                           onClick={() => addCountryCitySummaryField(cIdx)}
+                           className="text-xs text-[var(--primary)] hover:underline flex items-center gap-0.5 border-none bg-transparent cursor-pointer font-bold"
                         >
-                          <span className="material-symbols-outlined text-[14px]">add</span> Añadir Ciudad
+                          <span className="material-symbols-outlined text-[14px]">add</span> Añadir Ciudad / Atractivo
                         </button>
                       </div>
                     </div>
@@ -538,7 +607,7 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
                 className="btn-secondary text-xs flex items-center gap-1"
                 style={{ padding: '8px 20px' }}
               >
-                <span className="material-symbols-outlined text-sm">add</span> Añadir País de Resumen
+                <span className="material-symbols-outlined text-sm">add</span> Añadir Región de Resumen
               </button>
             </div>
           </div>
@@ -600,11 +669,8 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
             return (
               <div key={idx} className="pt-6 first:pt-0 space-y-4 max-w-full overflow-hidden">
                 {/* Cabecera del día colapsable sin borde */}
-                <div className="flex justify-between items-center bg-[var(--surface-container-low)] p-3 rounded-lg border-none">
-                  <div
-                    onClick={() => toggleDayCollapse(idx)}
-                    className="flex items-center gap-2 cursor-pointer select-none flex-grow"
-                  >
+                <div className="flex justify-between items-center bg-[var(--surface-container-low)] p-3 rounded-lg border-none cursor-pointer" onClick={() => toggleDayCollapse(idx)}>
+                  <div className="flex items-center gap-2 select-none flex-grow">
                     <span className="material-symbols-outlined text-[var(--primary)] text-md transition-transform" style={{ transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0)' }}>
                       expand_more
                     </span>
@@ -613,15 +679,6 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
                       {day.customLocationName || (locations.find(l => l.id === day.locationId)?.name || 'Sin ubicación seleccionada')}
                     </span>
                   </div>
-                  
-                  <HoldToConfirmButton
-                    onConfirm={() => removeItineraryDay(idx)}
-                    className="btn-icon text-[var(--error)]"
-                    title="Mantén presionado 2s para eliminar el día"
-                    duration={2000}
-                  >
-                    <span className="material-symbols-outlined text-sm">delete</span>
-                  </HoldToConfirmButton>
                 </div>
 
                 {/* Contenedor animado */}
@@ -643,16 +700,14 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
                           <input
                             type="text"
                             list={`location-options-${idx}`}
-                            value={day.customLocationName || (locations.find(l => l.id === day.locationId)?.name || '')}
+                            value={day.customLocationName || (locations.find(l => l.id === day.locationId) ? formatOptionLabel(locations.find(l => l.id === day.locationId)) : '')}
                             onChange={(e) => {
                               const val = e.target.value;
-                              const matchedLoc = locations.find(l => `${l.name} (${l.city}, ${l.country})` === val || l.name === val);
+                              const matchedLoc = locations.find(l => formatOptionLabel(l) === val || l.name === val);
                               if (matchedLoc) {
-                                handleItineraryChange(idx, 'locationId', matchedLoc.id);
-                                handleItineraryChange(idx, 'customLocationName', '');
+                                handleItineraryChange(idx, { locationId: matchedLoc.id, customLocationName: '' });
                               } else {
-                                handleItineraryChange(idx, 'locationId', 'custom');
-                                handleItineraryChange(idx, 'customLocationName', val);
+                                handleItineraryChange(idx, { locationId: 'custom', customLocationName: val });
                               }
                             }}
                             placeholder="Escribe o haz doble clic para ver ubicaciones..."
@@ -660,7 +715,7 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
                           />
                           <datalist id={`location-options-${idx}`}>
                             {locations.map(loc => (
-                              <option key={loc.id} value={`${loc.name} (${loc.city}, ${loc.country})`} />
+                              <option key={loc.id} value={formatOptionLabel(loc)} />
                             ))}
                           </datalist>
                         </div>
@@ -689,14 +744,28 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
                       {/* Right Column: Image URL / Photo (Positioned beside Location) */}
                       <div className="flex flex-col gap-2 justify-start">
                         <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>URL de Foto del Día (Vacío para usar foto de Destino)</label>
-                        <input
-                          type="text"
-                          value={day.imageUrl || ''}
-                          onChange={(e) => handleItineraryChange(idx, 'imageUrl', e.target.value)}
-                          placeholder="Ej: https://images.unsplash.com/photo-pyramids..."
-                          className="form-input w-full"
-                          style={{ height: '50px' }}
-                        />
+                        <div className="flex gap-3">
+                          <input
+                            type="text"
+                            value={day.imageUrl || ''}
+                            onChange={(e) => handleItineraryChange(idx, 'imageUrl', e.target.value)}
+                            placeholder="Ej: https://images.unsplash.com/photo-pyramids..."
+                            className="form-input flex-1"
+                            style={{ height: '48px' }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => triggerUpload(idx)}
+                            disabled={isUploading}
+                            className="btn-secondary flex items-center gap-1.5 shrink-0"
+                            style={{ height: '48px', padding: '0 16px' }}
+                          >
+                            <span className={`material-symbols-outlined text-sm ${isUploading && uploadingDayIndex === idx ? 'animate-spin' : ''}`}>
+                              {isUploading && uploadingDayIndex === idx ? 'sync' : 'upload'}
+                            </span>
+                            {isUploading && uploadingDayIndex === idx ? 'Subiendo...' : 'Subir Foto'}
+                          </button>
+                        </div>
                         {day.imageUrl && (
                           <img
                             src={day.imageUrl}
@@ -804,7 +873,7 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
                             <p className="text-xs text-[var(--on-surface-variant)] italic">No hay actividades configuradas para este día.</p>
                           )}
 
-                          <div className="flex justify-end pt-2">
+                          <div className="flex justify-between items-center pt-4 border-t border-[var(--outline-variant)]">
                             <button
                               type="button"
                               onClick={() => addDayActivity(idx)}
@@ -812,6 +881,16 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
                             >
                               <span className="material-symbols-outlined text-xs">add</span> Añadir Actividad
                             </button>
+
+                            <HoldToConfirmButton
+                              onConfirm={() => removeItineraryDay(idx)}
+                              className="btn-text text-[var(--error)] flex items-center gap-1.5 text-xs font-bold"
+                              title="Mantén presionado 2s para eliminar este día completo"
+                              duration={2000}
+                            >
+                              <span className="material-symbols-outlined text-sm">delete</span>
+                              Eliminar Día {day.dayNumber}
+                            </HoldToConfirmButton>
                           </div>
                         </div>
                       </div>

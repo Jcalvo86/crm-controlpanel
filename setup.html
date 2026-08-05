@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es" class="dark">
+<html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -375,6 +375,31 @@
               <p class="font-body-sm" style="color: var(--on-surface-variant);">Administra localizaciones geográficas, hoteles, puntos de interés y direcciones.</p>
             </div>
           </label>
+
+          <!-- Departure Card -->
+          <label class="flex items-start gap-4 p-5 rounded-2xl border-2 border-outline-variant hover:border-primary cursor-pointer transition-all bg-[var(--surface-container-low)]">
+            <input type="checkbox" id="mod-departure" value="departure" class="mt-1 rounded text-primary focus:ring-primary" style="accent-color: var(--primary);">
+            <div class="flex-1">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="material-symbols-outlined" style="color: var(--primary);">calendar_month</span>
+                <span class="font-headline-sm" style="color: var(--on-surface);">📅 Salidas de Viaje</span>
+              </div>
+              <p class="font-body-sm" style="color: var(--on-surface-variant);">Gestiona fechas específicas, cupos y pasajeros para los viajes programados.</p>
+            </div>
+          </label>
+        </div>
+
+        <!-- Proveedor de Almacenamiento -->
+        <div class="mt-8 pt-6 border-t border-[var(--outline-variant)]">
+          <label class="font-label-md block mb-2" style="color: var(--on-surface-variant);">Proveedor de Almacenamiento de Imágenes</label>
+          <select id="storage-provider-select" class="form-select bg-[var(--surface-container-low)] w-full rounded-xl border-[var(--outline-variant)]">
+            <option value="uploadthing">UploadThing (Recomendado - Backend dedicado)</option>
+            <option value="firebase">Firebase Storage</option>
+            <option value="supabase">Supabase Storage (Bucket 'images')</option>
+          </select>
+          <p class="text-xs text-[var(--on-surface-variant)] mt-1.5">
+            Elige dónde se guardarán las imágenes subidas desde los formularios de este panel.
+          </p>
         </div>
       </div>
 
@@ -737,6 +762,8 @@ CREATE POLICY "anon_all_design_tokens" ON public.design_tokens FOR ALL USING (tr
   travel: `CREATE TABLE IF NOT EXISTS public.cms_travels (
   id                     uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   title                  text NOT NULL,
+  description            text DEFAULT '',
+  subtitle               text DEFAULT '',
   agency                 text DEFAULT 'Sueño Travel Chile',
   duration_days          integer DEFAULT 1,
   duration_nights        integer DEFAULT 0,
@@ -760,21 +787,60 @@ CREATE POLICY "public_read_travels" ON public.cms_travels FOR SELECT USING (is_d
 CREATE POLICY "anon_all_travels" ON public.cms_travels FOR ALL USING (true) WITH CHECK (true);`,
 
   location: `CREATE TABLE IF NOT EXISTS public.cms_locations (
-  id                    uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  name                  text NOT NULL,
-  address               text DEFAULT '',
-  city                  text DEFAULT '',
-  country               text DEFAULT '',
-  description           text DEFAULT '',
-  is_draft              boolean DEFAULT true,
-  created_at            timestamptz DEFAULT now(),
-  updated_at            timestamptz DEFAULT now()
+  id                         uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  name                       text NOT NULL,
+  type                       text DEFAULT 'location',
+  subtitle                   text DEFAULT '',
+  travel_styles              text[] DEFAULT '{}',
+  guide_best_season          text DEFAULT '',
+  guide_how_to_get_around    text DEFAULT '',
+  guide_recommended_duration text DEFAULT '',
+  map_url                    text DEFAULT '',
+  image_url                  text DEFAULT '',
+  suggested_itineraries      jsonb DEFAULT '[]',
+  location_type              text DEFAULT '',
+  parent_region_id           uuid,
+  address                    text DEFAULT '',
+  city                       text DEFAULT '',
+  country                    text DEFAULT '',
+  geolocation_url            text DEFAULT '',
+  opening_hours              text DEFAULT '',
+  pricing                    text DEFAULT '',
+  ticket_url                 text DEFAULT '',
+  estimated_visit_time       text DEFAULT '',
+  amenities                  jsonb DEFAULT '{}',
+  description                text DEFAULT '',
+  highlights                 text[] DEFAULT '{}',
+  traveler_tips              text DEFAULT '',
+  nearby_locations           text[] DEFAULT '{}',
+  is_draft                   boolean DEFAULT true,
+  created_at                 timestamptz DEFAULT now(),
+  updated_at                 timestamptz DEFAULT now()
 );
 
 -- RLS & Policies
 ALTER TABLE public.cms_locations ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "public_read_locations" ON public.cms_locations FOR SELECT USING (is_draft = false);
-CREATE POLICY "anon_all_locations" ON public.cms_locations FOR ALL USING (true) WITH CHECK (true);`
+CREATE POLICY "anon_all_locations" ON public.cms_locations FOR ALL USING (true) WITH CHECK (true);`,
+
+  departure: `CREATE TABLE IF NOT EXISTS public.cms_departures (
+  id               uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  travel_id        uuid NOT NULL REFERENCES public.cms_travels(id) ON DELETE CASCADE,
+  departure_date   date NOT NULL,
+  end_date         date,
+  capacity         integer NOT NULL DEFAULT 10,
+  passengers_count integer NOT NULL DEFAULT 0,
+  price_override   numeric,
+  status           text NOT NULL DEFAULT 'open',
+  is_draft         boolean DEFAULT true,
+  created_at       timestamptz DEFAULT now(),
+  updated_at       timestamptz DEFAULT now()
+);
+
+-- RLS & Policies
+ALTER TABLE public.cms_departures ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "public_read_departures" ON public.cms_departures FOR SELECT USING (is_draft = false);
+CREATE POLICY "anon_all_departures" ON public.cms_departures FOR ALL USING (true) WITH CHECK (true);`
 };
 
 function updateSQLDisplay() {
@@ -792,6 +858,7 @@ function updateSQLDisplay() {
   if (document.getElementById('mod-design-tokens').checked) activeSqls.push(SQL_SCRIPTS.design_tokens);
   if (document.getElementById('mod-travel').checked) activeSqls.push(SQL_SCRIPTS.travel);
   if (document.getElementById('mod-location').checked) activeSqls.push(SQL_SCRIPTS.location);
+  if (document.getElementById('mod-departure').checked) activeSqls.push(SQL_SCRIPTS.departure);
 
   const block = document.getElementById('sql-block');
   if (activeSqls.length === 1) { // Solo categories
@@ -809,7 +876,7 @@ document.getElementById('btn-step3-next').addEventListener('click', () => {
   updateSQLDisplay();
 
   // Attach dynamic triggers to module checkboxes
-  ['mod-terms', 'mod-blog', 'mod-products', 'mod-design-tokens', 'mod-travel', 'mod-location'].forEach(id => {
+  ['mod-terms', 'mod-blog', 'mod-products', 'mod-design-tokens', 'mod-travel', 'mod-location', 'mod-departure'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.onchange = updateSQLDisplay;
   });
@@ -834,22 +901,26 @@ document.getElementById('btn-step4-next').addEventListener('click', () => {
   if (document.getElementById('mod-design-tokens').checked) activeModules.push('design_tokens');
   if (document.getElementById('mod-travel').checked) activeModules.push('travel');
   if (document.getElementById('mod-location').checked) activeModules.push('location');
+  if (document.getElementById('mod-departure').checked) activeModules.push('departure');
 
   if (activeModules.length === 0) {
     showToast('⚠️ Debes activar al menos 1 módulo de contenido.');
     return;
   }
 
+  const storageProvider = document.getElementById('storage-provider-select')?.value || 'uploadthing';
+
   if (S.editMode === 'modules') {
     let config = window.DataSourceConfig.getConfig() || {};
     config.activeModules = activeModules;
+    config.storageProvider = storageProvider;
     window.DataSourceConfig.saveConfig(config);
-    showToast('✅ Módulos actualizados con éxito');
+    showToast('✅ Módulos y almacenamiento actualizados con éxito');
     setTimeout(() => location.reload(), 1000);
     return;
   }
 
-  let config = { provider: S.provider, activeModules };
+  let config = { provider: S.provider, activeModules, storageProvider };
   if (S.provider === 'supabase') {
     config.supabase = {
       url:     document.getElementById('sb-url').value.trim(),
@@ -882,6 +953,7 @@ document.getElementById('btn-step4-next').addEventListener('click', () => {
   const displayEl = document.getElementById('active-config-display');
   displayEl.innerHTML = `
     <div class="flex justify-between"><span style="color:var(--on-surface-variant)">Proveedor</span><strong>${cfg.provider}</strong></div>
+    <div class="flex justify-between"><span style="color:var(--on-surface-variant)">Almacenamiento</span><strong>${cfg.storageProvider || 'uploadthing'}</strong></div>
     <div class="flex justify-between"><span style="color:var(--on-surface-variant)">Módulos Activos</span><strong>${cfg.activeModules.join(', ')}</strong></div>
     ${cfg.supabase ? `<div class="flex justify-between"><span style="color:var(--on-surface-variant)">URL</span><code class="font-code text-sm">${cfg.supabase.url}</code></div>` : ''}
     ${cfg.firebase ? `<div class="flex justify-between"><span style="color:var(--on-surface-variant)">Proyecto</span><strong>${cfg.firebase.projectId}</strong></div>` : ''}
@@ -962,6 +1034,11 @@ if (existing) {
       const el = document.getElementById(`mod-${m}`);
       if (el) el.checked = existing.activeModules.includes(m);
     });
+  }
+
+  if (existing.storageProvider) {
+    const select = document.getElementById('storage-provider-select');
+    if (select) select.value = existing.storageProvider;
   }
 
   // Hide wizard flow and show active status panel

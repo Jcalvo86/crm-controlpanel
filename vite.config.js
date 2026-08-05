@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 
 export default defineConfig({
+  base: './',
   plugins: [react()],
   // Ajusta la raíz de Vite al directorio principal del proyecto (Sueño Travel)
   // Esto permite resolver "../style.css" y "../crm-config.js" correctamente

@@ -18,7 +18,7 @@ const CRM = {
   editingId: null,       // id del registro que se edita
   activeTab: 'all',      // filtro actual ('all', 'published', 'draft')
   searchQuery: '',       // búsqueda por texto
-  isDark: true,
+  isDark: false,
   stepCount: 0           // contador especial para inputs compuestos (pasos)
 };
 

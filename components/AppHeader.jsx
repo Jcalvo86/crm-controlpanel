@@ -28,12 +28,12 @@ export default function AppHeader({
   // Sync theme on mount
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme_preference');
-    if (savedTheme === 'light') {
-      document.documentElement.classList.remove('dark');
-      setIsDark(false);
-    } else if (savedTheme === 'dark') {
+    if (savedTheme === 'dark') {
       document.documentElement.classList.add('dark');
       setIsDark(true);
+    } else {
+      document.documentElement.classList.remove('dark');
+      setIsDark(false);
     }
   }, []);
 

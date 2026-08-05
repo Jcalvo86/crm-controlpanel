@@ -22,7 +22,8 @@ export default function ItemsTable({
   setFormData,
   setActivePanels,
   setCreatingTypeSelected,
-  setShowForm
+  setShowForm,
+  travels = []
 }) {
   return (
     <div className="space-y-6">
@@ -104,6 +105,47 @@ export default function ItemsTable({
                   isDraft: true
                 });
                 setCreatingTypeSelected(true);
+              } else if (activeModule === 'location') {
+                setFormData({
+                  name: '',
+                  type: 'location',
+                  subtitle: '',
+                  travelStyles: [],
+                  guideBestSeason: '',
+                  guideHowToGetAround: '',
+                  guideRecommendedDuration: '',
+                  mapUrl: '',
+                  suggestedItineraries: [],
+                  locationType: '',
+                  parentRegionId: '',
+                  address: '',
+                  city: '',
+                  country: '',
+                  geolocationUrl: '',
+                  openingHours: '',
+                  pricing: '',
+                  ticketUrl: '',
+                  estimatedVisitTime: '',
+                  amenities: {
+                    parking: false,
+                    accessibility: false,
+                    restrooms: false,
+                    petFriendly: false,
+                    kidsFriendly: false
+                  },
+                  highlights: [],
+                  travelerTips: '',
+                  nearbyLocations: [],
+                  isDraft: true
+                });
+                setActivePanels({
+                  logistics: false,
+                  routes: false,
+                  practicalData: false,
+                  amenities: false,
+                  highlightsAndTips: false
+                });
+                setCreatingTypeSelected(true);
               } else if (activeModule === 'design_tokens') {
                 setFormData({
                   brandName: '',
@@ -161,8 +203,8 @@ export default function ItemsTable({
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse" style={{ tableLayout: 'fixed' }}>
             <thead>
-              <tr className="border-b border-[var(--outline-variant)] text-xs uppercase tracking-wider text-[var(--outline)]">
-                <th className="pb-3 pr-2" style={{ width: activeModule === 'travel' ? '28%' : '45%' }}>
+              <tr className="border-b border-[var(--outline-variant)] text-xs font-semibold uppercase tracking-wider text-[var(--on-surface)]">
+                <th className="pb-3 pr-2" style={{ width: '28%' }}>
                   <div className="flex items-center gap-2">
                     <span>{activeModule === 'design_tokens' ? 'Marca / Sistema de Diseño' : 'Nombre'}</span>
                     <button
@@ -187,10 +229,18 @@ export default function ItemsTable({
                 </th>
                 <th className="pb-3 pr-2" style={{ width: activeModule === 'travel' ? '21%' : '37%' }}>
                   <div className="flex items-center gap-2">
-                    <span>{activeModule === 'design_tokens' ? 'Elementos' : 'Categoría'}</span>
+                    <span>
+                      {activeModule === 'design_tokens'
+                        ? 'Elementos'
+                        : activeModule === 'departure'
+                          ? 'Fecha Salida'
+                          : 'Categoría'}
+                    </span>
                   </div>
                 </th>
-                {activeModule === 'travel' && <th className="pb-3 pr-2" style={{ width: '33%' }}>Ubicación</th>}
+                <th className="pb-3 pr-2" style={{ width: '33%' }}>
+                  {activeModule === 'departure' ? 'Cupos / Pasajeros' : 'Ubicación'}
+                </th>
                 <th className="pb-3 pr-2" style={{ width: '9%' }}>Estado</th>
                 <th className="pb-3 text-right" style={{ width: '9%' }}>Acciones</th>
               </tr>
@@ -200,11 +250,15 @@ export default function ItemsTable({
                 .filter(i => {
                   const searchStr = activeModule === 'design_tokens'
                     ? `${i.brandName || i.brand_name || ''}`
-                    : `${i.title} ${activeModule === 'travel' ? '' : i.category}`;
-                  const matchesSearch = searchStr.toLowerCase().includes(searchTerm.toLowerCase());
+                    : activeModule === 'departure'
+                      ? `${i.departureDate || ''} ${((travels || []).find(t => t.id === i.travelId)?.title || '')}`
+                      : activeModule === 'location'
+                        ? `${i.name || ''} ${i.locationType || ''} ${i.city || ''}`
+                        : `${i.title} ${activeModule === 'travel' ? '' : i.category}`;
+                  const matchesSearch = (searchStr || '').toLowerCase().includes(searchTerm.toLowerCase());
 
                   let matchesCategory = true;
-                  if (activeModule !== 'design_tokens' && activeModule !== 'travel' && filterCategory !== 'all') {
+                  if (activeModule !== 'design_tokens' && activeModule !== 'travel' && activeModule !== 'departure' && filterCategory !== 'all') {
                     const parsed = parseCategory(i.category);
                     matchesCategory = parsed.workArea === filterCategory;
                   }
@@ -213,8 +267,8 @@ export default function ItemsTable({
                 })
                 .sort((a, b) => {
                   if (!sortAlphabetical) return 0;
-                  const valA = (activeModule === 'design_tokens' ? a.brandName : a.title) || '';
-                  const valB = (activeModule === 'design_tokens' ? b.brandName : b.title) || '';
+                  const valA = (activeModule === 'design_tokens' || activeModule === 'location' ? a.brandName || a.name : activeModule === 'departure' ? a.departureDate : a.title) || '';
+                  const valB = (activeModule === 'design_tokens' || activeModule === 'location' ? b.brandName || b.name : activeModule === 'departure' ? b.departureDate : b.title) || '';
                   return valA.localeCompare(valB);
                 })
                 .map(item => {
@@ -226,6 +280,19 @@ export default function ItemsTable({
                           <span className="flex items-center gap-2 truncate">
                             <span className="truncate">{item.brandName}</span>
                           </span>
+                        ) : activeModule === 'location' ? (
+                          <span className="flex items-center gap-2 truncate">
+                            <span className="truncate">{item.name}</span>
+                          </span>
+                        ) : activeModule === 'departure' ? (
+                          (() => {
+                            const pTravel = (travels || []).find(t => t.id === item.travelId);
+                            return (
+                              <span className="flex items-center gap-2 truncate">
+                                <span className="truncate"><strong>{pTravel ? pTravel.title : 'Viaje no encontrado'}</strong></span>
+                              </span>
+                            );
+                          })()
                         ) : (
                           <span className="truncate block">{item.title}</span>
                         )}
@@ -235,11 +302,33 @@ export default function ItemsTable({
                           <div className="flex flex-wrap gap-1 text-xs">
                             <span className="chip chip-neutral font-bold">{item.durationDays} Días / {item.durationNights} Noches</span>
                           </div>
+                        ) : activeModule === 'departure' ? (
+                          <div className="flex flex-wrap gap-1 text-xs">
+                            <span className="chip chip-neutral font-bold">📅 {item.departureDate}</span>
+                            {item.endDate && <span className="chip chip-neutral">🔄 {item.endDate}</span>}
+                          </div>
                         ) : activeModule === 'design_tokens' ? (
                           <div className="flex flex-wrap gap-2 text-xs">
                             {item.colors && item.colors.length > 0 && <span className="chip chip-neutral">{item.colors.length} Colores</span>}
                             {item.typographies && item.typographies.length > 0 && <span className="chip chip-neutral">{item.typographies.length} Fuentes</span>}
                             {item.logos && item.logos.length > 0 && <span className="chip chip-neutral">{item.logos.length} Logos</span>}
+                          </div>
+                        ) : activeModule === 'location' ? (
+                          <div className="flex flex-wrap gap-1 text-xs">
+                            <span className="chip chip-neutral font-mono font-bold">
+                              {item.type === 'region' ? '📍 Región' : item.type === 'city' ? '🏙️ Ciudad/Área' : '📌 Atracción'}
+                            </span>
+                            {item.locationType && (
+                              item.locationType.split(',').map((typePart, idx) => {
+                                const trimmed = typePart.trim();
+                                if (!trimmed) return null;
+                                return (
+                                  <span key={idx} className="chip chip-neutral font-mono">
+                                    {trimmed}
+                                  </span>
+                                );
+                              })
+                            )}
                           </div>
                         ) : (
                           (() => {
@@ -253,7 +342,7 @@ export default function ItemsTable({
                           })()
                         )}
                       </td>
-                      
+
                       {activeModule === 'travel' && (
                         /* Location column displaying only countries summary */
                         <td className="py-3 pr-2 text-xs">
@@ -270,7 +359,7 @@ export default function ItemsTable({
                                   .split(/,\s*(?![^(]*\))/g)
                                   .map(x => x.trim())
                                   .filter(Boolean);
-                                
+
                                 return parts.map((part, pIdx) => {
                                   const match = part.match(/^([^(]+)(?:\(([^)]+)\))?$/);
                                   const country = match ? match[1].trim() : part;
@@ -283,37 +372,93 @@ export default function ItemsTable({
                               })()
                             )}
                           </div>
+                          ) : activeModule === 'departure' ? (
+                          <div className="flex flex-wrap gap-1 text-xs">
+                            <span className={`chip ${item.passengersCount >= item.capacity ? 'chip-error font-bold' : 'chip-primary font-bold'}`}>
+                              👥 {item.passengersCount} / {item.capacity} Pasajeros
+                            </span>
+                            {item.priceOverride && (
+                              <span className="chip chip-tertiary font-mono">
+                                💲 {item.priceOverride}
+                              </span>
+                            )}
+                          </div>
+                          ) : activeModule === 'location' ? (
+                          <div className="flex flex-col gap-0.5 text-xs truncate max-w-full">
+                            {item.type === 'region' ? (
+                              <span className="text-[var(--on-surface-variant)] truncate font-semibold">
+                                {item.subtitle || 'Sin subtítulo'}
+                              </span>
+                            ) : (
+                              <>
+                                <span className="text-[var(--on-surface-variant)] truncate">
+                                  {item.city ? `${item.city}, ${item.country || ''}` : item.address || '-'}
+                                </span>
+                                {item.parentRegionId && (
+                                  <span className="text-[var(--outline)] text-[10px] truncate">
+                                    Región: <strong>{items.find(i => i.id === item.parentRegionId)?.name || item.parentRegionId}</strong>
+                                  </span>
+                                )}
+                                {item.parentCityId && (
+                                  <span className="text-[var(--outline)] text-[10px] truncate">
+                                    Ciudad: <strong>{items.find(i => i.id === item.parentCityId)?.name || item.parentCityId}</strong>
+                                  </span>
+                                )}
+                              </>
+                            )}
+                          </div>
+                          ) : (
+                          <span className="text-[var(--outline)] italic text-xs">-</span>
+                        )}
                         </td>
-                      )}
+                        </td>
+                  )
+                }
 
                       <td className="py-3 pr-2">
-                        <span className={`chip ${isDraft ? 'chip-neutral' : 'chip-tertiary'}`}>
-                          {isDraft ? 'Borrador' : 'Publicado'}
-                        </span>
-                      </td>
-                      <td className="py-3 text-right space-x-2">
-                        <button
-                          onClick={() => startEdit(item)}
-                          className="btn-icon text-sm inline-flex items-center justify-center"
-                          title="Editar"
-                        >
-                          <span className="material-symbols-outlined text-sm">edit</span>
-                        </button>
-                        <HoldToConfirmButton
-                          onConfirm={() => handleDelete(item.id)}
-                          className="btn-icon text-sm inline-flex items-center justify-center text-[var(--error)]"
-                          title="Mantén presionado para eliminar"
-                        >
-                          <span className="material-symbols-outlined text-sm">delete</span>
-                        </HoldToConfirmButton>
-                      </td>
+                    {activeModule === 'departure' ? (
+                      (() => {
+                        let chipColor = 'chip-primary';
+                        let statusLabel = 'Abierta';
+                        if (item.status === 'confirmed') { chipColor = 'chip-tertiary'; statusLabel = 'Confirmada'; }
+                        if (item.status === 'closed') { chipColor = 'chip-error'; statusLabel = 'Cerrada'; }
+                        if (item.status === 'cancelled') { chipColor = 'chip-neutral'; statusLabel = 'Cancelada'; }
+                        return (
+                          <span className={`chip ${chipColor} font-bold`}>
+                            {statusLabel}
+                          </span>
+                        );
+                      })()
+                    ) : (
+                      <span className={`chip ${isDraft ? 'chip-neutral' : 'chip-tertiary'}`}>
+                        {isDraft ? 'Borrador' : 'Publicado'}
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-3 text-right space-x-2">
+                    <button
+                      onClick={() => startEdit(item)}
+                      className="btn-icon text-sm inline-flex items-center justify-center"
+                      title="Editar"
+                    >
+                      <span className="material-symbols-outlined text-sm">edit</span>
+                    </button>
+                    <HoldToConfirmButton
+                      onConfirm={() => handleDelete(item.id)}
+                      className="btn-icon text-sm inline-flex items-center justify-center text-[var(--error)]"
+                      title="Mantén presionado para eliminar"
+                    >
+                      <span className="material-symbols-outlined text-sm">delete</span>
+                    </HoldToConfirmButton>
+                  </td>
                     </tr>
-                  );
+            );
                 })}
-            </tbody>
-          </table>
+          </tbody>
+        </table>
         </div>
-      )}
-    </div>
+  )
+}
+    </div >
   );
 }

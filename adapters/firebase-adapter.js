@@ -32,7 +32,9 @@ window.Glosaurio.FirebaseAdapter = class FirebaseAdapter {
   _valToFirestore(val) {
     if (val === null || val === undefined) return { nullValue: null };
     if (typeof val === 'boolean')          return { booleanValue: val };
-    if (typeof val === 'number')           return { integerValue: val };
+    if (typeof val === 'number') {
+      return Number.isInteger(val) ? { integerValue: val } : { doubleValue: val };
+    }
     if (typeof val === 'string')           return { stringValue: val };
     if (Array.isArray(val)) {
       return {

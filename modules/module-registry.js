@@ -151,15 +151,75 @@ window.Glosaurio.CMS_MODULES = {
     id: 'location',
     label: 'Ubicación / Lugar',
     icon: 'pin_drop',
-    description: 'Administra localizaciones geográficas, hoteles, puntos de interés y direcciones.',
+    description: 'Administra regiones, ciudades, atracciones turísticas y puntos de interés.',
     collection: 'cms_locations',
     titleField: 'name',
     schema: [
-      { id: 'name', label: 'Nombre del Lugar', type: 'text', required: true, placeholder: 'Ej: Hotel EcoLodge' },
+      { id: 'name', label: 'Nombre', type: 'text', required: true, placeholder: 'Ej: Chile Costa o Casa de Pablo Neruda' },
+      { id: 'type', label: 'Tipo de Entrada', type: 'select', required: true, default: 'attraction', options: [
+        { value: 'region', label: '📍 Región (Macro / Inspiración y Contexto)' },
+        { value: 'city', label: '🏙️ Ciudad o Área (Meso / Contexto Intermedio)' },
+        { value: 'attraction', label: '📌 Atracción (Micro / Punto de Interés)' }
+      ]},
+      // Región específicos
+      { id: 'subtitle', label: 'Subtítulo inspirador', type: 'text', placeholder: 'Ej: Playas, gastronomía marina...' },
+      { id: 'travelStyles', label: 'Etiquetas de estilo de viaje', type: 'tags', placeholder: 'Ej: Familiar, Gastronomía, Relax' },
+      { id: 'guideBestSeason', label: 'Mejor época para visitar', type: 'text', placeholder: 'Ej: De Octubre a Marzo...' },
+      { id: 'guideHowToGetAround', label: 'Cómo moverse', type: 'text', placeholder: 'Ej: Conviene rentar auto...' },
+      { id: 'guideRecommendedDuration', label: 'Duración recomendada', type: 'text', placeholder: 'Ej: 3 a 5 días' },
+      { id: 'mapUrl', label: 'URL de Imagen del Mapa de la Región', type: 'text', placeholder: 'https://ejemplo.com/mapa-region.jpg' },
+      { id: 'suggestedItineraries', label: 'Itinerarios sugeridos', type: 'json' },
+      // Ubicación específicos
+      { id: 'locationType', label: 'Categoría / Tipo de Ubicación', type: 'text', placeholder: 'Ej: Museo / Sitio Histórico o Ciudad Costera' },
+      { id: 'parentRegionId', label: 'Región Padre', type: 'text', placeholder: 'ID de la región' },
+      { id: 'parentCityId', label: 'Ciudad o Área Padre', type: 'text', placeholder: 'ID de la ciudad/área' },
+      { id: 'mapPosX', label: 'Posición X en el mapa (%)', type: 'number', placeholder: 'Ej: 45.5' },
+      { id: 'mapPosY', label: 'Posición Y en el mapa (%)', type: 'number', placeholder: 'Ej: 60.2' },
       { id: 'address', label: 'Dirección', type: 'text', placeholder: 'Ej: Av. Costanera 123' },
-      { id: 'city', label: 'Ciudad', type: 'text', placeholder: 'Ej: Puerto Varas' },
+      { id: 'city', label: 'Ciudad', type: 'text', placeholder: 'Ej: Viña del Mar' },
       { id: 'country', label: 'País', type: 'text', placeholder: 'Ej: Chile' },
-      { id: 'description', label: 'Descripción del Lugar', type: 'textarea', rows: 3, placeholder: 'Servicios, comodidades, etc.' },
+      { id: 'geolocationUrl', label: 'URL de Geolocalización (Google Maps / Waze)', type: 'text', placeholder: 'https://maps.app.goo.gl/...' },
+      { id: 'openingHours', label: 'Horarios de apertura', type: 'textarea', rows: 2, placeholder: 'Ej: Martes a Domingo 10:00 - 18:00' },
+      { id: 'pricing', label: 'Tarifas / Precios', type: 'textarea', rows: 2, placeholder: 'Ej: Adultos: $4.000, Niños gratis' },
+      { id: 'ticketUrl', label: 'Enlace para comprar tickets', type: 'url', placeholder: 'https://...' },
+      { id: 'estimatedVisitTime', label: 'Tiempo de visita estimado', type: 'text', placeholder: 'Ej: 1 a 2 horas' },
+      { id: 'amenities', label: 'Servicios / Amenidades', type: 'json' },
+      { id: 'description', label: 'Descripción de la Experiencia', type: 'textarea', rows: 4, placeholder: 'Breve reseña o historia...' },
+      { id: 'highlights', label: 'Qué no te puedes perder (Highlights)', type: 'lines', placeholder: 'Un highlight por línea...' },
+      { id: 'travelerTips', label: 'Tips de viajero', type: 'textarea', rows: 3, placeholder: 'Ej: Sube temprano para evitar la fila...' },
+      { id: 'nearbyLocations', label: 'Lugares cercanos recomendados', type: 'lines', placeholder: 'Un lugar cercano por línea...' },
+      { id: 'isDraft', label: 'Borrador', type: 'boolean', default: true }
+    ]
+  },
+
+  // ── 📅 MÓDULO SALIDAS DE VIAJE ──────────────────────────────
+  departure: {
+    id: 'departure',
+    label: 'Salidas de Viaje',
+    icon: 'calendar_month',
+    description: 'Gestiona fechas específicas, cupos y pasajeros para los viajes programados.',
+    collection: 'cms_departures',
+    titleField: 'departureDate',
+    schema: [
+      { id: 'travelId', label: 'Viaje Base', type: 'select', required: true },
+      { id: 'departureDate', label: 'Fecha de Salida', type: 'date', required: true },
+      { id: 'endDate', label: 'Fecha de Retorno', type: 'date' },
+      { id: 'capacity', label: 'Cupos Totales', type: 'number', required: true, default: 10 },
+      { id: 'passengersCount', label: 'Pasajeros Registrados', type: 'number', default: 0 },
+      { id: 'priceOverride', label: 'Precio Especial', type: 'number', placeholder: 'En blanco para precio base' },
+      {
+        id: 'status',
+        label: 'Estado de la Salida',
+        type: 'select',
+        required: true,
+        default: 'open',
+        options: [
+          { value: 'open', label: 'Abierta / Recibiendo Reservas' },
+          { value: 'confirmed', label: 'Confirmada / Salida Asegurada' },
+          { value: 'closed', label: 'Cerrada / Sin Cupos' },
+          { value: 'cancelled', label: 'Cancelada' }
+        ]
+      },
       { id: 'isDraft', label: 'Borrador', type: 'boolean', default: true }
     ]
   }

@@ -3,13 +3,16 @@ import { parseCategory } from './utils/parseCategory.js';
 import { SupabaseRESTService } from './adapters/SupabaseRESTService.js';
 import HoldToConfirmButton from './components/HoldToConfirmButton.jsx';
 import { createEmptyFormData, derivePanelsFromItem, normalizeTaxonomies } from './utils/formDefaults.js';
-import { buildTravelPayload, buildDesignTokensPayload, buildTermsPayload } from './utils/buildPayload.js';
+import { buildTravelPayload, buildDesignTokensPayload, buildTermsPayload, buildLocationPayload, buildDeparturePayload } from './utils/buildPayload.js';
 import TravelFormEditor from './editors/TravelFormEditor.jsx';
 import DesignTokensFormEditor from './editors/DesignTokensFormEditor.jsx';
 import TermsFormEditor from './editors/TermsFormEditor.jsx';
+import LocationFormEditor from './editors/LocationFormEditor.jsx';
+import DepartureFormEditor from './editors/DepartureFormEditor.jsx';
 import AppHeader from './components/AppHeader.jsx';
 import LoginView from './components/LoginView.jsx';
 import ItemsTable from './components/ItemsTable.jsx';
+import DashboardView from './components/DashboardView.jsx';
 
 
 export default function CRMControlPanel({ config, session: propSession, setSession: propSetSession }) {
@@ -49,7 +52,9 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
   // CMS state
   const [items, setItems] = useState([]);
   const [loadingData, setLoadingData] = useState(false);
-  const [activeModule, setActiveModule] = useState(config.activeModules?.[0] || 'terms');
+  const [activeModule, setActiveModule] = useState('dashboard');
+  const [dashboardStats, setDashboardStats] = useState({});
+  const [loadingStats, setLoadingStats] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortAlphabetical, setSortAlphabetical] = useState(false);
   const [filterCategory, setFilterCategory] = useState('all');
@@ -84,6 +89,7 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
     videos: false,
     color: false,
     typography: false,
+    mapPosition: false,
   });
 
   const [showAllResults, setShowAllResults] = useState(false);
@@ -256,6 +262,7 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
 
   // 2. Fetch data once session is active
   const [locations, setLocations] = useState([]);
+  const [travels, setTravels] = useState([]);
 
   const fetchLocations = async () => {
     try {
@@ -268,7 +275,13 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
           id: l.id,
           name: l.name || '',
           city: l.city || '',
-          country: l.country || ''
+          country: l.country || '',
+          type: l.type || 'location',
+          parentRegionId: l.parent_region_id || l.parentRegionId || '',
+          parentCityId: l.parent_city_id || l.parentCityId || '',
+          mapUrl: l.mapUrl || l.map_url || '',
+          mapPosX: l.mapPosX !== undefined ? l.mapPosX : l.map_pos_x,
+          mapPosY: l.mapPosY !== undefined ? l.mapPosY : l.map_pos_y
         })));
       }
     } catch (e) {
@@ -276,10 +289,63 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
     }
   };
 
+  const fetchTravels = async () => {
+    try {
+      if (config.provider === 'localStorage') {
+        const cached = localStorage.getItem('glosaurio_travel');
+        setTravels(cached ? JSON.parse(cached) : []);
+      } else {
+        const rawTravels = await service.getItems('travel');
+        setTravels(rawTravels.map(t => ({
+          id: t.id,
+          title: t.title || ''
+        })));
+      }
+    } catch (e) {
+      console.error('Error fetching travels:', e);
+    }
+  };
+
+  const fetchDashboardStats = async () => {
+    setLoadingStats(true);
+    try {
+      const stats = {};
+      const modulesToFetch = config.activeModules || ['terms', 'design_tokens'];
+      
+      await Promise.all(modulesToFetch.map(async (mod) => {
+        try {
+          let count = 0;
+          if (config.provider === 'localStorage') {
+            const cached = localStorage.getItem(`glosaurio_${mod}`);
+            count = cached ? JSON.parse(cached).length : 0;
+          } else {
+            const items = await service.getItems(mod);
+            count = items.length;
+          }
+          stats[mod] = count;
+        } catch (err) {
+          console.error(`Error loading stats for ${mod}:`, err);
+          stats[mod] = 0;
+        }
+      }));
+
+      setDashboardStats(stats);
+    } catch (e) {
+      console.error("Error loading dashboard stats:", e);
+    } finally {
+      setLoadingStats(false);
+    }
+  };
+
   useEffect(() => {
     if (session) {
-      fetchCMSData();
+      if (activeModule === 'dashboard') {
+        fetchDashboardStats();
+      } else {
+        fetchCMSData();
+      }
       fetchLocations();
+      fetchTravels();
     }
   }, [session, activeModule]);
 
@@ -305,11 +371,66 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
             isDraft: item.is_draft || item.isDraft || false
           };
         }
+        if (activeModule === 'departure') {
+          return {
+            id: item.id,
+            travelId: item.travel_id || item.travelId || '',
+            departureDate: item.departure_date || item.departureDate || '',
+            endDate: item.end_date || item.endDate || '',
+            capacity: item.capacity !== undefined ? item.capacity : 10,
+            passengersCount: item.passengers_count !== undefined ? item.passengers_count : 0,
+            priceOverride: item.price_override || item.priceOverride || '',
+            status: item.status || 'open',
+            isDraft: item.is_draft || item.isDraft || false
+          };
+        }
+        if (activeModule === 'location') {
+          return {
+            id: item.id,
+            name: item.name || '',
+            type: item.type || 'location',
+            subtitle: item.subtitle || '',
+            travelStyles: Array.isArray(item.travel_styles) ? item.travel_styles : (Array.isArray(item.travelStyles) ? item.travelStyles : []),
+            guideBestSeason: item.guide_best_season || item.guideBestSeason || '',
+            guideHowToGetAround: item.guide_how_to_get_around || item.guideHowToGetAround || '',
+            guideRecommendedDuration: item.guide_recommended_duration || item.guideRecommendedDuration || '',
+            mapUrl: item.map_url || item.mapUrl || '',
+            imageUrl: item.image_url || item.imageUrl || '',
+            suggestedItineraries: Array.isArray(item.suggested_itineraries) ? item.suggested_itineraries : (Array.isArray(item.suggestedItineraries) ? item.suggestedItineraries : []),
+            locationType: item.location_type || item.locationType || '',
+            parentRegionId: item.parent_region_id || item.parentRegionId || '',
+            parentCityId: item.parent_city_id || item.parentCityId || '',
+            mapPosX: item.map_pos_x !== undefined ? item.map_pos_x : (item.mapPosX !== undefined ? item.mapPosX : ''),
+            mapPosY: item.map_pos_y !== undefined ? item.map_pos_y : (item.mapPosY !== undefined ? item.mapPosY : ''),
+            mapIcon: (typeof item.amenities === 'object' && item.amenities !== null && item.amenities.mapIcon) || '',
+            address: item.address || '',
+            city: item.city || '',
+            country: item.country || '',
+            geolocationUrl: item.geolocation_url || item.geolocationUrl || '',
+            openingHours: item.opening_hours || item.openingHours || '',
+            pricing: item.pricing || '',
+            ticketUrl: item.ticket_url || item.ticketUrl || '',
+            estimatedVisitTime: item.estimated_visit_time || item.estimatedVisitTime || '',
+            amenities: typeof item.amenities === 'object' && item.amenities !== null ? item.amenities : {
+              parking: false,
+              accessibility: false,
+              restrooms: false,
+              petFriendly: false,
+              kidsFriendly: false
+            },
+            description: item.description || '',
+            highlights: Array.isArray(item.highlights) ? item.highlights : [],
+            travelerTips: item.traveler_tips || item.travelerTips || '',
+            nearbyLocations: Array.isArray(item.nearby_locations) ? item.nearby_locations : (Array.isArray(item.nearbyLocations) ? item.nearbyLocations : []),
+            isDraft: item.is_draft || item.isDraft || false
+          };
+        }
         return {
           id: item.id,
           title: item.title,
           category: item.category,
-          description: item.description,
+          description: item.description || '',
+          subtitle: item.subtitle || '',
           url: item.url || '',
           video_url: item.video_url || '',
           tools: Array.isArray(item.tools) ? item.tools : [],
@@ -396,8 +517,12 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
     let formattedData = {};
     if (activeModule === 'travel') {
       formattedData = buildTravelPayload(formData, finalDraftStatus);
+    } else if (activeModule === 'departure') {
+      formattedData = buildDeparturePayload(formData, finalDraftStatus);
     } else if (activeModule === 'design_tokens') {
       formattedData = buildDesignTokensPayload(formData, finalDraftStatus);
+    } else if (activeModule === 'location') {
+      formattedData = buildLocationPayload(formData, finalDraftStatus);
     } else {
       formattedData = buildTermsPayload(formData, config.taxonomies, finalDraftStatus);
     }
@@ -425,6 +550,13 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
         await fetchCMSData();
       }
 
+      if (activeModule === 'travel') {
+        fetchTravels();
+      }
+      if (activeModule === 'location') {
+        fetchLocations();
+      }
+
       // Reset Form
       setIsEditing(false);
       setSelectedId(null);
@@ -449,6 +581,8 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
     if (activeModule === 'travel') {
       setFormData({
         title: item.title || '',
+        description: item.description || '',
+        subtitle: item.subtitle || '',
         agency: item.agency || 'Sueño Travel Chile',
         durationDays: item.durationDays || 1,
         durationNights: item.durationNights || 0,
@@ -469,6 +603,67 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
       });
       setCreatingTypeSelected(true);
       setShowForm(true);
+      return;
+    }
+    if (activeModule === 'departure') {
+      setFormData({
+        travelId: item.travelId || '',
+        departureDate: item.departureDate || '',
+        endDate: item.endDate || '',
+        capacity: item.capacity !== undefined ? item.capacity : 10,
+        passengersCount: item.passengersCount !== undefined ? item.passengersCount : 0,
+        priceOverride: item.priceOverride || '',
+        status: item.status || 'open',
+        isDraft: item.isDraft || false
+      });
+      setCreatingTypeSelected(true);
+      setShowForm(true);
+      return;
+    }
+    if (activeModule === 'location') {
+      setFormData({
+        name: item.name || '',
+        type: item.type || 'location',
+        subtitle: item.subtitle || '',
+        travelStyles: item.travelStyles || [],
+        guideBestSeason: item.guideBestSeason || '',
+        guideHowToGetAround: item.guideHowToGetAround || '',
+        guideRecommendedDuration: item.guideRecommendedDuration || '',
+        mapUrl: item.mapUrl || '',
+        imageUrl: item.imageUrl || '',
+        suggestedItineraries: item.suggestedItineraries || [],
+        locationType: item.locationType || '',
+        parentRegionId: item.parentRegionId || '',
+        parentCityId: item.parentCityId || '',
+        mapPosX: item.mapPosX !== undefined ? item.mapPosX : '',
+        mapPosY: item.mapPosY !== undefined ? item.mapPosY : '',
+        mapIcon: item.mapIcon || '',
+        address: item.address || '',
+        city: item.city || '',
+        country: item.country || '',
+        geolocationUrl: item.geolocationUrl || '',
+        openingHours: item.openingHours || '',
+        pricing: item.pricing || '',
+        ticketUrl: item.ticketUrl || '',
+        estimatedVisitTime: item.estimatedVisitTime || '',
+        amenities: item.amenities || {
+          parking: false,
+          accessibility: false,
+          restrooms: false,
+          petFriendly: false,
+          kidsFriendly: false
+        },
+        highlights: item.highlights || [],
+        travelerTips: item.travelerTips || '',
+        nearbyLocations: item.nearbyLocations || [],
+        isDraft: item.isDraft || false
+      });
+      setCreatingTypeSelected(true);
+      setShowForm(true);
+      
+      const { activePanels: derivedPanels, expandedSections: derivedSections } = derivePanelsFromItem(item, activeModule);
+      setActivePanels(derivedPanels);
+      setExpandedSections(derivedSections);
       return;
     }
     if (activeModule === 'design_tokens') {
@@ -585,7 +780,132 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
 
   const handleDownloadTemplate = () => {
     let template = {};
-    if (activeModule === 'design_tokens') {
+    if (activeModule === 'travel') {
+      template = {
+        title: "Egipto Clásico y Templos del Nilo",
+        agency: "Sueño Travel Chile",
+        durationDays: 8,
+        durationNights: 7,
+        destinationsSummary: "Egipto (El Cairo, Luxor, Aswan)",
+        countriesSummaryList: [
+          {
+            country: "Egipto",
+            cities: ["El Cairo", "Luxor", "Aswan"]
+          }
+        ],
+        visaCostUSD: 25,
+        hotelTaxUSD: 10,
+        disclaimer: "Tarifas sujetas a cambio sin previo aviso.",
+        servicesExcludedList: [
+          "Vuelos internacionales",
+          "Bebidas y gastos personales",
+          "Propinas generales"
+        ],
+        servicesIncludedList: [
+          {
+            locationId: "",
+            customLocationName: "El Cairo",
+            items: [
+              "3 noches en Hotel Marriott Mena House con desayuno"
+            ]
+          },
+          {
+            locationId: "",
+            customLocationName: "El Cairo y Luxor",
+            items: [
+              "Todos los traslados en vehículo privado con aire acondicionado",
+              "Guía de habla hispana durante las excursiones"
+            ]
+          }
+        ],
+        itinerary: [
+          {
+            dayNumber: 1,
+            locationId: "",
+            customLocationName: "El Cairo",
+            accommodationType: "Alojamiento y desayuno",
+            imageUrl: "https://images.unsplash.com/photo-1572252009286-268acec5a0af?auto=format&fit=crop&w=1200&q=80",
+            activities: [
+              {
+                type: "arrival",
+                description: "Llegada al Aeropuerto de El Cairo. Recepción por nuestro representante y traslado al hotel."
+              },
+              {
+                type: "night",
+                description: "Alojamiento en Marriott Mena House."
+              }
+            ]
+          }
+        ],
+        hotelsPlanned: [
+          {
+            country: "Egipto",
+            category: "5★ Lujo / Boutique",
+            city: "El Cairo",
+            hotelName: "Marriott Mena House",
+            citiesList: [
+              {
+                cityName: "El Cairo",
+                hotelNames: ["Marriott Mena House"]
+              }
+            ]
+          }
+        ],
+        isDraft: true
+      };
+    } else if (activeModule === 'location') {
+      template = [
+        {
+          name: "Chile Costa",
+          type: "region",
+          subtitle: "Playas, gastronomía marina y atardeceres sobre el Pacífico",
+          travelStyles: ["Familiar", "Gastronomía", "Relax", "Surf"],
+          guideBestSeason: "Octubre a Abril",
+          guideHowToGetAround: "Se recomienda alquilar auto",
+          guideRecommendedDuration: "Ideal para recorrer en 3 a 5 días",
+          mapUrl: "https://ejemplo.com/mapa.jpg",
+          suggestedItineraries: [
+            {
+              title: "Ruta de 3 días por la Costa Central",
+              duration: "3 días",
+              description: "Día 1: Santiago a Viña. Día 2: Valparaíso. Día 3: Concón."
+            }
+          ],
+          isDraft: true
+        },
+        {
+          name: "Casa de Pablo Neruda (La Sebastiana)",
+          type: "location",
+          locationType: "Museo / Sitio Histórico",
+          parentRegionId: "",
+          address: "Ferrari 692, Valparaíso",
+          city: "Valparaíso",
+          country: "Chile",
+          geolocationUrl: "https://maps.app.goo.gl/SebastianaValpo",
+          openingHours: "Martes a Domingo 10:00 - 18:00",
+          pricing: "Adultos: $7.000 CLP, Niños gratis",
+          ticketUrl: "https://fundacionneruda.org",
+          estimatedVisitTime: "1 a 2 horas",
+          amenities: {
+            parking: false,
+            accessibility: false,
+            restrooms: true,
+            petFriendly: false,
+            kidsFriendly: true
+          },
+          description: "Una de las casas del poeta Pablo Neruda con vista panorámica sobre la bahía.",
+          highlights: [
+            "Sube al tercer piso para ver el escritorio original.",
+            "Admira la colección de cajas de música."
+          ],
+          travelerTips: "Llega temprano para evitar multitudes.",
+          nearbyLocations: [
+            "Cerro Bellavista"
+          ],
+          isDraft: true
+        }
+      ];
+    } else if (activeModule === 'design_tokens') {
       template = {
         brandName: "[Nombre de la marca o sistema de diseño, ej: 'Alexandria']",
         colors: [
@@ -617,7 +937,7 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
       template = {
         title: "[Nombre del término, concepto o metodología. Ej: 'Design Tokens' o 'Vibe Coding']",
         category: "[Categoría del término. Debe ser una de las siguientes: 'Diseño & Marca', 'Vibe Coding', 'Tech', 'Gestión de Proyectos', 'Automatización']",
-        description: "[Descripción clara y detallada de lo que consiste este término, explicando su propósito e importancia.]",
+        description: "[Descripción clara y detallada de lo que consiste este término, explaining su propósito e importancia.]",
         steps: [
           {
             label: "[Paso 1: Nombre o título corto de la primera etapa del proceso de implementación]",
@@ -654,7 +974,7 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
         isDraft: true
       };
     }
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify([template], null, 2));
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(Array.isArray(template) ? template : [template], null, 2));
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute("href", dataStr);
     downloadAnchor.setAttribute("download", `plantilla_${activeModule}.json`);
@@ -675,28 +995,24 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
 
         setLoadingData(true);
         for (const item of list) {
-          const formattedData = {
-            title: item.title || "Término importado",
-            category: item.category || "Diseño & Marca",
-            description: item.description || "",
-            url: item.url || "",
-            is_draft: item.isDraft !== undefined ? item.isDraft : true,
-            prompt: item.prompt || "",
-            tools: Array.isArray(item.tools) ? item.tools : [],
-            problems: Array.isArray(item.problems) ? item.problems : [],
-            benefits: Array.isArray(item.benefits) ? item.benefits : [],
-            recommended_scenarios: Array.isArray(item.recommendedScenarios) ? item.recommendedScenarios : [],
-            critical_exclusions: Array.isArray(item.criticalExclusions) ? item.criticalExclusions : [],
-            technical_example: item.technicalExample || '',
-            steps: Array.isArray(item.steps) ? item.steps : [],
-            results: item.results || "",
-            metrics: item.metrics || "",
-            prompt_vars: Array.isArray(item.promptVars) ? item.promptVars : []
-          };
+          let formattedData = {};
+          const itemIsDraft = item.isDraft !== undefined ? item.isDraft : (item.is_draft !== undefined ? item.is_draft : true);
+          
+          if (activeModule === 'travel') {
+            formattedData = buildTravelPayload(item, itemIsDraft);
+          } else if (activeModule === 'departure') {
+            formattedData = buildDeparturePayload(item, itemIsDraft);
+          } else if (activeModule === 'location') {
+            formattedData = buildLocationPayload(item, itemIsDraft);
+          } else if (activeModule === 'design_tokens') {
+            formattedData = buildDesignTokensPayload(item, itemIsDraft);
+          } else {
+            formattedData = buildTermsPayload(item, config.taxonomies, itemIsDraft);
+          }
 
           if (config.provider === 'localStorage') {
             const localItems = JSON.parse(localStorage.getItem(`glosaurio_${activeModule}`) || "[]");
-            const newItem = { ...formattedData, id: `term-${Date.now()}-${Math.random()}` };
+            const newItem = { ...formattedData, id: `${activeModule}-${Date.now()}-${Math.random()}` };
             localItems.unshift(newItem);
             localStorage.setItem(`glosaurio_${activeModule}`, JSON.stringify(localItems));
           } else {
@@ -705,6 +1021,9 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
         }
         alert("¡Datos importados con éxito!");
         await fetchCMSData();
+        if (activeModule === 'location') {
+          fetchLocations();
+        }
       } catch (err) {
         alert("Error al importar el JSON: " + err.message);
       } finally {
@@ -725,26 +1044,102 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
         const item = Array.isArray(parsed) ? parsed[0] : parsed;
         if (!item) return;
 
-        setFormData({
-          title: item.title || '',
-          category: item.category || 'Diseño & Marca',
-          description: item.description || '',
-          url: item.url || '',
-          tools: Array.isArray(item.tools) ? item.tools : [],
-          isDraft: item.isDraft !== undefined ? item.isDraft : true,
-          prompt: item.prompt || '',
-          problems: Array.isArray(item.problems) ? item.problems.join('\n') : (item.problems || ''),
-          benefits: Array.isArray(item.benefits) ? item.benefits.join('\n') : (item.benefits || ''),
-          recommendedScenarios: Array.isArray(item.recommendedScenarios) ? item.recommendedScenarios.join('\n') : (item.recommendedScenarios || ''),
-          criticalExclusions: Array.isArray(item.criticalExclusions) ? item.criticalExclusions.join('\n') : (item.criticalExclusions || ''),
-          technicalExample: item.technicalExample || '',
-          steps: Array.isArray(item.steps) ? item.steps : [{ label: '', detail: '' }],
-          results: item.results || '',
-          metrics: item.metrics || '',
-          promptVars: Array.isArray(item.promptVars) ? item.promptVars.join(', ') : (item.prompt_vars ? item.prompt_vars.join(', ') : (item.promptVars || ''))
-        });
+        if (activeModule === 'travel') {
+          setFormData({
+            title: item.title || '',
+            agency: item.agency || 'Sueño Travel Chile',
+            durationDays: item.durationDays || item.duration_days || 1,
+            durationNights: item.durationNights || item.duration_nights || 0,
+            destinationsSummary: Array.isArray(item.destinationsSummary) ? item.destinationsSummary.join(', ') : (Array.isArray(item.destinations_summary) ? item.destinations_summary.join(', ') : (item.destinationsSummary || '')),
+            visaCostUSD: item.visaCostUSD !== undefined ? item.visaCostUSD : (item.pricingAndNotes?.visaCostUSD !== undefined ? item.pricingAndNotes.visaCostUSD : (item.pricing_and_notes?.visaCostUSD || 0)),
+            hotelTaxUSD: item.hotelTaxUSD !== undefined ? item.hotelTaxUSD : (item.pricingAndNotes?.hotelTaxUSD !== undefined ? item.pricingAndNotes.hotelTaxUSD : (item.pricing_and_notes?.hotelTaxUSD || 0)),
+            disclaimer: item.disclaimer !== undefined ? item.disclaimer : (item.pricingAndNotes?.disclaimer !== undefined ? item.pricingAndNotes.disclaimer : (item.pricing_and_notes?.disclaimer || '')),
+            servicesIncludedEgypt: Array.isArray(item.servicesIncluded?.egypt) ? item.servicesIncluded.egypt.join('\n') : (Array.isArray(item.services_included?.egypt) ? item.services_included.egypt.join('\n') : ''),
+            servicesIncludedTurkey: Array.isArray(item.servicesIncluded?.turkey) ? item.servicesIncluded.turkey.join('\n') : (Array.isArray(item.services_included?.turkey) ? item.services_included.turkey.join('\n') : ''),
+            servicesExcluded: Array.isArray(item.servicesExcluded) ? item.servicesExcluded.join('\n') : (Array.isArray(item.services_excluded) ? item.services_excluded.join('\n') : ''),
+            itinerary: item.itinerary || [],
+            servicesIncludedList: item.servicesIncludedList || item.services_included_list || [],
+            servicesExcludedList: item.servicesExcludedList && item.servicesExcludedList.length > 0 ? item.servicesExcludedList : (item.services_excluded_list && item.services_excluded_list.length > 0 ? item.services_excluded_list : ['']),
+            hotelsPlanned: item.hotelsPlanned || item.hotels_planned || [],
+            isDraft: item.isDraft !== undefined ? item.isDraft : (item.is_draft !== undefined ? item.is_draft : true)
+          });
+        } else if (activeModule === 'departure') {
+          setFormData({
+            travelId: item.travelId || item.travel_id || '',
+            departureDate: item.departureDate || item.departure_date || '',
+            endDate: item.endDate || item.end_date || '',
+            capacity: item.capacity !== undefined ? item.capacity : 10,
+            passengersCount: item.passengersCount !== undefined ? item.passengers_count : 0,
+            priceOverride: item.priceOverride || item.price_override || '',
+            status: item.status || 'open',
+            isDraft: item.isDraft !== undefined ? item.isDraft : (item.is_draft !== undefined ? item.is_draft : true)
+          });
+        } else if (activeModule === 'location') {
+          setFormData({
+            name: item.name || '',
+            type: item.type || 'location',
+            subtitle: item.subtitle || '',
+            travelStyles: Array.isArray(item.travelStyles) ? item.travelStyles : (item.travel_styles || []),
+            guideBestSeason: item.guideBestSeason || item.guide_best_season || '',
+            guideHowToGetAround: item.guideHowToGetAround || item.guide_how_to_get_around || '',
+            guideRecommendedDuration: item.guideRecommendedDuration || item.guide_recommended_duration || '',
+            mapUrl: item.mapUrl || item.map_url || '',
+            suggestedItineraries: item.suggestedItineraries || item.suggested_itineraries || [],
+            locationType: item.locationType || item.location_type || '',
+            parentRegionId: item.parentRegionId || item.parent_region_id || '',
+            parentCityId: item.parentCityId || item.parent_city_id || '',
+            address: item.address || '',
+            city: item.city || '',
+            country: item.country || '',
+            geolocationUrl: item.geolocationUrl || item.geolocation_url || '',
+            openingHours: item.openingHours || item.opening_hours || '',
+            pricing: item.pricing || '',
+            ticketUrl: item.ticketUrl || item.ticket_url || '',
+            estimatedVisitTime: item.estimatedVisitTime || item.estimated_visit_time || '',
+            amenities: item.amenities || {
+              parking: false,
+              accessibility: false,
+              restrooms: false,
+              petFriendly: false,
+              kidsFriendly: false
+            },
+            description: item.description || '',
+            highlights: Array.isArray(item.highlights) ? item.highlights : [],
+            travelerTips: item.travelerTips || item.traveler_tips || '',
+            nearbyLocations: Array.isArray(item.nearbyLocations) ? item.nearbyLocations : (item.nearby_locations || []),
+            isDraft: item.isDraft !== undefined ? item.isDraft : (item.is_draft !== undefined ? item.is_draft : true)
+          });
+        } else if (activeModule === 'design_tokens') {
+          setFormData({
+            brandName: item.brandName || item.brand_name || '',
+            url: item.url || '',
+            colors: (item.colors && item.colors.length > 0) ? item.colors : [{ hex: '', role: '', description: '' }],
+            typographies: (item.typographies && item.typographies.length > 0) ? item.typographies : [{ fontFamily: '', weights: [], fontSize: '', sampleText: '' }],
+            logos: (item.logos && item.logos.length > 0) ? item.logos : [{ name: '', svgContent: '' }],
+            isDraft: item.isDraft !== undefined ? item.isDraft : (item.is_draft !== undefined ? item.is_draft : true)
+          });
+        } else {
+          setFormData({
+            title: item.title || '',
+            category: item.category || 'Diseño & Marca',
+            description: item.description || '',
+            url: item.url || '',
+            tools: Array.isArray(item.tools) ? item.tools : [],
+            isDraft: item.isDraft !== undefined ? item.isDraft : (item.is_draft !== undefined ? item.is_draft : true),
+            prompt: item.prompt || '',
+            problems: Array.isArray(item.problems) ? item.problems.join('\n') : (item.problems || ''),
+            benefits: Array.isArray(item.benefits) ? item.benefits.join('\n') : (item.benefits || ''),
+            recommendedScenarios: Array.isArray(item.recommendedScenarios) ? item.recommendedScenarios.join('\n') : (item.recommendedScenarios || ''),
+            criticalExclusions: Array.isArray(item.criticalExclusions) ? item.criticalExclusions.join('\n') : (item.criticalExclusions || ''),
+            technicalExample: item.technicalExample || '',
+            steps: Array.isArray(item.steps) ? item.steps : [{ label: '', detail: '' }],
+            results: item.results || '',
+            metrics: item.metrics || '',
+            promptVars: Array.isArray(item.promptVars) ? item.promptVars.join(', ') : (item.prompt_vars ? item.prompt_vars.join(', ') : (item.promptVars || ''))
+          });
+        }
 
-        const { activePanels: derivedPanels, expandedSections: derivedSections } = derivePanelsFromItem(item, 'terms');
+        const { activePanels: derivedPanels, expandedSections: derivedSections } = derivePanelsFromItem(item, activeModule);
         setActivePanels(derivedPanels);
         setExpandedSections(derivedSections);
 
@@ -839,8 +1234,11 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
             )}
             <h2 className="text-xl md:text-2xl font-bold text-[var(--on-surface)] whitespace-nowrap">
               {showForm
-                ? (!creatingTypeSelected ? 'Añadir Nuevo Registro' : (activeModule === 'travel' ? 'Editor de Viaje' : activeModule === 'design_tokens' ? 'Editor de UI Kit' : 'Editor de Concepto'))
-                : (activeModule === 'travel' ? 'Gestión de Viajes' : activeModule === 'design_tokens' ? 'Gestión de UI Kit / Marca' : 'Panel de Control')}
+                ? (isEditing 
+                    ? (activeModule === 'travel' ? 'Editar Viaje' : activeModule === 'location' ? 'Editar Destino' : activeModule === 'departure' ? 'Editar Salida' : activeModule === 'terms' ? 'Editar Término / Condición' : activeModule === 'design_tokens' ? 'Editar UI Kit' : 'Editar Concepto')
+                    : (!creatingTypeSelected ? 'Añadir Nuevo Registro' : (activeModule === 'travel' ? 'Nuevo Viaje' : activeModule === 'location' ? 'Nuevo Destino' : activeModule === 'departure' ? 'Nueva Salida' : activeModule === 'terms' ? 'Nuevo Término / Condición' : activeModule === 'design_tokens' ? 'Nuevo UI Kit' : 'Nuevo Concepto'))
+                  )
+                : (activeModule === 'dashboard' ? 'Panel de Control' : activeModule === 'travel' ? 'Gestión de Viajes' : activeModule === 'design_tokens' ? 'Gestión de UI Kit / Marca' : activeModule === 'terms' ? 'Gestión de Conceptos / Glosario' : activeModule === 'products' ? 'Gestión de Productos' : activeModule === 'location' ? 'Gestión de Destinos' : activeModule === 'departure' ? 'Salidas Programadas' : 'Gestión de Contenidos')}
             </h2>
           </div>
 
@@ -918,8 +1316,27 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
             ) : (
               config.activeModules && config.activeModules.length > 1 && (
                 <div className="flex gap-1 p-0.5 rounded-lg w-fit bg-[var(--surface-container-high)]">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveModule('dashboard');
+                      setShowForm(false);
+                      setIsEditing(false);
+                    }}
+                    className={`tab-btn ${activeModule === 'dashboard' ? 'active' : ''}`}
+                    style={{
+                      background: activeModule === 'dashboard' ? 'var(--primary-container)' : 'transparent',
+                      color: activeModule === 'dashboard' ? 'var(--on-primary-container)' : 'var(--on-surface-variant)',
+                      padding: '4px 12px',
+                      borderRadius: '6px',
+                      fontSize: '0.8rem',
+                      fontWeight: '600'
+                    }}
+                  >
+                    📊 Dashboard
+                  </button>
                   {config.activeModules.map(modKey => {
-                    const label = modKey === 'design_tokens' ? '🎨 UI Kit' : (modKey === 'terms' ? '📚 Concepto' : modKey);
+                    const label = modKey === 'design_tokens' ? '🎨 UI Kit' : (modKey === 'terms' ? '📚 Concepto' : modKey === 'travel' ? '✈️ Viajes' : modKey === 'location' ? '📍 Destinos' : modKey === 'departure' ? '📅 Salidas' : modKey === 'products' ? '🛍️ Productos' : modKey);
                     const isActive = activeModule === modKey;
                     return (
                       <button
@@ -1007,6 +1424,22 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
                       formData={formData}
                       setFormData={setFormData}
                       locations={locations}
+                    />
+                  ) : activeModule === 'departure' ? (
+                    <DepartureFormEditor
+                      formData={formData}
+                      setFormData={setFormData}
+                      travels={travels}
+                    />
+                  ) : activeModule === 'location' ? (
+                    <LocationFormEditor
+                      formData={formData}
+                      setFormData={setFormData}
+                      locations={locations}
+                      activePanels={activePanels}
+                      expandedSections={expandedSections}
+                      toggleSection={toggleSection}
+                      isEditing={isEditing}
                     />
                   ) : activeModule === 'design_tokens' ? (
                     <DesignTokensFormEditor
@@ -1106,6 +1539,168 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
                   ) : (
                     <>
                       {/* Secciones Disponibles */}
+                      {activeModule === 'location' && (
+                        <div className="space-y-6">
+                          <div className="glass-panel p-6">
+                            <h3 className="font-headline-sm mb-2 text-[var(--on-surface)]">Añadir Secciones</h3>
+                            <p className="text-xs text-[var(--on-surface-variant)] mb-4">Haz clic en una sección para agregarla al formulario:</p>
+                            <div className="flex flex-col gap-2">
+                              {formData.type === 'region' ? (
+                                <>
+                                  {!activePanels.logistics && (
+                                    <span onClick={() => { setActivePanels(p => ({ ...p, logistics: true })); setExpandedSections(s => ({ ...s, logistics: true })); }} className="chip chip-neutral justify-between cursor-pointer hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]" style={{ display: 'flex', width: '100%', padding: '10px 14px' }}>
+                                      <span className="flex items-center gap-2">
+                                        <span className="material-symbols-outlined text-sm">local_shipping</span>
+                                        Guía Logística General
+                                      </span>
+                                      <span className="material-symbols-outlined text-sm">add</span>
+                                    </span>
+                                  )}
+                                  {!activePanels.routes && (
+                                    <span onClick={() => { setActivePanels(p => ({ ...p, routes: true })); setExpandedSections(s => ({ ...s, routes: true, itineraries: true })); }} className="chip chip-neutral justify-between cursor-pointer hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]" style={{ display: 'flex', width: '100%', padding: '10px 14px' }}>
+                                      <span className="flex items-center gap-2">
+                                        <span className="material-symbols-outlined text-sm">route</span>
+                                        Mapa e Itinerarios
+                                      </span>
+                                      <span className="material-symbols-outlined text-sm">add</span>
+                                    </span>
+                                  )}
+                                  {!activePanels.images && (
+                                    <span onClick={() => { setActivePanels(p => ({ ...p, images: true })); setExpandedSections(s => ({ ...s, images: true })); }} className="chip chip-neutral justify-between cursor-pointer hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]" style={{ display: 'flex', width: '100%', padding: '10px 14px' }}>
+                                      <span className="flex items-center gap-2">
+                                        <span className="material-symbols-outlined text-sm">photo_library</span>
+                                        Galería e Imágenes
+                                      </span>
+                                      <span className="material-symbols-outlined text-sm">add</span>
+                                    </span>
+                                  )}
+                                </>
+                              ) : (
+                                <>
+                                  {!activePanels.practicalData && (
+                                    <span onClick={() => { setActivePanels(p => ({ ...p, practicalData: true })); setExpandedSections(s => ({ ...s, practicalData: true })); }} className="chip chip-neutral justify-between cursor-pointer hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]" style={{ display: 'flex', width: '100%', padding: '10px 14px' }}>
+                                      <span className="flex items-center gap-2">
+                                        <span className="material-symbols-outlined text-sm">info</span>
+                                        Datos Prácticos de Visita
+                                      </span>
+                                      <span className="material-symbols-outlined text-sm">add</span>
+                                    </span>
+                                  )}
+                                  {!activePanels.mapPosition && (
+                                    <span onClick={() => { setActivePanels(p => ({ ...p, mapPosition: true })); setExpandedSections(s => ({ ...s, mapPosition: true })); }} className="chip chip-neutral justify-between cursor-pointer hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]" style={{ display: 'flex', width: '100%', padding: '10px 14px' }}>
+                                      <span className="flex items-center gap-2">
+                                        <span className="material-symbols-outlined text-sm">map</span>
+                                        Ubicación en el Mapa
+                                      </span>
+                                      <span className="material-symbols-outlined text-sm">add</span>
+                                    </span>
+                                  )}
+                                  {!activePanels.amenities && (
+                                    <span onClick={() => { setActivePanels(p => ({ ...p, amenities: true })); setExpandedSections(s => ({ ...s, amenities: true })); }} className="chip chip-neutral justify-between cursor-pointer hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]" style={{ display: 'flex', width: '100%', padding: '10px 14px' }}>
+                                      <span className="flex items-center gap-2">
+                                        <span className="material-symbols-outlined text-sm">room_service</span>
+                                        Servicios y Amenidades
+                                      </span>
+                                      <span className="material-symbols-outlined text-sm">add</span>
+                                    </span>
+                                  )}
+                                  {!activePanels.highlightsAndTips && (
+                                    <span onClick={() => { setActivePanels(p => ({ ...p, highlightsAndTips: true })); setExpandedSections(s => ({ ...s, highlightsAndTips: true })); }} className="chip chip-neutral justify-between cursor-pointer hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]" style={{ display: 'flex', width: '100%', padding: '10px 14px' }}>
+                                      <span className="flex items-center gap-2">
+                                        <span className="material-symbols-outlined text-sm">explore</span>
+                                        Contenido de la Experiencia
+                                      </span>
+                                      <span className="material-symbols-outlined text-sm">add</span>
+                                    </span>
+                                  )}
+                                  {!activePanels.images && (
+                                    <span onClick={() => { setActivePanels(p => ({ ...p, images: true })); setExpandedSections(s => ({ ...s, images: true })); }} className="chip chip-neutral justify-between cursor-pointer hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]" style={{ display: 'flex', width: '100%', padding: '10px 14px' }}>
+                                      <span className="flex items-center gap-2">
+                                        <span className="material-symbols-outlined text-sm">photo_library</span>
+                                        Galería e Imágenes
+                                      </span>
+                                      <span className="material-symbols-outlined text-sm">add</span>
+                                    </span>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Índice de Secciones */}
+                          <div className="glass-panel p-6 space-y-4">
+                            <h3 className="font-headline-sm text-[var(--on-surface)] flex items-center gap-2">
+                              <span className="material-symbols-outlined text-base text-[var(--primary)]">toc</span>
+                              Índice de Secciones
+                            </h3>
+                            <p className="text-[11px] text-[var(--on-surface-variant)] mb-2">Secciones activas en este formulario. Haz clic para desplazarte a ella:</p>
+                            <div className="flex flex-col gap-2.5">
+                              <a href="#sec-identity" className="flex items-center justify-between text-xs font-semibold text-[var(--primary)] hover:underline border-l-2 border-[var(--primary)] pl-2">
+                                <span>Identidad (Obligatorio)</span>
+                                <span className="material-symbols-outlined text-xs text-[var(--primary)]">check_circle</span>
+                              </a>
+
+                              {formData.type === 'region' ? (
+                                <>
+                                  {activePanels.logistics && (
+                                    <a href="#sec-logistics" className={`flex items-center justify-between text-xs font-semibold hover:underline pl-2 border-l-2 ${expandedSections.logistics ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--on-surface-variant)]'}`}>
+                                      <span>Guía Logística</span>
+                                      <span className="material-symbols-outlined text-xs">{expandedSections.logistics ? 'visibility' : 'visibility_off'}</span>
+                                    </a>
+                                  )}
+                                  {activePanels.routes && (
+                                    <>
+                                      <a href="#sec-routes" className={`flex items-center justify-between text-xs font-semibold hover:underline pl-2 border-l-2 ${expandedSections.routes ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--on-surface-variant)]'}`}>
+                                        <span>Mapa de la Región</span>
+                                        <span className="material-symbols-outlined text-xs">{expandedSections.routes ? 'visibility' : 'visibility_off'}</span>
+                                      </a>
+                                      <a href="#sec-itineraries" className={`flex items-center justify-between text-xs font-semibold hover:underline pl-2 border-l-2 ${expandedSections.itineraries !== false ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--on-surface-variant)]'}`}>
+                                        <span>Itinerarios Sugeridos</span>
+                                        <span className="material-symbols-outlined text-xs">{expandedSections.itineraries !== false ? 'visibility' : 'visibility_off'}</span>
+                                      </a>
+                                    </>
+                                  )}
+                                </>
+                              ) : (
+                                <>
+                                  {activePanels.practicalData && (
+                                    <a href="#sec-practicalData" className={`flex items-center justify-between text-xs font-semibold hover:underline pl-2 border-l-2 ${expandedSections.practicalData ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--on-surface-variant)]'}`}>
+                                      <span>Datos Prácticos</span>
+                                      <span className="material-symbols-outlined text-xs">{expandedSections.practicalData ? 'visibility' : 'visibility_off'}</span>
+                                    </a>
+                                  )}
+                                  {activePanels.mapPosition && (
+                                    <a href="#sec-mapPosition" className={`flex items-center justify-between text-xs font-semibold hover:underline pl-2 border-l-2 ${expandedSections.mapPosition ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--on-surface-variant)]'}`}>
+                                      <span>Ubicación en Mapa</span>
+                                      <span className="material-symbols-outlined text-xs">{expandedSections.mapPosition ? 'visibility' : 'visibility_off'}</span>
+                                    </a>
+                                  )}
+                                  {activePanels.amenities && (
+                                    <a href="#sec-amenities" className={`flex items-center justify-between text-xs font-semibold hover:underline pl-2 border-l-2 ${expandedSections.amenities ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--on-surface-variant)]'}`}>
+                                      <span>Servicios y Amenidades</span>
+                                      <span className="material-symbols-outlined text-xs">{expandedSections.amenities ? 'visibility' : 'visibility_off'}</span>
+                                    </a>
+                                  )}
+                                  {activePanels.highlightsAndTips && (
+                                    <a href="#sec-highlightsAndTips" className={`flex items-center justify-between text-xs font-semibold hover:underline pl-2 border-l-2 ${expandedSections.highlightsAndTips ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--on-surface-variant)]'}`}>
+                                      <span>Contenido Experiencia</span>
+                                      <span className="material-symbols-outlined text-xs">{expandedSections.highlightsAndTips ? 'visibility' : 'visibility_off'}</span>
+                                    </a>
+                                  )}
+                                </>
+                              )}
+
+                              {activePanels.images && (
+                                <a href="#sec-images" className={`flex items-center justify-between text-xs font-semibold hover:underline pl-2 border-l-2 ${expandedSections.images ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--on-surface-variant)]'}`}>
+                                  <span>Galería e Imágenes</span>
+                                  <span className="material-symbols-outlined text-xs">{expandedSections.images ? 'visibility' : 'visibility_off'}</span>
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       {activeModule === 'terms' && Object.values(activePanels).includes(false) && (
                         <div className="glass-panel p-6">
                           <h3 className="font-headline-sm mb-2 text-[var(--on-surface)]">Añadir Secciones</h3>
@@ -1158,7 +1753,7 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
                       )}
 
                       {/* Associated Tools */}
-                      {activeModule !== 'travel' && (
+                      {activeModule !== 'travel' && activeModule !== 'location' && (
                         <div className="glass-panel p-6">
                           <h3 className="font-headline-sm mb-4 text-[var(--on-surface)]">Herramientas Asociadas</h3>
                           <div className="flex flex-wrap gap-2 mb-4">
@@ -1233,6 +1828,17 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
               </div>
             </div>
           )
+        ) : activeModule === 'dashboard' ? (
+          <DashboardView
+            config={config}
+            stats={dashboardStats}
+            loading={loadingStats}
+            setActiveModule={setActiveModule}
+            setShowForm={setShowForm}
+            setCreatingTypeSelected={setCreatingTypeSelected}
+            setIsEditing={setIsEditing}
+            setSelectedId={setSelectedId}
+          />
         ) : (
           <ItemsTable
             items={items}
@@ -1255,6 +1861,7 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
             setActivePanels={setActivePanels}
             setCreatingTypeSelected={setCreatingTypeSelected}
             setShowForm={setShowForm}
+            travels={travels}
           />
         )}
       </div>

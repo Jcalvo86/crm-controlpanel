@@ -26,8 +26,8 @@
   const THEME_KEY = `glosaurio_theme${projectSuffix}`;
   const CACHED_DB_KEY = `glosaurio_cached_db_config${projectSuffix}`;
 
-  // Inicialización inmediata de tema para evitar flashes blancos
-  const isDark = localStorage.getItem(THEME_KEY) !== 'light';
+  // Inicialización inmediata de tema para evitar flashes (por defecto light)
+  const isDark = localStorage.getItem(THEME_KEY) === 'dark';
   document.documentElement.classList.toggle('dark', isDark);
 
   const Config = {

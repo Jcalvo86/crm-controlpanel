@@ -8,6 +8,8 @@ import { normalizeTaxonomies } from './formDefaults.js';
  */
 export const buildTravelPayload = (formData, isDraft) => ({
   title: formData.title,
+  description: formData.description || '',
+  subtitle: formData.subtitle || '',
   agency: formData.agency || 'Sueño Travel Chile',
   duration_days: parseInt(formData.durationDays) || 0,
   duration_nights: parseInt(formData.durationNights) || 0,
@@ -98,3 +100,75 @@ export const buildTermsPayload = (formData, taxonomiesConfig, isDraft) => {
       : formData.promptVars
   };
 };
+
+/**
+ * Builds the payload object for the 'location' module.
+ * @param {Object} formData
+ * @param {boolean} isDraft
+ * @returns {Object}
+ */
+export const buildLocationPayload = (formData, isDraft) => {
+  const splitLines = (val) =>
+    typeof val === 'string' ? val.split('\n').map(x => x.trim()).filter(Boolean) : val;
+    
+  const splitComma = (val) =>
+    typeof val === 'string' ? val.split(',').map(x => x.trim()).filter(Boolean) : val;
+
+  return {
+    name: formData.name,
+    type: formData.type || 'location',
+    subtitle: formData.subtitle || '',
+    travel_styles: splitComma(formData.travelStyles || []),
+    guide_best_season: formData.guideBestSeason || '',
+    guide_how_to_get_around: formData.guideHowToGetAround || '',
+    guide_recommended_duration: formData.guideRecommendedDuration || '',
+    map_url: formData.mapUrl || '',
+    image_url: formData.imageUrl || '',
+    suggested_itineraries: formData.suggestedItineraries || [],
+    location_type: formData.locationType || '',
+    parent_region_id: formData.parentRegionId || null,
+    parent_city_id: formData.parentCityId || null,
+    map_pos_x: formData.mapPosX !== undefined && formData.mapPosX !== '' ? parseFloat(formData.mapPosX) : null,
+    map_pos_y: formData.mapPosY !== undefined && formData.mapPosY !== '' ? parseFloat(formData.mapPosY) : null,
+    address: formData.address || '',
+    city: formData.city || '',
+    country: formData.country || '',
+    geolocation_url: formData.geolocationUrl || '',
+    opening_hours: formData.openingHours || '',
+    pricing: formData.pricing || '',
+    ticket_url: formData.ticketUrl || '',
+    estimated_visit_time: formData.estimatedVisitTime || '',
+    amenities: {
+      parking: false,
+      accessibility: false,
+      restrooms: false,
+      petFriendly: false,
+      kidsFriendly: false,
+      ...(formData.amenities || {}),
+      mapIcon: formData.mapIcon || ''
+    },
+    description: formData.description || '',
+    highlights: splitLines(formData.highlights || []),
+    traveler_tips: formData.travelerTips || '',
+    nearby_locations: splitLines(formData.nearbyLocations || []),
+    is_draft: isDraft
+  };
+};
+
+/**
+ * Builds the payload object for the 'departure' module.
+ * @param {Object} formData
+ * @param {boolean} isDraft
+ * @returns {Object}
+ */
+export const buildDeparturePayload = (formData, isDraft) => ({
+  travel_id: formData.travelId,
+  departure_date: formData.departureDate,
+  end_date: formData.endDate || null,
+  capacity: parseInt(formData.capacity) || 0,
+  passengers_count: parseInt(formData.passengersCount) || 0,
+  price_override: formData.priceOverride ? parseFloat(formData.priceOverride) : null,
+  status: formData.status || 'open',
+  is_draft: isDraft
+});
+
