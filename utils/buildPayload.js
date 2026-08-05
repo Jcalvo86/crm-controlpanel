@@ -8,6 +8,8 @@ import { normalizeTaxonomies } from './formDefaults.js';
  */
 export const buildTravelPayload = (formData, isDraft) => ({
   title: formData.title,
+  description: formData.description || '',
+  subtitle: formData.subtitle || '',
   agency: formData.agency || 'Sueño Travel Chile',
   duration_days: parseInt(formData.durationDays) || 0,
   duration_nights: parseInt(formData.durationNights) || 0,
@@ -121,6 +123,7 @@ export const buildLocationPayload = (formData, isDraft) => {
     guide_how_to_get_around: formData.guideHowToGetAround || '',
     guide_recommended_duration: formData.guideRecommendedDuration || '',
     map_url: formData.mapUrl || '',
+    image_url: formData.imageUrl || '',
     suggested_itineraries: formData.suggestedItineraries || [],
     location_type: formData.locationType || '',
     parent_region_id: formData.parentRegionId || null,
@@ -135,12 +138,14 @@ export const buildLocationPayload = (formData, isDraft) => {
     pricing: formData.pricing || '',
     ticket_url: formData.ticketUrl || '',
     estimated_visit_time: formData.estimatedVisitTime || '',
-    amenities: formData.amenities || {
+    amenities: {
       parking: false,
       accessibility: false,
       restrooms: false,
       petFriendly: false,
-      kidsFriendly: false
+      kidsFriendly: false,
+      ...(formData.amenities || {}),
+      mapIcon: formData.mapIcon || ''
     },
     description: formData.description || '',
     highlights: splitLines(formData.highlights || []),

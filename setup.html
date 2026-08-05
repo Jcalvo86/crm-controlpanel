@@ -762,6 +762,8 @@ CREATE POLICY "anon_all_design_tokens" ON public.design_tokens FOR ALL USING (tr
   travel: `CREATE TABLE IF NOT EXISTS public.cms_travels (
   id                     uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   title                  text NOT NULL,
+  description            text DEFAULT '',
+  subtitle               text DEFAULT '',
   agency                 text DEFAULT 'Sueño Travel Chile',
   duration_days          integer DEFAULT 1,
   duration_nights        integer DEFAULT 0,
@@ -794,6 +796,7 @@ CREATE POLICY "anon_all_travels" ON public.cms_travels FOR ALL USING (true) WITH
   guide_how_to_get_around    text DEFAULT '',
   guide_recommended_duration text DEFAULT '',
   map_url                    text DEFAULT '',
+  image_url                  text DEFAULT '',
   suggested_itineraries      jsonb DEFAULT '[]',
   location_type              text DEFAULT '',
   parent_region_id           uuid,

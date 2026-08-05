@@ -62,6 +62,7 @@ export const createEmptyFormData = (workAreas = [], contentTypes = []) => ({
   guideHowToGetAround: '',
   guideRecommendedDuration: '',
   mapUrl: '',
+  imageUrl: '',
   suggestedItineraries: [],
   locationType: '',
   parentRegionId: '',
@@ -123,6 +124,7 @@ export const derivePanelsFromItem = (item, activeModule) => {
     // Region optional panels
     const hasLogistics = !!(item.guideBestSeason || item.guideHowToGetAround || item.guideRecommendedDuration);
     const hasRoutes = !!(item.mapUrl || (item.suggestedItineraries && item.suggestedItineraries.length > 0));
+    const hasImages = !!(item.imageUrl || item.image_url);
     
     // Location optional panels
     const hasPracticalData = !!(item.address || item.city || item.country || item.geolocationUrl || item.openingHours || item.pricing || item.ticketUrl || item.estimatedVisitTime);
@@ -141,7 +143,8 @@ export const derivePanelsFromItem = (item, activeModule) => {
       practicalData: hasPracticalData,
       amenities: hasAmenities,
       highlightsAndTips: hasHighlightsAndTips,
-      mapPosition: hasMapPosition
+      mapPosition: hasMapPosition,
+      images: hasImages
     };
 
     const expandedSections = {
@@ -151,7 +154,8 @@ export const derivePanelsFromItem = (item, activeModule) => {
       practicalData: hasPracticalData,
       amenities: hasAmenities,
       highlightsAndTips: hasHighlightsAndTips,
-      mapPosition: hasMapPosition
+      mapPosition: hasMapPosition,
+      images: hasImages
     };
 
     return { activePanels, expandedSections };

@@ -400,7 +400,7 @@ export default function LocationFormEditor({
             </section>
           )}
 
-          {/* Organización de Contenido / Rutas */}
+          {/* Organización de Contenido / Mapa */}
           {activePanels.routes && (
             <section id="sec-routes" className="glass-panel">
               <div 
@@ -408,8 +408,8 @@ export default function LocationFormEditor({
                 className="p-6 flex items-center justify-between cursor-pointer border-b border-[var(--outline-variant)]"
               >
                 <h3 className="font-headline-sm flex items-center gap-2" style={{ color: 'var(--on-surface)' }}>
-                  <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>route</span>
-                  Organización del Contenido y Rutas
+                  <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>map</span>
+                  Mapa de la Región
                 </h3>
                 <span className="material-symbols-outlined transition-transform duration-200" style={{ transform: expandedSections.routes ? 'rotate(180deg)' : 'rotate(0deg)' }}>
                   expand_more
@@ -442,12 +442,50 @@ export default function LocationFormEditor({
                         {isUploading && uploadingField === 'mapUrl' ? 'Subiendo...' : 'Subir Mapa'}
                       </button>
                     </div>
-                  </div>
 
-                  {/* Itinerarios Sugeridos */}
+                    {/* Previsualización del mapa si existe */}
+                    {formData.mapUrl && (
+                      <div className="mt-3 relative overflow-hidden rounded-xl border border-[var(--outline-variant)] shadow-sm bg-[var(--surface-container-low)] max-w-md">
+                        <img 
+                          src={formData.mapUrl} 
+                          alt="Vista previa del mapa" 
+                          className="w-full h-auto max-h-60 object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleChange('mapUrl', '')}
+                          className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white rounded-full p-1.5 transition-colors"
+                          title="Eliminar mapa"
+                        >
+                          <span className="material-symbols-outlined text-sm block">close</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* Itinerarios Sugeridos */}
+          {activePanels.routes && (
+            <section id="sec-itineraries" className="glass-panel">
+              <div 
+                onClick={() => toggleSection('itineraries')}
+                className="p-6 flex items-center justify-between cursor-pointer border-b border-[var(--outline-variant)]"
+              >
+                <h3 className="font-headline-sm flex items-center gap-2" style={{ color: 'var(--on-surface)' }}>
+                  <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>route</span>
+                  Itinerarios Sugeridos
+                </h3>
+                <span className="material-symbols-outlined transition-transform duration-200" style={{ transform: expandedSections.itineraries !== false ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                  expand_more
+                </span>
+              </div>
+
+              <div className="transition-all duration-300 overflow-hidden" style={{ display: expandedSections.itineraries !== false ? 'block' : 'none' }}>
+                <div className="p-8 space-y-6">
                   <div className="space-y-4">
-                    <h4 className="font-title-md border-b border-[var(--outline-variant)] pb-2" style={{ color: 'var(--on-surface)' }}>Itinerarios Sugeridos</h4>
-                    
                     {(formData.suggestedItineraries || []).map((it, idx) => (
                       <div key={idx} className="relative bg-[var(--surface-container-low)] p-6 rounded-xl border border-[var(--outline-variant)] space-y-4">
                         {/* Botón flotante eliminar */}
@@ -555,7 +593,7 @@ export default function LocationFormEditor({
                         />
                         {formData.mapPosX !== undefined && formData.mapPosY !== undefined && formData.mapPosX !== '' && formData.mapPosY !== '' && (
                           <div 
-                            className="absolute flex items-center justify-center -translate-x-1/2 -translate-y-1/2 select-none animate-bounce"
+                            className="absolute flex items-center justify-center -translate-x-1/2 -translate-y-1/2 select-none"
                             style={{
                               left: `${formData.mapPosX}%`,
                               top: `${formData.mapPosY}%`,
@@ -564,9 +602,17 @@ export default function LocationFormEditor({
                               pointerEvents: 'none'
                             }}
                           >
-                            <span className="material-symbols-outlined text-[var(--error)] text-3xl" style={{ filter: 'drop-shadow(0px 2px 4px rgba(0,0,0,0.4))' }}>
-                              pin_drop
-                            </span>
+                            {formData.mapIcon ? (
+                              <img 
+                                src={formData.mapIcon} 
+                                alt="Marcador" 
+                                style={{ width: '32px', height: '32px', objectFit: 'contain', filter: 'drop-shadow(0px 2px 4px rgba(0,0,0,0.5))' }}
+                              />
+                            ) : (
+                              <span className="material-symbols-outlined text-[var(--error)] text-3xl" style={{ filter: 'drop-shadow(0px 2px 4px rgba(0,0,0,0.4))' }}>
+                                pin_drop
+                              </span>
+                            )}
                           </div>
                         )}
                       </div>
@@ -597,6 +643,73 @@ export default function LocationFormEditor({
                           />
                           <span className="text-xs">%</span>
                         </div>
+                      </div>
+
+                      {/* Biblioteca y Selección de Icono de Mapa */}
+                      <div className="mt-4 p-4 rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)] space-y-3">
+                        <label className="font-label-md block" style={{ color: 'var(--on-surface-variant)' }}>Icono del Marcador en el Mapa</label>
+                        
+                        {/* Grid de Preselección */}
+                        <div className="flex flex-wrap gap-2.5 items-center">
+                          {[
+                            { name: 'Pin Estándar', url: '' },
+                            { name: 'Destino', url: '/Imagenes_suenotravel/destination.svg' },
+                            { name: 'Descubrir', url: '/Imagenes_suenotravel/discover.svg' },
+                            { name: 'Mundo', url: '/Imagenes_suenotravel/world.svg' },
+                            { name: 'Reserva', url: '/Imagenes_suenotravel/booking.svg' },
+                          ].map((iconItem, i) => {
+                            const isSelected = (!iconItem.url && !formData.mapIcon) || (formData.mapIcon === iconItem.url);
+                            return (
+                              <button
+                                key={i}
+                                type="button"
+                                onClick={() => handleChange('mapIcon', iconItem.url)}
+                                className={`p-2 rounded-lg border flex items-center justify-center gap-1.5 transition-all text-xs font-semibold ${
+                                  isSelected 
+                                    ? 'bg-[var(--primary-container)] border-[var(--primary)] text-[var(--on-primary-container)] shadow-sm' 
+                                    : 'bg-[var(--surface)] border-[var(--outline-variant)] text-[var(--on-surface-variant)] hover:border-[var(--outline)]'
+                                }`}
+                              >
+                                {iconItem.url ? (
+                                  <img src={iconItem.url} alt={iconItem.name} className="w-5 h-5 object-contain" />
+                                ) : (
+                                  <span className="material-symbols-outlined text-sm text-[var(--error)]">pin_drop</span>
+                                )}
+                                {iconItem.name}
+                              </button>
+                            );
+                          })}
+
+                          {/* Botón de carga de icono personalizado */}
+                          <button
+                            type="button"
+                            onClick={() => triggerUpload('mapIcon')}
+                            disabled={isUploading}
+                            className="btn-secondary text-xs flex items-center gap-1.5"
+                            style={{ height: '36px', padding: '0 12px' }}
+                          >
+                            <span className={`material-symbols-outlined text-xs ${isUploading && uploadingField === 'mapIcon' ? 'animate-spin' : ''}`}>
+                              {isUploading && uploadingField === 'mapIcon' ? 'sync' : 'upload'}
+                            </span>
+                            {isUploading && uploadingField === 'mapIcon' ? 'Subiendo...' : 'Subir PNG / SVG'}
+                          </button>
+                        </div>
+
+                        {/* Campo de texto / Preview si es personalizado */}
+                        {formData.mapIcon && !['/Imagenes_suenotravel/destination.svg', '/Imagenes_suenotravel/discover.svg', '/Imagenes_suenotravel/world.svg', '/Imagenes_suenotravel/booking.svg'].includes(formData.mapIcon) && (
+                          <div className="flex items-center gap-2 text-xs text-[var(--on-surface-variant)] pt-2 border-t border-[var(--outline-variant)]">
+                            <span className="font-semibold">Icono Personalizado Activo:</span>
+                            <img src={formData.mapIcon} alt="Custom Pin" className="w-6 h-6 object-contain" />
+                            <code className="bg-[var(--surface-container-highest)] px-2 py-0.5 rounded text-[10px] truncate max-w-xs">{formData.mapIcon}</code>
+                            <button
+                              type="button"
+                              onClick={() => handleChange('mapIcon', '')}
+                              className="text-[var(--error)] hover:underline ml-auto font-semibold"
+                            >
+                              Restablecer
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </>
                   )}
@@ -871,6 +984,73 @@ export default function LocationFormEditor({
                       <span className="material-symbols-outlined text-xs">add</span>
                       Añadir Lugar Cercano
                     </button>
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* Galería e Imágenes */}
+          {activePanels.images && (
+            <section id="sec-images" className="glass-panel">
+              <div 
+                onClick={() => toggleSection('images')}
+                className="p-6 flex items-center justify-between cursor-pointer border-b border-[var(--outline-variant)]"
+              >
+                <h3 className="font-headline-sm flex items-center gap-2" style={{ color: 'var(--on-surface)' }}>
+                  <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>photo_library</span>
+                  Galería e Imágenes
+                </h3>
+                <span className="material-symbols-outlined transition-transform duration-200" style={{ transform: expandedSections.images ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                  expand_more
+                </span>
+              </div>
+
+              <div className="transition-all duration-300 overflow-hidden" style={{ display: expandedSections.images ? 'block' : 'none' }}>
+                <div className="p-8 space-y-6">
+                  {/* Imagen Destacada Principal */}
+                  <div className="flex flex-col gap-2">
+                    <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Imagen Destacada Principal (Cover / Miniatura)</label>
+                    <div className="flex gap-3">
+                      <input
+                        type="text"
+                        value={formData.imageUrl || ''}
+                        onChange={(e) => handleChange('imageUrl', e.target.value)}
+                        placeholder="https://ejemplo.com/portada.jpg"
+                        className="form-input flex-1"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => triggerUpload('imageUrl')}
+                        disabled={isUploading}
+                        className="btn-secondary flex items-center gap-1.5 shrink-0"
+                        style={{ height: '48px', padding: '0 16px' }}
+                      >
+                        <span className={`material-symbols-outlined text-sm ${isUploading && uploadingField === 'imageUrl' ? 'animate-spin' : ''}`}>
+                          {isUploading && uploadingField === 'imageUrl' ? 'sync' : 'upload'}
+                        </span>
+                        {isUploading && uploadingField === 'imageUrl' ? 'Subiendo...' : 'Subir Imagen'}
+                      </button>
+                    </div>
+
+                    {/* Previsualización */}
+                    {formData.imageUrl && (
+                      <div className="mt-3 relative overflow-hidden rounded-xl border border-[var(--outline-variant)] shadow-sm bg-[var(--surface-container-low)] max-w-md">
+                        <img 
+                          src={formData.imageUrl} 
+                          alt="Imagen destacada" 
+                          className="w-full h-auto max-h-60 object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleChange('imageUrl', '')}
+                          className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white rounded-full p-1.5 transition-colors"
+                          title="Eliminar imagen"
+                        >
+                          <span className="material-symbols-outlined text-sm block">close</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

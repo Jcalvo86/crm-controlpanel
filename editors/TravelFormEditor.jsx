@@ -2,6 +2,14 @@ import React, { useState, useEffect } from 'react';
 import HoldToConfirmButton from '../components/HoldToConfirmButton.jsx';
 import { uploadFile } from '../utils/upload.js';
 
+const formatOptionLabel = (loc) => {
+  if (!loc) return '';
+  const parts = [];
+  if (loc.city) parts.push(loc.city);
+  if (loc.country) parts.push(loc.country);
+  return parts.length > 0 ? `${loc.name} (${parts.join(', ')})` : loc.name;
+};
+
 export default function TravelFormEditor({ formData, setFormData, locations = [] }) {
   // Estado para mantener la lista de días colapsados
   const [collapsedDays, setCollapsedDays] = useState({});
@@ -63,10 +71,16 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
   // ── ITINERARIO MANAGEMENT ──────────────────────────────────────────
   const itinerary = formData.itinerary || [];
 
-  const handleItineraryChange = (idx, field, val) => {
-    const nextIt = [...itinerary];
-    nextIt[idx] = { ...nextIt[idx], [field]: val };
-    setFormData({ ...formData, itinerary: nextIt });
+  const handleItineraryChange = (idx, fieldOrObject, val) => {
+    setFormData(prev => {
+      const nextIt = [...(prev.itinerary || [])];
+      if (typeof fieldOrObject === 'object' && fieldOrObject !== null) {
+        nextIt[idx] = { ...nextIt[idx], ...fieldOrObject };
+      } else {
+        nextIt[idx] = { ...nextIt[idx], [fieldOrObject]: val };
+      }
+      return { ...prev, itinerary: nextIt };
+    });
   };
 
   const addItineraryDay = () => {
@@ -430,7 +444,7 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
           <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>flight_takeoff</span>
           Detalles del Plan de Viaje
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div className="flex flex-col gap-2">
             <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Título del Viaje *</label>
             <input
@@ -450,6 +464,26 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
               value={formData.agency || ''}
               onChange={(e) => setFormData({ ...formData, agency: e.target.value })}
               placeholder="Ej: Sueño Travel Chile"
+              className="form-input"
+            />
+          </div>
+          <div className="md:col-span-2 flex flex-col gap-2">
+            <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Texto de Introducción / Copete (Flavor Text)</label>
+            <input
+              type="text"
+              value={formData.subtitle || ''}
+              onChange={(e) => setFormData({ ...formData, subtitle: e.target.value })}
+              placeholder="Ej: Un recorrido exclusivo de lujo por el Nilo y las costas doradas del Bósforo."
+              className="form-input"
+            />
+          </div>
+          <div className="md:col-span-2 flex flex-col gap-2">
+            <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Descripción General del Viaje (Overview)</label>
+            <textarea
+              value={formData.description || ''}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              rows={4}
+              placeholder="Escribe una introducción detallada que se mostrará como el resumen o 'overview' del viaje en la web..."
               className="form-input"
             />
           </div>
@@ -635,11 +669,8 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
             return (
               <div key={idx} className="pt-6 first:pt-0 space-y-4 max-w-full overflow-hidden">
                 {/* Cabecera del día colapsable sin borde */}
-                <div className="flex justify-between items-center bg-[var(--surface-container-low)] p-3 rounded-lg border-none">
-                  <div
-                    onClick={() => toggleDayCollapse(idx)}
-                    className="flex items-center gap-2 cursor-pointer select-none flex-grow"
-                  >
+                <div className="flex justify-between items-center bg-[var(--surface-container-low)] p-3 rounded-lg border-none cursor-pointer" onClick={() => toggleDayCollapse(idx)}>
+                  <div className="flex items-center gap-2 select-none flex-grow">
                     <span className="material-symbols-outlined text-[var(--primary)] text-md transition-transform" style={{ transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0)' }}>
                       expand_more
                     </span>
@@ -648,15 +679,6 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
                       {day.customLocationName || (locations.find(l => l.id === day.locationId)?.name || 'Sin ubicación seleccionada')}
                     </span>
                   </div>
-                  
-                  <HoldToConfirmButton
-                    onConfirm={() => removeItineraryDay(idx)}
-                    className="btn-icon text-[var(--error)]"
-                    title="Mantén presionado 2s para eliminar el día"
-                    duration={2000}
-                  >
-                    <span className="material-symbols-outlined text-sm">delete</span>
-                  </HoldToConfirmButton>
                 </div>
 
                 {/* Contenedor animado */}
@@ -678,16 +700,14 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
                           <input
                             type="text"
                             list={`location-options-${idx}`}
-                            value={day.customLocationName || (locations.find(l => l.id === day.locationId)?.name || '')}
+                            value={day.customLocationName || (locations.find(l => l.id === day.locationId) ? formatOptionLabel(locations.find(l => l.id === day.locationId)) : '')}
                             onChange={(e) => {
                               const val = e.target.value;
-                              const matchedLoc = locations.find(l => `${l.name} (${l.city}, ${l.country})` === val || l.name === val);
+                              const matchedLoc = locations.find(l => formatOptionLabel(l) === val || l.name === val);
                               if (matchedLoc) {
-                                handleItineraryChange(idx, 'locationId', matchedLoc.id);
-                                handleItineraryChange(idx, 'customLocationName', '');
+                                handleItineraryChange(idx, { locationId: matchedLoc.id, customLocationName: '' });
                               } else {
-                                handleItineraryChange(idx, 'locationId', 'custom');
-                                handleItineraryChange(idx, 'customLocationName', val);
+                                handleItineraryChange(idx, { locationId: 'custom', customLocationName: val });
                               }
                             }}
                             placeholder="Escribe o haz doble clic para ver ubicaciones..."
@@ -695,7 +715,7 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
                           />
                           <datalist id={`location-options-${idx}`}>
                             {locations.map(loc => (
-                              <option key={loc.id} value={`${loc.name} (${loc.city}, ${loc.country})`} />
+                              <option key={loc.id} value={formatOptionLabel(loc)} />
                             ))}
                           </datalist>
                         </div>
@@ -853,7 +873,7 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
                             <p className="text-xs text-[var(--on-surface-variant)] italic">No hay actividades configuradas para este día.</p>
                           )}
 
-                          <div className="flex justify-end pt-2">
+                          <div className="flex justify-between items-center pt-4 border-t border-[var(--outline-variant)]">
                             <button
                               type="button"
                               onClick={() => addDayActivity(idx)}
@@ -861,6 +881,16 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
                             >
                               <span className="material-symbols-outlined text-xs">add</span> Añadir Actividad
                             </button>
+
+                            <HoldToConfirmButton
+                              onConfirm={() => removeItineraryDay(idx)}
+                              className="btn-text text-[var(--error)] flex items-center gap-1.5 text-xs font-bold"
+                              title="Mantén presionado 2s para eliminar este día completo"
+                              duration={2000}
+                            >
+                              <span className="material-symbols-outlined text-sm">delete</span>
+                              Eliminar Día {day.dayNumber}
+                            </HoldToConfirmButton>
                           </div>
                         </div>
                       </div>

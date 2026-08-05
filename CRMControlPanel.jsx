@@ -395,12 +395,14 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
             guideHowToGetAround: item.guide_how_to_get_around || item.guideHowToGetAround || '',
             guideRecommendedDuration: item.guide_recommended_duration || item.guideRecommendedDuration || '',
             mapUrl: item.map_url || item.mapUrl || '',
+            imageUrl: item.image_url || item.imageUrl || '',
             suggestedItineraries: Array.isArray(item.suggested_itineraries) ? item.suggested_itineraries : (Array.isArray(item.suggestedItineraries) ? item.suggestedItineraries : []),
             locationType: item.location_type || item.locationType || '',
             parentRegionId: item.parent_region_id || item.parentRegionId || '',
             parentCityId: item.parent_city_id || item.parentCityId || '',
             mapPosX: item.map_pos_x !== undefined ? item.map_pos_x : (item.mapPosX !== undefined ? item.mapPosX : ''),
             mapPosY: item.map_pos_y !== undefined ? item.map_pos_y : (item.mapPosY !== undefined ? item.mapPosY : ''),
+            mapIcon: (typeof item.amenities === 'object' && item.amenities !== null && item.amenities.mapIcon) || '',
             address: item.address || '',
             city: item.city || '',
             country: item.country || '',
@@ -427,7 +429,8 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
           id: item.id,
           title: item.title,
           category: item.category,
-          description: item.description,
+          description: item.description || '',
+          subtitle: item.subtitle || '',
           url: item.url || '',
           video_url: item.video_url || '',
           tools: Array.isArray(item.tools) ? item.tools : [],
@@ -578,6 +581,8 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
     if (activeModule === 'travel') {
       setFormData({
         title: item.title || '',
+        description: item.description || '',
+        subtitle: item.subtitle || '',
         agency: item.agency || 'Sueño Travel Chile',
         durationDays: item.durationDays || 1,
         durationNights: item.durationNights || 0,
@@ -625,10 +630,14 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
         guideHowToGetAround: item.guideHowToGetAround || '',
         guideRecommendedDuration: item.guideRecommendedDuration || '',
         mapUrl: item.mapUrl || '',
+        imageUrl: item.imageUrl || '',
         suggestedItineraries: item.suggestedItineraries || [],
         locationType: item.locationType || '',
         parentRegionId: item.parentRegionId || '',
         parentCityId: item.parentCityId || '',
+        mapPosX: item.mapPosX !== undefined ? item.mapPosX : '',
+        mapPosY: item.mapPosY !== undefined ? item.mapPosY : '',
+        mapIcon: item.mapIcon || '',
         address: item.address || '',
         city: item.city || '',
         country: item.country || '',
@@ -1531,71 +1540,163 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
                     <>
                       {/* Secciones Disponibles */}
                       {activeModule === 'location' && (
-                        <div className="glass-panel p-6">
-                          <h3 className="font-headline-sm mb-2 text-[var(--on-surface)]">Añadir Secciones</h3>
-                          <p className="text-xs text-[var(--on-surface-variant)] mb-4">Haz clic en una sección para agregarla al formulario:</p>
-                          <div className="flex flex-col gap-2">
-                            {formData.type === 'region' ? (
-                              <>
-                                {!activePanels.logistics && (
-                                  <span onClick={() => { setActivePanels(p => ({ ...p, logistics: true })); setExpandedSections(s => ({ ...s, logistics: true })); }} className="chip chip-neutral justify-between cursor-pointer hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]" style={{ display: 'flex', width: '100%', padding: '10px 14px' }}>
-                                    <span className="flex items-center gap-2">
-                                      <span className="material-symbols-outlined text-sm">local_shipping</span>
-                                      Guía Logística General
+                        <div className="space-y-6">
+                          <div className="glass-panel p-6">
+                            <h3 className="font-headline-sm mb-2 text-[var(--on-surface)]">Añadir Secciones</h3>
+                            <p className="text-xs text-[var(--on-surface-variant)] mb-4">Haz clic en una sección para agregarla al formulario:</p>
+                            <div className="flex flex-col gap-2">
+                              {formData.type === 'region' ? (
+                                <>
+                                  {!activePanels.logistics && (
+                                    <span onClick={() => { setActivePanels(p => ({ ...p, logistics: true })); setExpandedSections(s => ({ ...s, logistics: true })); }} className="chip chip-neutral justify-between cursor-pointer hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]" style={{ display: 'flex', width: '100%', padding: '10px 14px' }}>
+                                      <span className="flex items-center gap-2">
+                                        <span className="material-symbols-outlined text-sm">local_shipping</span>
+                                        Guía Logística General
+                                      </span>
+                                      <span className="material-symbols-outlined text-sm">add</span>
                                     </span>
-                                    <span className="material-symbols-outlined text-sm">add</span>
-                                  </span>
-                                )}
-                                {!activePanels.routes && (
-                                  <span onClick={() => { setActivePanels(p => ({ ...p, routes: true })); setExpandedSections(s => ({ ...s, routes: true })); }} className="chip chip-neutral justify-between cursor-pointer hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]" style={{ display: 'flex', width: '100%', padding: '10px 14px' }}>
-                                    <span className="flex items-center gap-2">
-                                      <span className="material-symbols-outlined text-sm">route</span>
-                                      Contenido y Rutas
+                                  )}
+                                  {!activePanels.routes && (
+                                    <span onClick={() => { setActivePanels(p => ({ ...p, routes: true })); setExpandedSections(s => ({ ...s, routes: true, itineraries: true })); }} className="chip chip-neutral justify-between cursor-pointer hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]" style={{ display: 'flex', width: '100%', padding: '10px 14px' }}>
+                                      <span className="flex items-center gap-2">
+                                        <span className="material-symbols-outlined text-sm">route</span>
+                                        Mapa e Itinerarios
+                                      </span>
+                                      <span className="material-symbols-outlined text-sm">add</span>
                                     </span>
-                                    <span className="material-symbols-outlined text-sm">add</span>
-                                  </span>
-                                )}
-                              </>
-                            ) : (
-                              <>
-                                {!activePanels.practicalData && (
-                                  <span onClick={() => { setActivePanels(p => ({ ...p, practicalData: true })); setExpandedSections(s => ({ ...s, practicalData: true })); }} className="chip chip-neutral justify-between cursor-pointer hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]" style={{ display: 'flex', width: '100%', padding: '10px 14px' }}>
-                                    <span className="flex items-center gap-2">
-                                      <span className="material-symbols-outlined text-sm">info</span>
-                                      Datos Prácticos de Visita
+                                  )}
+                                  {!activePanels.images && (
+                                    <span onClick={() => { setActivePanels(p => ({ ...p, images: true })); setExpandedSections(s => ({ ...s, images: true })); }} className="chip chip-neutral justify-between cursor-pointer hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]" style={{ display: 'flex', width: '100%', padding: '10px 14px' }}>
+                                      <span className="flex items-center gap-2">
+                                        <span className="material-symbols-outlined text-sm">photo_library</span>
+                                        Galería e Imágenes
+                                      </span>
+                                      <span className="material-symbols-outlined text-sm">add</span>
                                     </span>
-                                    <span className="material-symbols-outlined text-sm">add</span>
-                                  </span>
-                                )}
-                                {!activePanels.mapPosition && (
-                                  <span onClick={() => { setActivePanels(p => ({ ...p, mapPosition: true })); setExpandedSections(s => ({ ...s, mapPosition: true })); }} className="chip chip-neutral justify-between cursor-pointer hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]" style={{ display: 'flex', width: '100%', padding: '10px 14px' }}>
-                                    <span className="flex items-center gap-2">
-                                      <span className="material-symbols-outlined text-sm">map</span>
-                                      Ubicación en el Mapa
+                                  )}
+                                </>
+                              ) : (
+                                <>
+                                  {!activePanels.practicalData && (
+                                    <span onClick={() => { setActivePanels(p => ({ ...p, practicalData: true })); setExpandedSections(s => ({ ...s, practicalData: true })); }} className="chip chip-neutral justify-between cursor-pointer hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]" style={{ display: 'flex', width: '100%', padding: '10px 14px' }}>
+                                      <span className="flex items-center gap-2">
+                                        <span className="material-symbols-outlined text-sm">info</span>
+                                        Datos Prácticos de Visita
+                                      </span>
+                                      <span className="material-symbols-outlined text-sm">add</span>
                                     </span>
-                                    <span className="material-symbols-outlined text-sm">add</span>
-                                  </span>
-                                )}
-                                {!activePanels.amenities && (
-                                  <span onClick={() => { setActivePanels(p => ({ ...p, amenities: true })); setExpandedSections(s => ({ ...s, amenities: true })); }} className="chip chip-neutral justify-between cursor-pointer hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]" style={{ display: 'flex', width: '100%', padding: '10px 14px' }}>
-                                    <span className="flex items-center gap-2">
-                                      <span className="material-symbols-outlined text-sm">room_service</span>
-                                      Servicios y Amenidades
+                                  )}
+                                  {!activePanels.mapPosition && (
+                                    <span onClick={() => { setActivePanels(p => ({ ...p, mapPosition: true })); setExpandedSections(s => ({ ...s, mapPosition: true })); }} className="chip chip-neutral justify-between cursor-pointer hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]" style={{ display: 'flex', width: '100%', padding: '10px 14px' }}>
+                                      <span className="flex items-center gap-2">
+                                        <span className="material-symbols-outlined text-sm">map</span>
+                                        Ubicación en el Mapa
+                                      </span>
+                                      <span className="material-symbols-outlined text-sm">add</span>
                                     </span>
-                                    <span className="material-symbols-outlined text-sm">add</span>
-                                  </span>
-                                )}
-                                {!activePanels.highlightsAndTips && (
-                                  <span onClick={() => { setActivePanels(p => ({ ...p, highlightsAndTips: true })); setExpandedSections(s => ({ ...s, highlightsAndTips: true })); }} className="chip chip-neutral justify-between cursor-pointer hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]" style={{ display: 'flex', width: '100%', padding: '10px 14px' }}>
-                                    <span className="flex items-center gap-2">
-                                      <span className="material-symbols-outlined text-sm">explore</span>
-                                      Contenido de la Experiencia
+                                  )}
+                                  {!activePanels.amenities && (
+                                    <span onClick={() => { setActivePanels(p => ({ ...p, amenities: true })); setExpandedSections(s => ({ ...s, amenities: true })); }} className="chip chip-neutral justify-between cursor-pointer hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]" style={{ display: 'flex', width: '100%', padding: '10px 14px' }}>
+                                      <span className="flex items-center gap-2">
+                                        <span className="material-symbols-outlined text-sm">room_service</span>
+                                        Servicios y Amenidades
+                                      </span>
+                                      <span className="material-symbols-outlined text-sm">add</span>
                                     </span>
-                                    <span className="material-symbols-outlined text-sm">add</span>
-                                  </span>
-                                )}
-                              </>
-                            )}
+                                  )}
+                                  {!activePanels.highlightsAndTips && (
+                                    <span onClick={() => { setActivePanels(p => ({ ...p, highlightsAndTips: true })); setExpandedSections(s => ({ ...s, highlightsAndTips: true })); }} className="chip chip-neutral justify-between cursor-pointer hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]" style={{ display: 'flex', width: '100%', padding: '10px 14px' }}>
+                                      <span className="flex items-center gap-2">
+                                        <span className="material-symbols-outlined text-sm">explore</span>
+                                        Contenido de la Experiencia
+                                      </span>
+                                      <span className="material-symbols-outlined text-sm">add</span>
+                                    </span>
+                                  )}
+                                  {!activePanels.images && (
+                                    <span onClick={() => { setActivePanels(p => ({ ...p, images: true })); setExpandedSections(s => ({ ...s, images: true })); }} className="chip chip-neutral justify-between cursor-pointer hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]" style={{ display: 'flex', width: '100%', padding: '10px 14px' }}>
+                                      <span className="flex items-center gap-2">
+                                        <span className="material-symbols-outlined text-sm">photo_library</span>
+                                        Galería e Imágenes
+                                      </span>
+                                      <span className="material-symbols-outlined text-sm">add</span>
+                                    </span>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Índice de Secciones */}
+                          <div className="glass-panel p-6 space-y-4">
+                            <h3 className="font-headline-sm text-[var(--on-surface)] flex items-center gap-2">
+                              <span className="material-symbols-outlined text-base text-[var(--primary)]">toc</span>
+                              Índice de Secciones
+                            </h3>
+                            <p className="text-[11px] text-[var(--on-surface-variant)] mb-2">Secciones activas en este formulario. Haz clic para desplazarte a ella:</p>
+                            <div className="flex flex-col gap-2.5">
+                              <a href="#sec-identity" className="flex items-center justify-between text-xs font-semibold text-[var(--primary)] hover:underline border-l-2 border-[var(--primary)] pl-2">
+                                <span>Identidad (Obligatorio)</span>
+                                <span className="material-symbols-outlined text-xs text-[var(--primary)]">check_circle</span>
+                              </a>
+
+                              {formData.type === 'region' ? (
+                                <>
+                                  {activePanels.logistics && (
+                                    <a href="#sec-logistics" className={`flex items-center justify-between text-xs font-semibold hover:underline pl-2 border-l-2 ${expandedSections.logistics ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--on-surface-variant)]'}`}>
+                                      <span>Guía Logística</span>
+                                      <span className="material-symbols-outlined text-xs">{expandedSections.logistics ? 'visibility' : 'visibility_off'}</span>
+                                    </a>
+                                  )}
+                                  {activePanels.routes && (
+                                    <>
+                                      <a href="#sec-routes" className={`flex items-center justify-between text-xs font-semibold hover:underline pl-2 border-l-2 ${expandedSections.routes ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--on-surface-variant)]'}`}>
+                                        <span>Mapa de la Región</span>
+                                        <span className="material-symbols-outlined text-xs">{expandedSections.routes ? 'visibility' : 'visibility_off'}</span>
+                                      </a>
+                                      <a href="#sec-itineraries" className={`flex items-center justify-between text-xs font-semibold hover:underline pl-2 border-l-2 ${expandedSections.itineraries !== false ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--on-surface-variant)]'}`}>
+                                        <span>Itinerarios Sugeridos</span>
+                                        <span className="material-symbols-outlined text-xs">{expandedSections.itineraries !== false ? 'visibility' : 'visibility_off'}</span>
+                                      </a>
+                                    </>
+                                  )}
+                                </>
+                              ) : (
+                                <>
+                                  {activePanels.practicalData && (
+                                    <a href="#sec-practicalData" className={`flex items-center justify-between text-xs font-semibold hover:underline pl-2 border-l-2 ${expandedSections.practicalData ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--on-surface-variant)]'}`}>
+                                      <span>Datos Prácticos</span>
+                                      <span className="material-symbols-outlined text-xs">{expandedSections.practicalData ? 'visibility' : 'visibility_off'}</span>
+                                    </a>
+                                  )}
+                                  {activePanels.mapPosition && (
+                                    <a href="#sec-mapPosition" className={`flex items-center justify-between text-xs font-semibold hover:underline pl-2 border-l-2 ${expandedSections.mapPosition ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--on-surface-variant)]'}`}>
+                                      <span>Ubicación en Mapa</span>
+                                      <span className="material-symbols-outlined text-xs">{expandedSections.mapPosition ? 'visibility' : 'visibility_off'}</span>
+                                    </a>
+                                  )}
+                                  {activePanels.amenities && (
+                                    <a href="#sec-amenities" className={`flex items-center justify-between text-xs font-semibold hover:underline pl-2 border-l-2 ${expandedSections.amenities ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--on-surface-variant)]'}`}>
+                                      <span>Servicios y Amenidades</span>
+                                      <span className="material-symbols-outlined text-xs">{expandedSections.amenities ? 'visibility' : 'visibility_off'}</span>
+                                    </a>
+                                  )}
+                                  {activePanels.highlightsAndTips && (
+                                    <a href="#sec-highlightsAndTips" className={`flex items-center justify-between text-xs font-semibold hover:underline pl-2 border-l-2 ${expandedSections.highlightsAndTips ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--on-surface-variant)]'}`}>
+                                      <span>Contenido Experiencia</span>
+                                      <span className="material-symbols-outlined text-xs">{expandedSections.highlightsAndTips ? 'visibility' : 'visibility_off'}</span>
+                                    </a>
+                                  )}
+                                </>
+                              )}
+
+                              {activePanels.images && (
+                                <a href="#sec-images" className={`flex items-center justify-between text-xs font-semibold hover:underline pl-2 border-l-2 ${expandedSections.images ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--on-surface-variant)]'}`}>
+                                  <span>Galería e Imágenes</span>
+                                  <span className="material-symbols-outlined text-xs">{expandedSections.images ? 'visibility' : 'visibility_off'}</span>
+                                </a>
+                              )}
+                            </div>
                           </div>
                         </div>
                       )}
