@@ -388,6 +388,19 @@
             </div>
           </label>
         </div>
+
+        <!-- Proveedor de Almacenamiento -->
+        <div class="mt-8 pt-6 border-t border-[var(--outline-variant)]">
+          <label class="font-label-md block mb-2" style="color: var(--on-surface-variant);">Proveedor de Almacenamiento de Imágenes</label>
+          <select id="storage-provider-select" class="form-select bg-[var(--surface-container-low)] w-full rounded-xl border-[var(--outline-variant)]">
+            <option value="uploadthing">UploadThing (Recomendado - Backend dedicado)</option>
+            <option value="firebase">Firebase Storage</option>
+            <option value="supabase">Supabase Storage (Bucket 'images')</option>
+          </select>
+          <p class="text-xs text-[var(--on-surface-variant)] mt-1.5">
+            Elige dónde se guardarán las imágenes subidas desde los formularios de este panel.
+          </p>
+        </div>
       </div>
 
       <!-- SQL Configuration dynamically built -->
@@ -892,16 +905,19 @@ document.getElementById('btn-step4-next').addEventListener('click', () => {
     return;
   }
 
+  const storageProvider = document.getElementById('storage-provider-select')?.value || 'uploadthing';
+
   if (S.editMode === 'modules') {
     let config = window.DataSourceConfig.getConfig() || {};
     config.activeModules = activeModules;
+    config.storageProvider = storageProvider;
     window.DataSourceConfig.saveConfig(config);
-    showToast('✅ Módulos actualizados con éxito');
+    showToast('✅ Módulos y almacenamiento actualizados con éxito');
     setTimeout(() => location.reload(), 1000);
     return;
   }
 
-  let config = { provider: S.provider, activeModules };
+  let config = { provider: S.provider, activeModules, storageProvider };
   if (S.provider === 'supabase') {
     config.supabase = {
       url:     document.getElementById('sb-url').value.trim(),
@@ -934,6 +950,7 @@ document.getElementById('btn-step4-next').addEventListener('click', () => {
   const displayEl = document.getElementById('active-config-display');
   displayEl.innerHTML = `
     <div class="flex justify-between"><span style="color:var(--on-surface-variant)">Proveedor</span><strong>${cfg.provider}</strong></div>
+    <div class="flex justify-between"><span style="color:var(--on-surface-variant)">Almacenamiento</span><strong>${cfg.storageProvider || 'uploadthing'}</strong></div>
     <div class="flex justify-between"><span style="color:var(--on-surface-variant)">Módulos Activos</span><strong>${cfg.activeModules.join(', ')}</strong></div>
     ${cfg.supabase ? `<div class="flex justify-between"><span style="color:var(--on-surface-variant)">URL</span><code class="font-code text-sm">${cfg.supabase.url}</code></div>` : ''}
     ${cfg.firebase ? `<div class="flex justify-between"><span style="color:var(--on-surface-variant)">Proyecto</span><strong>${cfg.firebase.projectId}</strong></div>` : ''}
@@ -1014,6 +1031,11 @@ if (existing) {
       const el = document.getElementById(`mod-${m}`);
       if (el) el.checked = existing.activeModules.includes(m);
     });
+  }
+
+  if (existing.storageProvider) {
+    const select = document.getElementById('storage-provider-select');
+    if (select) select.value = existing.storageProvider;
   }
 
   // Hide wizard flow and show active status panel

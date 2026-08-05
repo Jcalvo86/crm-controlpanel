@@ -24,8 +24,11 @@ export async function uploadFile(file) {
     throw new Error("No se pudo cargar la configuración de base de datos.");
   }
 
+  // Read storage provider from config. Defaults to 'uploadthing'.
+  const storageProvider = config.storageProvider || 'uploadthing';
+
   // 1. FIREBASE PROVIDER
-  if (config.provider === 'firebase' && config.firebase) {
+  if (storageProvider === 'firebase' && config.firebase) {
     try {
       const { apiKey, projectId } = config.firebase;
       if (!apiKey || !projectId) {
@@ -57,16 +60,11 @@ export async function uploadFile(file) {
       return `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(fileName)}?alt=media${downloadToken ? `&token=${downloadToken}` : ''}`;
     } catch (firebaseError) {
       console.warn("Firebase upload failed, trying fallback to UploadThing:", firebaseError);
-      throw new Error(
-        `No se pudo subir la imagen a Firebase Storage: ${firebaseError.message}.\n\n` +
-        `Asegúrate de que las reglas de Firebase Storage permiten escrituras públicas para desarrollo, ` +
-        `o de configurar correctamente tu Firebase Storage.`
-      );
     }
   }
 
   // 2. SUPABASE PROVIDER
-  if (config.provider === 'supabase' && config.supabase && config.supabase.url && config.supabase.anonKey) {
+  if (storageProvider === 'supabase' && config.supabase && config.supabase.url && config.supabase.anonKey) {
     try {
       const cleanUrl = config.supabase.url.replace(/\/$/, '');
       const bucketName = 'images';
@@ -93,10 +91,6 @@ export async function uploadFile(file) {
       return `${cleanUrl}/storage/v1/object/public/${bucketName}/${fileName}`;
     } catch (supabaseError) {
       console.warn("Supabase upload failed, trying fallback to UploadThing:", supabaseError);
-      throw new Error(
-        `No se pudo subir la imagen a Supabase Storage: ${supabaseError.message}.\n\n` +
-        `Asegúrate de haber creado un bucket llamado 'images' en tu panel de Supabase y que esté marcado como 'Public'.`
-      );
     }
   }
 
