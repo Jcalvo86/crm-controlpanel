@@ -1,9 +1,5 @@
 import React from 'react';
-import { genUploader } from "uploadthing/client";
-
-const uploader = genUploader({
-  url: "https://project-organizer-one.vercel.app/api/uploadthing"
-});
+import { uploadFile } from '../utils/upload.js';
 
 export default function LocationFormEditor({
   formData,
@@ -28,15 +24,11 @@ export default function LocationFormEditor({
 
     setIsUploading(true);
     try {
-      const res = await uploader.uploadFiles("imageUploader", {
-        files: [file]
-      });
-      if (res && res[0]) {
-        handleChange(field, res[0].url);
-      }
+      const url = await uploadFile(file);
+      handleChange(field, url);
     } catch (err) {
       console.error(err);
-      alert(`Error al subir el archivo: ${err.message}. Asegúrate de que el endpoint 'imageUploader' existe y la API de tu otro proyecto permite peticiones de origen cruzado (CORS) para http://localhost:5173.`);
+      alert(`Error al subir el archivo: ${err.message}`);
     } finally {
       setIsUploading(false);
       e.target.value = ''; // Reset

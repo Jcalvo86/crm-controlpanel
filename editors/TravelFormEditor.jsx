@@ -1,10 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import HoldToConfirmButton from '../components/HoldToConfirmButton.jsx';
-import { genUploader } from "uploadthing/client";
-
-const uploader = genUploader({
-  url: "https://project-organizer-one.vercel.app/api/uploadthing"
-});
+import { uploadFile } from '../utils/upload.js';
 
 export default function TravelFormEditor({ formData, setFormData, locations = [] }) {
   // Estado para mantener la lista de días colapsados
@@ -19,15 +15,11 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
 
     setIsUploading(true);
     try {
-      const res = await uploader.uploadFiles("imageUploader", {
-        files: [file]
-      });
-      if (res && res[0]) {
-        handleItineraryChange(dayIdx, 'imageUrl', res[0].url);
-      }
+      const url = await uploadFile(file);
+      handleItineraryChange(dayIdx, 'imageUrl', url);
     } catch (err) {
       console.error(err);
-      alert(`Error al subir el archivo: ${err.message}. Asegúrate de que la API de tu otro proyecto permite CORS.`);
+      alert(`Error al subir el archivo: ${err.message}`);
     } finally {
       setIsUploading(false);
       e.target.value = '';
