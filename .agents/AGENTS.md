@@ -1,40 +1,76 @@
-# Crear el archivo rules.md dentro de la carpeta del submódulo 'controlpanel'
-@"
-# Estándares de Diseño y Usabilidad — CRM Control Panel
+# Agent Context & System Router
 
-Estas reglas describen las decisiones de UI/UX estándar que deben aplicarse a todos los módulos, formularios y componentes interactivos creados para el Control Panel.
+## 1. Executive Summary
+- **Project:** Alexandria Control Panel
+- **Architecture:** Next.js 14+ (App Router), TypeScript, Supabase, Tailwind CSS.
+- **Goal:** Manage Control Panel.
 
-## 1. Diseño de Formularios Dinámicos y Complejos
+---
 
-- **Patrón de 3 Columnas para Estructuras Anidadas:**
-  Para campos donde se definen entidades principales y sub-entidades (por ejemplo: *Países y sus Ciudades*, *Ciudades y sus Hoteles*, *Secciones y Contenidos*), utiliza una distribución en rejilla:
-  - Columna Izquierda (span 4): Contenedor o contexto principal.
-  - Columnas Derechas (span 8): Lista de elementos hijos vinculados con una línea divisoria vertical sutil (`border-l border-[var(--outline-variant)]`).
-  
-- **Botón de Cierre/Eliminación Integrado en el Input:**
-  Para listados dinámicos simples donde cada línea cuenta con un botón para removerla (como variables, ciudades, u hoteles alternativos), el botón de remover (`close`) se posiciona **dentro del input**, en el extremo derecho (utilizando contenedores `relative` y un padding-right de `32px` en el input).
+## 2. Agent Roles & File Scopes
 
-- **Ubicación de Botones "Añadir":**
-  Los botones para agregar elementos a una lista dinámica (e.g. *Añadir Ciudad*, *Añadir Actividad*, *Añadir Hotel*, *Añadir Variable*) deben ir **siempre en la parte inferior** de su respectivo listado. No se deben colocar en las cabeceras o etiquetas superiores para mantener el orden de lectura vertical.
+| Agent Role | Primary Responsibility | Allowed Paths | Context Specs |
+| :--- | :--- | :--- | :--- |
+| `@ui-agent` | Layouts, UI Components, Tailwind, Design System | `src/app/`, `src/components/`, `public/` | Read `.agents/DESIGN.md`, `.agents/skills/rules.md` |
+| `@db-agent` | Schemas, Migrations, API Routes, RLS Policies | `supabase/`, `src/lib/`, `src/app/api/` | Read `.agents/skills/supabase-crud.md` |
+| `@qa-agent` | Linting, Type Checking, E2E & Unit Tests | `tests/`, `*.test.ts`, `*.config.*` | Read `.agents/ANTIGRAVITY.md` |
 
-- **Botones de Acción Destructiva Flotantes:**
-  Los botones de eliminación global para tarjetas o secciones grandes deben ubicarse en la **esquina superior derecha** de la tarjeta (`absolute top-4 right-4`).
-  Se utiliza el botón circular tipo icono con el símbolo de basurero (`delete`) y la acción destructiva controlada `HoldToConfirmButton` (retardo de confirmación de 2 segundos mediante presión continua).
+---
 
-## 2. Autocompletados Híbridos (Inputs Autocompletables)
+## 3. Global System Rules (STRICT)
 
-- **Tecnología Datatalist:**
-  Utiliza elementos estándar **HTML5 <datalist>** enlazados mediante el atributo `list` en los inputs de texto para permitir sugerencias rápidas (como el régimen hotelero, momentos de actividades o categorías) sin bloquear la escritura libre de valores personalizados.
+### Core Directives
+- **ALWAYS:** Enforce TypeScript Strict Mode. No `any` types allowed.
+- **ALWAYS:** Align numeric/financial amounts to the right using `tabular-nums` class.
+- **ALWAYS:** Default to React Server Components unless client state (`useState`, `useEffect`) is mandatory.
+- **NEVER:** Hardcode inline styles or use arbitrary Tailwind values (e.g., `w-[234px]`).
+- **NEVER:** Import `@supabase/supabase-js` directly in UI components; use SSR client wrapper `@/lib/supabase/client`.
 
-## 3. Acordeones Colapsables Inteligentes
+### Component & File Constraints
+- **MAX COMPONENT SIZE:** No component or file in `src/` should exceed **150-200 lines of code**.
+- **DECOMPOSITION RULE:** If a component reaches >150 lines, STOP writing feature code immediately and trigger the Refactoring Skill (`.agents/skills/component-refactoring.md`).
 
-- **Transición de Altura:**
-  Los bloques extensos se presentan en acordeones animados con transiciones de CSS Grid (`grid-template-rows: 0fr -> 1fr`).
-- **Comportamiento Dinámico:**
-  Al abrir un registro existente inician colapsados para limpieza visual. Al crear un nuevo elemento en la lista, colapsa de inmediato los anteriores y expande de forma automática únicamente el nuevo elemento creado para agilizar el ingreso de datos.
+---
 
-## 4. Visualización en Tablas (ItemsTable)
+## 4. Pre-Flight Protocol: "Check Before Write" (MANDATORY)
 
-- **Píldoras de Ubicación/Metadatos:**
-  La visualización de registros dinámicos y agrupados en la tabla principal debe utilizar píldoras compactas (`chip`) con formato jerárquico que destaquen primero el contenedor principal en negrita y a continuación los sub-elementos entre paréntesis (ej: **Egipto** (El Cairo, Luxor)).
-"@ | Out-File -FilePath "controlpanel\rules.md" -Encoding utf8
+Before generating, editing, or refactoring ANY file, every agent MUST execute these steps silently:
+
+1. **Check File Metrics:** Measure lines of code (`wc -l`). If target file > 150 lines, trigger `component-refactoring.md`.
+2. **Scan Skills Index:** Check Section 5 below to identify if a recipe/skill matches the task intent.
+3. **Declare Applied Skill:** State in 1 line which skill is being loaded before printing code output (e.g., *"Using skill: component-refactoring.md"*).
+
+---
+
+## 5. Automatic Skill Triggers & Auto-Routing
+
+Inspect the user prompt and file target to auto-load modules **only on demand**:
+
+| Condition / Symptom | Action / Required Skill | Scope |
+| :--- | :--- | :--- |
+| Target file is > 150 LOC or JSX is overly complex | ➔ ALWAYS read `.agents/skills/component-refactoring.md` | `src/components/` |
+| Creating, styling, or tokenizing UI components | ➔ Read `.agents/DESIGN.md` | `src/app/`, `src/components/` |
+| Writing DB queries, Supabase actions, or migrations | ➔ Read `.agents/skills/supabase-crud.md` | `supabase/`, `src/lib/` |
+| Building, testing, linting, or executing CLI commands | ➔ Read `.agents/ANTIGRAVITY.md` | Root / Terminal |
+| Reviewing or recording system architecture shifts | ➔ Read/Write `.agents/decisions/` | `.agents/decisions/` |
+
+---
+
+## 6. Skills Quick-Index Library
+
+- `component-refactoring.md`: Rules for decomposing large files (>150 LOC) into custom hooks and atomic sub-components.
+- `supabase-crud.md`: Safe SSR data fetching, Zod schema validations, and RLS policy setup.
+- `DESIGN.md`: Color tokens, typography scales, card layouts, and status pill badges for AntEater UI.
+
+---
+
+## 7. Task Completion Protocol (Definition of Done)
+
+Before marking any task as resolved, every agent MUST execute this checklist:
+
+1. **Verify Types:** Ensure zero TypeScript errors (`npm run type-check`).[cite: 2]
+2. **Verify Formatting:** Ensure zero ESLint warnings on modified files.[cite: 2]
+3. **Audit File Sizes:** Verify no newly created/edited file exceeds 150 LOC.
+4. **Audit Context Drift:**[cite: 2]
+   - Did you add/modify UI tokens or component guidelines? ➔ Update `.agents/DESIGN.md`.[cite: 2]
+   - Did you change an architectural decision or schema convention? ➔ Append a 5-line summary ADR in `.agents/decisions/`.[cite: 2]

@@ -1034,6 +1034,113 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
     e.target.value = ''; // Reset file input
   };
 
+  const [showPasteJsonModal, setShowPasteJsonModal] = useState(false);
+  const [pastedJsonText, setPastedJsonText] = useState('');
+
+  const handleImportedTemplateData = (parsed) => {
+    const item = Array.isArray(parsed) ? parsed[0] : parsed;
+    if (!item) return;
+
+    if (activeModule === 'travel') {
+      setFormData({
+        title: item.title || '',
+        agency: item.agency || 'Sueño Travel Chile',
+        durationDays: item.durationDays || item.duration_days || 1,
+        durationNights: item.durationNights || item.duration_nights || 0,
+        destinationsSummary: Array.isArray(item.destinationsSummary) ? item.destinationsSummary.join(', ') : (Array.isArray(item.destinations_summary) ? item.destinations_summary.join(', ') : (item.destinationsSummary || '')),
+        visaCostUSD: item.visaCostUSD !== undefined ? item.visaCostUSD : (item.pricingAndNotes?.visaCostUSD !== undefined ? item.pricingAndNotes.visaCostUSD : (item.pricing_and_notes?.visaCostUSD || 0)),
+        hotelTaxUSD: item.hotelTaxUSD !== undefined ? item.hotelTaxUSD : (item.pricingAndNotes?.hotelTaxUSD !== undefined ? item.pricingAndNotes.hotelTaxUSD : (item.pricing_and_notes?.hotelTaxUSD || 0)),
+        disclaimer: item.disclaimer !== undefined ? item.disclaimer : (item.pricingAndNotes?.disclaimer !== undefined ? item.pricingAndNotes.disclaimer : (item.pricing_and_notes?.disclaimer || '')),
+        servicesIncludedEgypt: Array.isArray(item.servicesIncluded?.egypt) ? item.servicesIncluded.egypt.join('\n') : (Array.isArray(item.services_included?.egypt) ? item.services_included.egypt.join('\n') : ''),
+        servicesIncludedTurkey: Array.isArray(item.servicesIncluded?.turkey) ? item.servicesIncluded.turkey.join('\n') : (Array.isArray(item.services_included?.turkey) ? item.services_included.turkey.join('\n') : ''),
+        servicesExcluded: Array.isArray(item.servicesExcluded) ? item.servicesExcluded.join('\n') : (Array.isArray(item.services_excluded) ? item.services_excluded.join('\n') : ''),
+        itinerary: item.itinerary || [],
+        servicesIncludedList: item.servicesIncludedList || item.services_included_list || [],
+        servicesExcludedList: item.servicesExcludedList && item.servicesExcludedList.length > 0 ? item.servicesExcludedList : (item.services_excluded_list && item.services_excluded_list.length > 0 ? item.services_excluded_list : ['']),
+        hotelsPlanned: item.hotelsPlanned || item.hotels_planned || [],
+        isDraft: item.isDraft !== undefined ? item.isDraft : (item.is_draft !== undefined ? item.is_draft : true)
+      });
+    } else if (activeModule === 'departure') {
+      setFormData({
+        travelId: item.travelId || item.travel_id || '',
+        departureDate: item.departureDate || item.departure_date || '',
+        endDate: item.endDate || item.end_date || '',
+        capacity: item.capacity !== undefined ? item.capacity : 10,
+        passengersCount: item.passengersCount !== undefined ? item.passengers_count : 0,
+        priceOverride: item.priceOverride || item.price_override || '',
+        status: item.status || 'open',
+        isDraft: item.isDraft !== undefined ? item.isDraft : (item.is_draft !== undefined ? item.is_draft : true)
+      });
+    } else if (activeModule === 'location') {
+      setFormData({
+        name: item.name || '',
+        type: item.type || 'location',
+        subtitle: item.subtitle || '',
+        travelStyles: Array.isArray(item.travelStyles) ? item.travelStyles : (item.travel_styles || []),
+        guideBestSeason: item.guideBestSeason || item.guide_best_season || '',
+        guideHowToGetAround: item.guideHowToGetAround || item.guide_how_to_get_around || '',
+        guideRecommendedDuration: item.guideRecommendedDuration || item.guide_recommended_duration || '',
+        mapUrl: item.mapUrl || item.map_url || '',
+        suggestedItineraries: item.suggestedItineraries || item.suggested_itineraries || [],
+        locationType: item.locationType || item.location_type || '',
+        parentRegionId: item.parentRegionId || item.parent_region_id || '',
+        parentCityId: item.parentCityId || item.parent_city_id || '',
+        address: item.address || '',
+        city: item.city || '',
+        country: item.country || '',
+        geolocationUrl: item.geolocationUrl || item.geolocation_url || '',
+        openingHours: item.openingHours || item.opening_hours || '',
+        pricing: item.pricing || '',
+        ticketUrl: item.ticketUrl || item.ticket_url || '',
+        estimatedVisitTime: item.estimatedVisitTime || item.estimated_visit_time || '',
+        amenities: item.amenities || {
+          parking: false,
+          accessibility: false,
+          restrooms: false,
+          petFriendly: false,
+          kidsFriendly: false
+        },
+        description: item.description || '',
+        highlights: Array.isArray(item.highlights) ? item.highlights : [],
+        travelerTips: item.travelerTips || item.traveler_tips || '',
+        nearbyLocations: Array.isArray(item.nearbyLocations) ? item.nearbyLocations : (item.nearby_locations || []),
+        isDraft: item.isDraft !== undefined ? item.isDraft : (item.is_draft !== undefined ? item.is_draft : true)
+      });
+    } else if (activeModule === 'design_tokens') {
+      setFormData({
+        brandName: item.brandName || item.brand_name || '',
+        url: item.url || '',
+        colors: (item.colors && item.colors.length > 0) ? item.colors : [{ hex: '', role: '', description: '' }],
+        typographies: (item.typographies && item.typographies.length > 0) ? item.typographies : [{ fontFamily: '', weights: [], fontSize: '', sampleText: '' }],
+        logos: (item.logos && item.logos.length > 0) ? item.logos : [{ name: '', svgContent: '' }],
+        isDraft: item.isDraft !== undefined ? item.isDraft : (item.is_draft !== undefined ? item.is_draft : true)
+      });
+    } else {
+      setFormData({
+        title: item.title || '',
+        category: item.category || 'Diseño & Marca',
+        description: item.description || '',
+        url: item.url || '',
+        tools: Array.isArray(item.tools) ? item.tools : [],
+        isDraft: item.isDraft !== undefined ? item.isDraft : (item.is_draft !== undefined ? item.is_draft : true),
+        prompt: item.prompt || '',
+        problems: Array.isArray(item.problems) ? item.problems.join('\n') : (item.problems || ''),
+        benefits: Array.isArray(item.benefits) ? item.benefits.join('\n') : (item.benefits || ''),
+        recommendedScenarios: Array.isArray(item.recommendedScenarios) ? item.recommendedScenarios.join('\n') : (item.recommendedScenarios || ''),
+        criticalExclusions: Array.isArray(item.criticalExclusions) ? item.criticalExclusions.join('\n') : (item.criticalExclusions || ''),
+        technicalExample: item.technicalExample || '',
+        steps: Array.isArray(item.steps) ? item.steps : [{ label: '', detail: '' }],
+        results: item.results || '',
+        metrics: item.metrics || '',
+        promptVars: Array.isArray(item.promptVars) ? item.promptVars.join(', ') : (item.prompt_vars ? item.prompt_vars.join(', ') : (item.promptVars || ''))
+      });
+    }
+
+    const { activePanels: derivedPanels, expandedSections: derivedSections } = derivePanelsFromItem(item, activeModule);
+    setActivePanels(derivedPanels);
+    setExpandedSections(derivedSections);
+  };
+
   const handleUploadFormTemplate = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -1041,108 +1148,7 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
     reader.onload = (event) => {
       try {
         const parsed = JSON.parse(event.target.result);
-        const item = Array.isArray(parsed) ? parsed[0] : parsed;
-        if (!item) return;
-
-        if (activeModule === 'travel') {
-          setFormData({
-            title: item.title || '',
-            agency: item.agency || 'Sueño Travel Chile',
-            durationDays: item.durationDays || item.duration_days || 1,
-            durationNights: item.durationNights || item.duration_nights || 0,
-            destinationsSummary: Array.isArray(item.destinationsSummary) ? item.destinationsSummary.join(', ') : (Array.isArray(item.destinations_summary) ? item.destinations_summary.join(', ') : (item.destinationsSummary || '')),
-            visaCostUSD: item.visaCostUSD !== undefined ? item.visaCostUSD : (item.pricingAndNotes?.visaCostUSD !== undefined ? item.pricingAndNotes.visaCostUSD : (item.pricing_and_notes?.visaCostUSD || 0)),
-            hotelTaxUSD: item.hotelTaxUSD !== undefined ? item.hotelTaxUSD : (item.pricingAndNotes?.hotelTaxUSD !== undefined ? item.pricingAndNotes.hotelTaxUSD : (item.pricing_and_notes?.hotelTaxUSD || 0)),
-            disclaimer: item.disclaimer !== undefined ? item.disclaimer : (item.pricingAndNotes?.disclaimer !== undefined ? item.pricingAndNotes.disclaimer : (item.pricing_and_notes?.disclaimer || '')),
-            servicesIncludedEgypt: Array.isArray(item.servicesIncluded?.egypt) ? item.servicesIncluded.egypt.join('\n') : (Array.isArray(item.services_included?.egypt) ? item.services_included.egypt.join('\n') : ''),
-            servicesIncludedTurkey: Array.isArray(item.servicesIncluded?.turkey) ? item.servicesIncluded.turkey.join('\n') : (Array.isArray(item.services_included?.turkey) ? item.services_included.turkey.join('\n') : ''),
-            servicesExcluded: Array.isArray(item.servicesExcluded) ? item.servicesExcluded.join('\n') : (Array.isArray(item.services_excluded) ? item.services_excluded.join('\n') : ''),
-            itinerary: item.itinerary || [],
-            servicesIncludedList: item.servicesIncludedList || item.services_included_list || [],
-            servicesExcludedList: item.servicesExcludedList && item.servicesExcludedList.length > 0 ? item.servicesExcludedList : (item.services_excluded_list && item.services_excluded_list.length > 0 ? item.services_excluded_list : ['']),
-            hotelsPlanned: item.hotelsPlanned || item.hotels_planned || [],
-            isDraft: item.isDraft !== undefined ? item.isDraft : (item.is_draft !== undefined ? item.is_draft : true)
-          });
-        } else if (activeModule === 'departure') {
-          setFormData({
-            travelId: item.travelId || item.travel_id || '',
-            departureDate: item.departureDate || item.departure_date || '',
-            endDate: item.endDate || item.end_date || '',
-            capacity: item.capacity !== undefined ? item.capacity : 10,
-            passengersCount: item.passengersCount !== undefined ? item.passengers_count : 0,
-            priceOverride: item.priceOverride || item.price_override || '',
-            status: item.status || 'open',
-            isDraft: item.isDraft !== undefined ? item.isDraft : (item.is_draft !== undefined ? item.is_draft : true)
-          });
-        } else if (activeModule === 'location') {
-          setFormData({
-            name: item.name || '',
-            type: item.type || 'location',
-            subtitle: item.subtitle || '',
-            travelStyles: Array.isArray(item.travelStyles) ? item.travelStyles : (item.travel_styles || []),
-            guideBestSeason: item.guideBestSeason || item.guide_best_season || '',
-            guideHowToGetAround: item.guideHowToGetAround || item.guide_how_to_get_around || '',
-            guideRecommendedDuration: item.guideRecommendedDuration || item.guide_recommended_duration || '',
-            mapUrl: item.mapUrl || item.map_url || '',
-            suggestedItineraries: item.suggestedItineraries || item.suggested_itineraries || [],
-            locationType: item.locationType || item.location_type || '',
-            parentRegionId: item.parentRegionId || item.parent_region_id || '',
-            parentCityId: item.parentCityId || item.parent_city_id || '',
-            address: item.address || '',
-            city: item.city || '',
-            country: item.country || '',
-            geolocationUrl: item.geolocationUrl || item.geolocation_url || '',
-            openingHours: item.openingHours || item.opening_hours || '',
-            pricing: item.pricing || '',
-            ticketUrl: item.ticketUrl || item.ticket_url || '',
-            estimatedVisitTime: item.estimatedVisitTime || item.estimated_visit_time || '',
-            amenities: item.amenities || {
-              parking: false,
-              accessibility: false,
-              restrooms: false,
-              petFriendly: false,
-              kidsFriendly: false
-            },
-            description: item.description || '',
-            highlights: Array.isArray(item.highlights) ? item.highlights : [],
-            travelerTips: item.travelerTips || item.traveler_tips || '',
-            nearbyLocations: Array.isArray(item.nearbyLocations) ? item.nearbyLocations : (item.nearby_locations || []),
-            isDraft: item.isDraft !== undefined ? item.isDraft : (item.is_draft !== undefined ? item.is_draft : true)
-          });
-        } else if (activeModule === 'design_tokens') {
-          setFormData({
-            brandName: item.brandName || item.brand_name || '',
-            url: item.url || '',
-            colors: (item.colors && item.colors.length > 0) ? item.colors : [{ hex: '', role: '', description: '' }],
-            typographies: (item.typographies && item.typographies.length > 0) ? item.typographies : [{ fontFamily: '', weights: [], fontSize: '', sampleText: '' }],
-            logos: (item.logos && item.logos.length > 0) ? item.logos : [{ name: '', svgContent: '' }],
-            isDraft: item.isDraft !== undefined ? item.isDraft : (item.is_draft !== undefined ? item.is_draft : true)
-          });
-        } else {
-          setFormData({
-            title: item.title || '',
-            category: item.category || 'Diseño & Marca',
-            description: item.description || '',
-            url: item.url || '',
-            tools: Array.isArray(item.tools) ? item.tools : [],
-            isDraft: item.isDraft !== undefined ? item.isDraft : (item.is_draft !== undefined ? item.is_draft : true),
-            prompt: item.prompt || '',
-            problems: Array.isArray(item.problems) ? item.problems.join('\n') : (item.problems || ''),
-            benefits: Array.isArray(item.benefits) ? item.benefits.join('\n') : (item.benefits || ''),
-            recommendedScenarios: Array.isArray(item.recommendedScenarios) ? item.recommendedScenarios.join('\n') : (item.recommendedScenarios || ''),
-            criticalExclusions: Array.isArray(item.criticalExclusions) ? item.criticalExclusions.join('\n') : (item.criticalExclusions || ''),
-            technicalExample: item.technicalExample || '',
-            steps: Array.isArray(item.steps) ? item.steps : [{ label: '', detail: '' }],
-            results: item.results || '',
-            metrics: item.metrics || '',
-            promptVars: Array.isArray(item.promptVars) ? item.promptVars.join(', ') : (item.prompt_vars ? item.prompt_vars.join(', ') : (item.promptVars || ''))
-          });
-        }
-
-        const { activePanels: derivedPanels, expandedSections: derivedSections } = derivePanelsFromItem(item, activeModule);
-        setActivePanels(derivedPanels);
-        setExpandedSections(derivedSections);
-
+        handleImportedTemplateData(parsed);
         alert("¡Formulario rellenado desde el archivo JSON!");
       } catch (err) {
         alert("Error al cargar el JSON: " + err.message);
@@ -1282,6 +1288,17 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
                         >
                           <span className="material-symbols-outlined text-sm">upload_file</span>
                           Cargar Plantilla
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowPasteJsonModal(true);
+                            setTemplateDropdownOpen(false);
+                          }}
+                          className="w-full text-left px-4 py-2 text-sm text-[var(--on-surface)] hover:bg-[var(--surface-container-highest)] flex items-center gap-2 border-none bg-transparent cursor-pointer"
+                        >
+                          <span className="material-symbols-outlined text-sm">content_paste</span>
+                          Pegar JSON
                         </button>
                       </div>
                     )}
@@ -1865,6 +1882,63 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
           />
         )}
       </div>
+
+      {showPasteJsonModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] p-4 backdrop-blur-sm">
+          <div className="bg-[var(--surface-container-high)] border border-[var(--outline-variant)] rounded-xl w-full max-w-lg p-6 space-y-4 shadow-xl text-[var(--on-surface)]">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold flex items-center gap-2">
+                <span className="material-symbols-outlined text-[var(--primary)]">content_paste</span>
+                Pegar Plantilla JSON
+              </h3>
+              <button 
+                type="button" 
+                onClick={() => { setShowPasteJsonModal(false); setPastedJsonText(''); }}
+                className="btn-icon bg-transparent border-none cursor-pointer flex items-center justify-center"
+                style={{ width: '32px', height: '32px' }}
+              >
+                <span className="material-symbols-outlined text-sm">close</span>
+              </button>
+            </div>
+            <p className="text-xs text-[var(--on-surface-variant)]">
+              Pega el contenido JSON de la plantilla para rellenar el formulario automáticamente.
+            </p>
+            <textarea
+              value={pastedJsonText}
+              onChange={(e) => setPastedJsonText(e.target.value)}
+              placeholder='{ "title": "Ejemplo", ... }'
+              rows={8}
+              className="w-full px-3 py-2 text-sm font-mono text-slate-900 bg-white border border-slate-200 rounded-md focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 hover:bg-slate-50 transition-colors resize-y min-h-[160px]"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => { setShowPasteJsonModal(false); setPastedJsonText(''); }}
+                className="btn-secondary text-xs font-semibold px-4 py-2 rounded-md transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  try {
+                    const parsed = JSON.parse(pastedJsonText);
+                    handleImportedTemplateData(parsed);
+                    setShowPasteJsonModal(false);
+                    setPastedJsonText('');
+                    alert("¡Formulario rellenado desde el JSON pegado!");
+                  } catch (e) {
+                    alert('El JSON ingresado no es válido. Por favor verifica el formato.');
+                  }
+                }}
+                className="btn-primary text-xs font-semibold px-4 py-2 rounded-md transition-colors"
+              >
+                Cargar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

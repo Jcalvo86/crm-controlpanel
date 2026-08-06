@@ -342,10 +342,8 @@ export default function ItemsTable({
                           })()
                         )}
                       </td>
-
-                      {activeModule === 'travel' && (
-                        /* Location column displaying only countries summary */
-                        <td className="py-3 pr-2 text-xs">
+                      <td className="py-3 pr-2 text-xs">
+                        {activeModule === 'travel' ? (
                           <div
                             className="flex flex-wrap gap-1 max-w-full overflow-hidden"
                             style={{
@@ -372,7 +370,7 @@ export default function ItemsTable({
                               })()
                             )}
                           </div>
-                          ) : activeModule === 'departure' ? (
+                        ) : activeModule === 'departure' ? (
                           <div className="flex flex-wrap gap-1 text-xs">
                             <span className={`chip ${item.passengersCount >= item.capacity ? 'chip-error font-bold' : 'chip-primary font-bold'}`}>
                               👥 {item.passengersCount} / {item.capacity} Pasajeros
@@ -383,7 +381,7 @@ export default function ItemsTable({
                               </span>
                             )}
                           </div>
-                          ) : activeModule === 'location' ? (
+                        ) : activeModule === 'location' ? (
                           <div className="flex flex-col gap-0.5 text-xs truncate max-w-full">
                             {item.type === 'region' ? (
                               <span className="text-[var(--on-surface-variant)] truncate font-semibold">
@@ -407,13 +405,10 @@ export default function ItemsTable({
                               </>
                             )}
                           </div>
-                          ) : (
+                        ) : (
                           <span className="text-[var(--outline)] italic text-xs">-</span>
                         )}
-                        </td>
-                        </td>
-                  )
-                }
+                      </td>
 
                       <td className="py-3 pr-2">
                     {activeModule === 'departure' ? (
@@ -457,8 +452,7 @@ export default function ItemsTable({
           </tbody>
         </table>
         </div>
-  )
-}
-    </div >
+      )}
+    </div>
   );
 }
