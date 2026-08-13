@@ -63,6 +63,8 @@ export const createEmptyFormData = (workAreas = [], contentTypes = []) => ({
   guideRecommendedDuration: '',
   mapUrl: '',
   imageUrl: '',
+  imageUrls: [],
+  tempImageUrlInput: '',
   suggestedItineraries: [],
   locationType: '',
   parentRegionId: '',
@@ -124,7 +126,7 @@ export const derivePanelsFromItem = (item, activeModule) => {
     // Region optional panels
     const hasLogistics = !!(item.guideBestSeason || item.guideHowToGetAround || item.guideRecommendedDuration);
     const hasRoutes = !!(item.mapUrl || (item.suggestedItineraries && item.suggestedItineraries.length > 0));
-    const hasImages = !!(item.imageUrl || item.image_url);
+    const hasImages = !!(item.imageUrl || item.image_url || (item.imageUrls && item.imageUrls.length > 0) || (item.image_urls && item.image_urls.length > 0));
     
     // Location optional panels
     const hasPracticalData = !!(item.address || item.city || item.country || item.geolocationUrl || item.openingHours || item.pricing || item.ticketUrl || item.estimatedVisitTime);
@@ -144,7 +146,7 @@ export const derivePanelsFromItem = (item, activeModule) => {
       amenities: hasAmenities,
       highlightsAndTips: hasHighlightsAndTips,
       mapPosition: hasMapPosition,
-      images: hasImages
+      images: true
     };
 
     const expandedSections = {
@@ -155,7 +157,7 @@ export const derivePanelsFromItem = (item, activeModule) => {
       amenities: hasAmenities,
       highlightsAndTips: hasHighlightsAndTips,
       mapPosition: hasMapPosition,
-      images: hasImages
+      images: true
     };
 
     return { activePanels, expandedSections };

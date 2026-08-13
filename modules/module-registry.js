@@ -87,7 +87,7 @@ window.Glosaurio.CMS_MODULES = {
       { id: 'sku', label: 'Código SKU / Identificador', type: 'text', required: true, placeholder: 'Ej: EGI-LEGADO-10D' },
       { id: 'price', label: 'Precio base', type: 'number', required: true, placeholder: 'Ej: 2990' },
       { id: 'comparePrice', label: 'Precio Anterior (Oferta)', type: 'number', placeholder: 'Ej: 3490' },
-      { id: 'imageUrl', label: 'Imagen de Portada (URL)', type: 'text', placeholder: 'https://ejemplo.com/portada.jpg' },
+      { id: 'imageUrl', label: 'Imagen del Viaje (URL)', type: 'text', placeholder: 'https://ejemplo.com/viaje.jpg' },
       { id: 'overview', label: 'Descripción general (La Magia del Destino)', type: 'textarea', rows: 4, placeholder: 'Egipto no es solo un destino; es un portal...' },
       { id: 'duration', label: 'Duración (Días)', type: 'number', placeholder: 'Ej: 10' },
       { id: 'itineraryJson', label: 'Itinerario JSON', type: 'textarea', rows: 6, placeholder: '[\n  {"day": "Día 01", "title": "Llegada", "desc": "Detalle...", "info": "Mena House"}\n]' },

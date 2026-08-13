@@ -124,6 +124,7 @@ export const buildLocationPayload = (formData, isDraft) => {
     guide_recommended_duration: formData.guideRecommendedDuration || '',
     map_url: formData.mapUrl || '',
     image_url: formData.imageUrl || '',
+    image_urls: formData.imageUrls || [],
     suggested_itineraries: formData.suggestedItineraries || [],
     location_type: formData.locationType || '',
     parent_region_id: formData.parentRegionId || null,

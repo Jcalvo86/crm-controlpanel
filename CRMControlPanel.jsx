@@ -90,6 +90,7 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
     color: false,
     typography: false,
     mapPosition: false,
+    images: true,
   });
 
   const [showAllResults, setShowAllResults] = useState(false);
@@ -396,6 +397,7 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
             guideRecommendedDuration: item.guide_recommended_duration || item.guideRecommendedDuration || '',
             mapUrl: item.map_url || item.mapUrl || '',
             imageUrl: item.image_url || item.imageUrl || '',
+            imageUrls: Array.isArray(item.image_urls) ? item.image_urls : (Array.isArray(item.imageUrls) ? item.imageUrls : []),
             suggestedItineraries: Array.isArray(item.suggested_itineraries) ? item.suggested_itineraries : (Array.isArray(item.suggestedItineraries) ? item.suggestedItineraries : []),
             locationType: item.location_type || item.locationType || '',
             parentRegionId: item.parent_region_id || item.parentRegionId || '',
@@ -631,6 +633,7 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
         guideRecommendedDuration: item.guideRecommendedDuration || '',
         mapUrl: item.mapUrl || '',
         imageUrl: item.imageUrl || '',
+        imageUrls: item.imageUrls || [],
         suggestedItineraries: item.suggestedItineraries || [],
         locationType: item.locationType || '',
         parentRegionId: item.parentRegionId || '',
@@ -780,204 +783,225 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
 
   const handleDownloadTemplate = () => {
     let template = {};
-    if (activeModule === 'travel') {
-      template = {
-        title: "Egipto Clásico y Templos del Nilo",
-        agency: "Sueño Travel Chile",
-        durationDays: 8,
-        durationNights: 7,
-        destinationsSummary: "Egipto (El Cairo, Luxor, Aswan)",
-        countriesSummaryList: [
-          {
-            country: "Egipto",
-            cities: ["El Cairo", "Luxor", "Aswan"]
-          }
-        ],
-        visaCostUSD: 25,
-        hotelTaxUSD: 10,
-        disclaimer: "Tarifas sujetas a cambio sin previo aviso.",
-        servicesExcludedList: [
-          "Vuelos internacionales",
-          "Bebidas y gastos personales",
-          "Propinas generales"
-        ],
-        servicesIncludedList: [
-          {
-            locationId: "",
-            customLocationName: "El Cairo",
-            items: [
-              "3 noches en Hotel Marriott Mena House con desayuno"
-            ]
-          },
-          {
-            locationId: "",
-            customLocationName: "El Cairo y Luxor",
-            items: [
-              "Todos los traslados en vehículo privado con aire acondicionado",
-              "Guía de habla hispana durante las excursiones"
-            ]
-          }
-        ],
-        itinerary: [
-          {
-            dayNumber: 1,
-            locationId: "",
-            customLocationName: "El Cairo",
-            accommodationType: "Alojamiento y desayuno",
-            imageUrl: "https://images.unsplash.com/photo-1572252009286-268acec5a0af?auto=format&fit=crop&w=1200&q=80",
-            activities: [
-              {
-                type: "arrival",
-                description: "Llegada al Aeropuerto de El Cairo. Recepción por nuestro representante y traslado al hotel."
-              },
-              {
-                type: "night",
-                description: "Alojamiento en Marriott Mena House."
-              }
-            ]
-          }
-        ],
-        hotelsPlanned: [
-          {
-            country: "Egipto",
-            category: "5★ Lujo / Boutique",
-            city: "El Cairo",
-            hotelName: "Marriott Mena House",
-            citiesList: [
-              {
-                cityName: "El Cairo",
-                hotelNames: ["Marriott Mena House"]
-              }
-            ]
-          }
-        ],
-        isDraft: true
-      };
-    } else if (activeModule === 'location') {
-      template = [
-        {
-          name: "Chile Costa",
-          type: "region",
-          subtitle: "Playas, gastronomía marina y atardeceres sobre el Pacífico",
-          travelStyles: ["Familiar", "Gastronomía", "Relax", "Surf"],
-          guideBestSeason: "Octubre a Abril",
-          guideHowToGetAround: "Se recomienda alquilar auto",
-          guideRecommendedDuration: "Ideal para recorrer en 3 a 5 días",
-          mapUrl: "https://ejemplo.com/mapa.jpg",
-          suggestedItineraries: [
+    if (isEditing) {
+      if (activeModule === 'travel') {
+        template = buildTravelPayload(formData, formData.isDraft);
+      } else if (activeModule === 'departure') {
+        template = buildDeparturePayload(formData, formData.isDraft);
+      } else if (activeModule === 'location') {
+        template = buildLocationPayload(formData, formData.isDraft);
+      } else if (activeModule === 'design_tokens') {
+        template = buildDesignTokensPayload(formData, formData.isDraft);
+      } else {
+        template = buildTermsPayload(formData, config.taxonomies, formData.isDraft);
+      }
+    } else {
+      if (activeModule === 'travel') {
+        template = {
+          title: "Egipto Clásico y Templos del Nilo",
+          agency: "Sueño Travel Chile",
+          durationDays: 8,
+          durationNights: 7,
+          destinationsSummary: "Egipto (El Cairo, Luxor, Aswan)",
+          countriesSummaryList: [
             {
-              title: "Ruta de 3 días por la Costa Central",
-              duration: "3 días",
-              description: "Día 1: Santiago a Viña. Día 2: Valparaíso. Día 3: Concón."
+              country: "Egipto",
+              cities: ["El Cairo", "Luxor", "Aswan"]
+            }
+          ],
+          visaCostUSD: 25,
+          hotelTaxUSD: 10,
+          disclaimer: "Tarifas sujetas a cambio sin previo aviso.",
+          servicesExcludedList: [
+            "Vuelos internacionales",
+            "Bebidas y gastos personales",
+            "Propinas generales"
+          ],
+          servicesIncludedList: [
+            {
+              locationId: "",
+              customLocationName: "El Cairo",
+              items: [
+                "3 noches en Hotel Marriott Mena House con desayuno"
+              ]
+            },
+            {
+              locationId: "",
+              customLocationName: "El Cairo y Luxor",
+              items: [
+                "Todos los traslados en vehículo privado con aire acondicionado",
+                "Guía de habla hispana durante las excursiones"
+              ]
+            }
+          ],
+          itinerary: [
+            {
+              dayNumber: 1,
+              locationId: "",
+              customLocationName: "El Cairo",
+              accommodationType: "Alojamiento y desayuno",
+              imageUrl: "https://images.unsplash.com/photo-1572252009286-268acec5a0af?auto=format&fit=crop&w=1200&q=80",
+              activities: [
+                {
+                  type: "arrival",
+                  description: "Llegada al Aeropuerto de El Cairo. Recepción por nuestro representante y traslado al hotel."
+                },
+                {
+                  type: "night",
+                  description: "Alojamiento en Marriott Mena House."
+                }
+              ]
+            }
+          ],
+          hotelsPlanned: [
+            {
+              country: "Egipto",
+              category: "5★ Lujo / Boutique",
+              city: "El Cairo",
+              hotelName: "Marriott Mena House",
+              citiesList: [
+                {
+                  cityName: "El Cairo",
+                  hotelNames: ["Marriott Mena House"]
+                }
+              ]
             }
           ],
           isDraft: true
-        },
-        {
-          name: "Casa de Pablo Neruda (La Sebastiana)",
-          type: "location",
-          locationType: "Museo / Sitio Histórico",
-          parentRegionId: "",
-          address: "Ferrari 692, Valparaíso",
-          city: "Valparaíso",
-          country: "Chile",
-          geolocationUrl: "https://maps.app.goo.gl/SebastianaValpo",
-          openingHours: "Martes a Domingo 10:00 - 18:00",
-          pricing: "Adultos: $7.000 CLP, Niños gratis",
-          ticketUrl: "https://fundacionneruda.org",
-          estimatedVisitTime: "1 a 2 horas",
-          amenities: {
-            parking: false,
-            accessibility: false,
-            restrooms: true,
-            petFriendly: false,
-            kidsFriendly: true
+        };
+      } else if (activeModule === 'location') {
+        template = [
+          {
+            name: "Chile Costa",
+            type: "region",
+            subtitle: "Playas, gastronomía marina y atardeceres sobre el Pacífico",
+            travelStyles: ["Familiar", "Gastronomía", "Relax", "Surf"],
+            guideBestSeason: "Octubre a Abril",
+            guideHowToGetAround: "Se recomienda alquilar auto",
+            guideRecommendedDuration: "Ideal para recorrer en 3 a 5 días",
+            mapUrl: "https://ejemplo.com/mapa.jpg",
+            suggestedItineraries: [
+              {
+                title: "Ruta de 3 días por la Costa Central",
+                duration: "3 días",
+                description: "Día 1: Santiago a Viña. Día 2: Valparaíso. Día 3: Concón."
+              }
+            ],
+            isDraft: true
           },
-          description: "Una de las casas del poeta Pablo Neruda con vista panorámica sobre la bahía.",
-          highlights: [
-            "Sube al tercer piso para ver el escritorio original.",
-            "Admira la colección de cajas de música."
+          {
+            name: "Casa de Pablo Neruda (La Sebastiana)",
+            type: "location",
+            locationType: "Museo / Sitio Histórico",
+            parentRegionId: "",
+            address: "Ferrari 692, Valparaíso",
+            city: "Valparaíso",
+            country: "Chile",
+            geolocationUrl: "https://maps.app.goo.gl/SebastianaValpo",
+            openingHours: "Martes a Domingo 10:00 - 18:00",
+            pricing: "Adultos: $7.000 CLP, Niños gratis",
+            ticketUrl: "https://fundacionneruda.org",
+            estimatedVisitTime: "1 a 2 horas",
+            amenities: {
+              parking: false,
+              accessibility: false,
+              restrooms: true,
+              petFriendly: false,
+              kidsFriendly: true
+            },
+            description: "Una de las casas del poeta Pablo Neruda con vista panorámica sobre la bahía.",
+            highlights: [
+              "Sube al tercer piso para ver el escritorio original.",
+              "Admira la colección de cajas de música."
+            ],
+            travelerTips: "Llega temprano para evitar multitudes.",
+            nearbyLocations: [
+              "Cerro Bellavista"
+            ],
+            isDraft: true
+          }
+        ];
+      } else if (activeModule === 'design_tokens') {
+        template = {
+          brandName: "[Nombre de la marca o sistema de diseño, ej: 'Alexandria']",
+          colors: [
+            {
+              hex: "[Código de color en formato HEX, RGB o HSL, ej: '#2563EB']",
+              role: "[Rol o nombre del color, ej: 'Primario', 'Fondo']",
+              description: "[Descripción detallada del uso de este color en el diseño]"
+            }
           ],
-          travelerTips: "Llega temprano para evitar multitudes.",
-          nearbyLocations: [
-            "Cerro Bellavista"
+          typographies: [
+            {
+              fontFamily: "[Familia tipográfica de Google Fonts, ej: 'Plus Jakarta Sans']",
+              fontSize: "[Tamaño base de la fuente, ej: '16px' o '1rem']",
+              weights: [
+                "[Pesos de fuente soportados y disponibles, ej: '400', '700']"
+              ],
+              fontSampleText: "[Texto corto de muestra para previsualizar la tipografía]"
+            }
+          ],
+          logos: [
+            {
+              name: "[Nombre identificativo del logotipo, ej: 'Logo Principal' o 'Isotipo']",
+              svgContent: "[Código XML crudo del SVG, ej: <svg ...>...</svg>]"
+            }
           ],
           isDraft: true
-        }
-      ];
-    } else if (activeModule === 'design_tokens') {
-      template = {
-        brandName: "[Nombre de la marca o sistema de diseño, ej: 'Alexandria']",
-        colors: [
-          {
-            hex: "[Código de color en formato HEX, RGB o HSL, ej: '#2563EB']",
-            role: "[Rol o nombre del color, ej: 'Primario', 'Fondo']",
-            description: "[Descripción detallada del uso de este color en el diseño]"
-          }
-        ],
-        typographies: [
-          {
-            fontFamily: "[Familia tipográfica de Google Fonts, ej: 'Plus Jakarta Sans']",
-            fontSize: "[Tamaño base de la fuente, ej: '16px' o '1rem']",
-            weights: [
-              "[Pesos de fuente soportados y disponibles, ej: '400', '700']"
-            ],
-            fontSampleText: "[Texto corto de muestra para previsualizar la tipografía]"
-          }
-        ],
-        logos: [
-          {
-            name: "[Nombre identificativo del logotipo, ej: 'Logo Principal' o 'Isotipo']",
-            svgContent: "[Código XML crudo del SVG, ej: <svg ...>...</svg>]"
-          }
-        ],
-        isDraft: true
-      };
-    } else {
-      template = {
-        title: "[Nombre del término, concepto o metodología. Ej: 'Design Tokens' o 'Vibe Coding']",
-        category: "[Categoría del término. Debe ser una de las siguientes: 'Diseño & Marca', 'Vibe Coding', 'Tech', 'Gestión de Proyectos', 'Automatización']",
-        description: "[Descripción clara y detallada de lo que consiste este término, explaining su propósito e importancia.]",
-        steps: [
-          {
-            label: "[Paso 1: Nombre o título corto de la primera etapa del proceso de implementación]",
-            detail: "[Explicación detallada de las acciones específicas y consideraciones para este paso.]"
-          }
-        ],
-        problems: [
-          "[Problema o ineficiencia número 1 que este término busca resolver o mitigar]",
-          "[Problema o ineficiencia número 2 que este término busca resolver o mitigar]"
-        ],
-        benefits: [
-          "[Beneficio o ventaja directa número 1 obtenida al aplicar este término o metodología]",
-          "[Beneficio o ventaja directa número 2 obtenida al aplicar este término o metodología]"
-        ],
-        tools: [
-          "[Nombre de la herramienta o software relacionado 1 (ej: Figma, VS Code)]",
-          "[Nombre de la herramienta o software relacionado 2]"
-        ],
-        results: "[Descripción del entregable final, resultado tangible o estado esperado después de implementar este concepto.]",
-        metrics: "[Indicadores clave de rendimiento o métricas de éxito recomendadas para evaluar el impacto.]",
-        recommendedScenarios: [
-          "[Escenario o caso de uso número 1 donde se aconseja y beneficia la aplicación de este término]",
-          "[Escenario o caso de uso número 2 donde se aconseja y beneficia la aplicación de este término]"
-        ],
-        criticalExclusions: [
-          "[Situación o contexto de riesgo número 1 donde explícitamente se desaconseja el uso de este término]",
-          "[Situación o contexto de riesgo número 2 donde explícitamente se desaconseja el uso de este término]"
-        ],
-        technicalExample: "[Snippet de código, configuración de ejemplo o demostración técnica que ilustre la aplicación práctica.]",
-        prompt: "[Instrucción o prompt de IA recomendado para optimizar el uso de este concepto con un LLM, usando variables en formato [nombre_variable]]",
-        promptVars: [
-          "[nombre_variable]"
-        ],
-        isDraft: true
-      };
+        };
+      } else {
+        template = {
+          title: "[Nombre del término, concepto o metodología. Ej: 'Design Tokens' o 'Vibe Coding']",
+          category: "[Categoría del término. Debe ser una de las siguientes: 'Diseño & Marca', 'Vibe Coding', 'Tech', 'Gestión de Proyectos', 'Automatización']",
+          description: "[Descripción clara y detallada de lo que consiste este término, explaining su propósito e importancia.]",
+          steps: [
+            {
+              label: "[Paso 1: Nombre o título corto de la primera etapa del proceso de implementación]",
+              detail: "[Explicación detallada de las acciones específicas y consideraciones para este paso.]"
+            }
+          ],
+          problems: [
+            "[Problema o ineficiencia número 1 que este término busca resolver o mitigar]",
+            "[Problema o ineficiencia número 2 que este término busca resolver o mitigar]"
+          ],
+          benefits: [
+            "[Beneficio o ventaja directa número 1 obtenida al aplicar este término o metodología]",
+            "[Beneficio o ventaja directa número 2 obtenida al aplicar este término o metodología]"
+          ],
+          tools: [
+            "[Nombre de la herramienta o software relacionado 1 (ej: Figma, VS Code)]",
+            "[Nombre de la herramienta o software relacionado 2]"
+          ],
+          results: "[Descripción del entregable final, resultado tangible o estado esperado después de implementar este concepto.]",
+          metrics: "[Indicadores clave de rendimiento o métricas de éxito recomendadas para evaluar el impacto.]",
+          recommendedScenarios: [
+            "[Escenario o caso de uso número 1 donde se aconseja y beneficia la aplicación de este término]",
+            "[Escenario o caso de uso número 2 donde se aconseja y beneficia la aplicación de este término]"
+          ],
+          criticalExclusions: [
+            "[Situación o contexto de riesgo número 1 donde explícitamente se desaconseja el uso de este término]",
+            "[Situación o contexto de riesgo número 2 donde explícitamente se desaconseja el uso de este término]"
+          ],
+          technicalExample: "[Snippet de código, configuración de ejemplo o demostración técnica que ilustre la aplicación práctica.]",
+          prompt: "[Instrucción o prompt de IA recomendado para optimizar el uso de este concepto con un LLM, usando variables en formato [nombre_variable]]",
+          promptVars: [
+            "[nombre_variable]"
+          ],
+          isDraft: true
+        };
+      }
     }
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(Array.isArray(template) ? template : [template], null, 2));
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `plantilla_${activeModule}.json`);
+    let filename = `plantilla_${activeModule}.json`;
+    if (isEditing) {
+      const nameVal = formData.title || formData.name || formData.brandName || '';
+      if (nameVal) {
+        filename = `${nameVal.toLowerCase().replace(/[^a-z0-9]+/g, '_')}_plantilla.json`;
+      }
+    }
+    downloadAnchor.setAttribute("download", filename);
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
@@ -1565,15 +1589,6 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
                                       <span className="material-symbols-outlined text-sm">add</span>
                                     </span>
                                   )}
-                                  {!activePanels.images && (
-                                    <span onClick={() => { setActivePanels(p => ({ ...p, images: true })); setExpandedSections(s => ({ ...s, images: true })); }} className="chip chip-neutral justify-between cursor-pointer hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]" style={{ display: 'flex', width: '100%', padding: '10px 14px' }}>
-                                      <span className="flex items-center gap-2">
-                                        <span className="material-symbols-outlined text-sm">photo_library</span>
-                                        Galería e Imágenes
-                                      </span>
-                                      <span className="material-symbols-outlined text-sm">add</span>
-                                    </span>
-                                  )}
                                 </>
                               ) : (
                                 <>
@@ -1609,15 +1624,6 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
                                       <span className="flex items-center gap-2">
                                         <span className="material-symbols-outlined text-sm">explore</span>
                                         Contenido de la Experiencia
-                                      </span>
-                                      <span className="material-symbols-outlined text-sm">add</span>
-                                    </span>
-                                  )}
-                                  {!activePanels.images && (
-                                    <span onClick={() => { setActivePanels(p => ({ ...p, images: true })); setExpandedSections(s => ({ ...s, images: true })); }} className="chip chip-neutral justify-between cursor-pointer hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]" style={{ display: 'flex', width: '100%', padding: '10px 14px' }}>
-                                      <span className="flex items-center gap-2">
-                                        <span className="material-symbols-outlined text-sm">photo_library</span>
-                                        Galería e Imágenes
                                       </span>
                                       <span className="material-symbols-outlined text-sm">add</span>
                                     </span>

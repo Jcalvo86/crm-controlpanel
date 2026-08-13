@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import HoldToConfirmButton from '../components/HoldToConfirmButton.jsx';
 import { uploadFile } from '../utils/upload.js';
+import ImageUploader from '../components/ImageUploader.jsx';
 
 const formatOptionLabel = (loc) => {
   if (!loc) return '';
@@ -17,14 +18,24 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
   const [uploadingDayIndex, setUploadingDayIndex] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  const handleUploadFile = async (e, dayIdx) => {
+  const handleUploadFile = async (e, targetKey) => {
     const file = e.target.files[0];
     if (!file) return;
 
     setIsUploading(true);
     try {
       const url = await uploadFile(file);
-      handleItineraryChange(dayIdx, 'imageUrl', url);
+      if (typeof targetKey === 'number' || (!isNaN(Number(targetKey)) && targetKey !== '' && targetKey !== 'imageUrl' && targetKey !== 'headerImageUrl')) {
+        handleItineraryChange(Number(targetKey), 'imageUrl', url);
+      } else {
+        if (targetKey === 'imageUrl') {
+          setFormData(prev => ({ ...prev, imageUrl: url, image_url: url }));
+        } else if (targetKey === 'headerImageUrl') {
+          setFormData(prev => ({ ...prev, headerImageUrl: url, header_image_url: url }));
+        } else {
+          setFormData(prev => ({ ...prev, [targetKey]: url }));
+        }
+      }
     } catch (err) {
       console.error(err);
       alert(`Error al subir el archivo: ${err.message}`);
@@ -80,6 +91,53 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
         nextIt[idx] = { ...nextIt[idx], [fieldOrObject]: val };
       }
       return { ...prev, itinerary: nextIt };
+    });
+  };
+
+  const addLocationPill = (dayIdx, val) => {
+    if (!val || !val.trim()) return;
+    const cleanVal = val.trim();
+    const matchedLoc = locations.find(l => formatOptionLabel(l) === cleanVal || l.name === cleanVal);
+    
+    const dayRecord = itinerary[dayIdx] || {};
+    const currentLocs = dayRecord.locations || (
+      dayRecord.locationId 
+        ? [{ id: dayRecord.locationId, name: dayRecord.customLocationName || (locations.find(l => l.id === dayRecord.locationId)?.name || 'Ubicación') }]
+        : []
+    );
+
+    const pill = matchedLoc 
+      ? { id: matchedLoc.id, name: matchedLoc.name }
+      : { id: 'custom', name: cleanVal };
+      
+    if (currentLocs.some(l => l.name.toLowerCase() === pill.name.toLowerCase())) {
+      handleItineraryChange(dayIdx, { tempLocationInput: '' });
+      return;
+    }
+
+    const nextLocs = [...currentLocs, pill];
+    
+    handleItineraryChange(dayIdx, {
+      locations: nextLocs,
+      tempLocationInput: '',
+      locationId: nextLocs[0]?.id || '',
+      customLocationName: nextLocs[0]?.id === 'custom' ? nextLocs[0]?.name : ''
+    });
+  };
+
+  const removeLocationPill = (dayIdx, pillIdx) => {
+    const dayRecord = itinerary[dayIdx] || {};
+    const currentLocs = dayRecord.locations || (
+      dayRecord.locationId 
+        ? [{ id: dayRecord.locationId, name: dayRecord.customLocationName || (locations.find(l => l.id === dayRecord.locationId)?.name || 'Ubicación') }]
+        : []
+    );
+    const nextLocs = currentLocs.filter((_, i) => i !== pillIdx);
+    
+    handleItineraryChange(dayIdx, { 
+      locations: nextLocs,
+      locationId: nextLocs[0]?.id || '',
+      customLocationName: nextLocs[0]?.id === 'custom' ? nextLocs[0]?.name : ''
     });
   };
 
@@ -487,6 +545,17 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
               className="form-input"
             />
           </div>
+          
+          {/* Imagen del Viaje (Portada y Cabecera) */}
+          <div className="md:col-span-2 flex flex-col gap-2">
+            <ImageUploader
+              value={formData.imageUrl || formData.image_url || ''}
+              onChange={(url) => {
+                setFormData(prev => ({ ...prev, imageUrl: url, image_url: url }));
+              }}
+              label="Imagen del Viaje (Se utilizará como portada en el listado y fondo de cabecera en el detalle)"
+            />
+          </div>
           <div className="flex flex-col gap-2">
             <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Duración (Días) *</label>
             <input
@@ -676,7 +745,10 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
                     </span>
                     <span className="chip chip-primary text-xs font-bold font-mono">Día {day.dayNumber}</span>
                     <span className="text-sm font-semibold truncate max-w-md">
-                      {day.customLocationName || (locations.find(l => l.id === day.locationId)?.name || 'Sin ubicación seleccionada')}
+                      {day.dayTitle ? `${day.dayTitle} ` : ''}
+                      {day.locations && day.locations.length > 0
+                        ? `(${day.locations.map(l => l.name).join(', ')})`
+                        : (day.customLocationName || (locations.find(l => l.id === day.locationId)?.name ? `(${locations.find(l => l.id === day.locationId).name})` : 'Sin ubicación seleccionada'))}
                     </span>
                   </div>
                 </div>
@@ -694,30 +766,92 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-4 pl-1">
                       {/* Left Column: Location & Accommodation (Under Location) */}
                       <div className="space-y-4">
-                        {/* Location selector */}
+                        {/* Title of the Day input */}
                         <div className="flex flex-col gap-2">
-                          <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Ubicación / Destino</label>
+                          <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Título del Día (ej: Estambul - ciudad antigua)</label>
                           <input
                             type="text"
-                            list={`location-options-${idx}`}
-                            value={day.customLocationName || (locations.find(l => l.id === day.locationId) ? formatOptionLabel(locations.find(l => l.id === day.locationId)) : '')}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              const matchedLoc = locations.find(l => formatOptionLabel(l) === val || l.name === val);
-                              if (matchedLoc) {
-                                handleItineraryChange(idx, { locationId: matchedLoc.id, customLocationName: '' });
-                              } else {
-                                handleItineraryChange(idx, { locationId: 'custom', customLocationName: val });
-                              }
-                            }}
-                            placeholder="Escribe o haz doble clic para ver ubicaciones..."
+                            value={day.dayTitle || ''}
+                            onChange={(e) => handleItineraryChange(idx, 'dayTitle', e.target.value)}
+                            placeholder="Ej: Estambul - Ciudad Antigua"
                             className="form-input w-full"
                           />
-                          <datalist id={`location-options-${idx}`}>
-                            {locations.map(loc => (
-                              <option key={loc.id} value={formatOptionLabel(loc)} />
-                            ))}
-                          </datalist>
+                        </div>
+
+                        {/* Location selector */}
+                        <div className="flex flex-col gap-2">
+                          <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Ubicaciones del Día (Ciudades y Atracciones)</label>
+                          
+                          {/* Render Pills */}
+                          {(() => {
+                            const dayLocs = day.locations || (
+                              day.locationId 
+                                ? [{ id: day.locationId, name: day.customLocationName || (locations.find(l => l.id === day.locationId)?.name || 'Ubicación') }]
+                                : []
+                            );
+                            if (dayLocs.length === 0) return null;
+                            return (
+                              <div className="flex flex-wrap gap-1.5 p-2.5 bg-[var(--surface-container-low)] rounded-xl border border-[var(--outline-variant)]/40 mb-1 max-w-full">
+                                {dayLocs.map((loc, pIdx) => (
+                                  <span key={pIdx} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-[var(--primary)] text-white shadow-sm transition-all hover:bg-[color-mix(in_srgb,var(--primary)_90%,white)]">
+                                    <span className="material-symbols-outlined text-[11px]">pin_drop</span>
+                                    {loc.name}
+                                    <button
+                                      type="button"
+                                      onClick={() => removeLocationPill(idx, pIdx)}
+                                      className="hover:bg-white/20 rounded-full p-0.5 inline-flex items-center justify-center transition-colors ml-1"
+                                      style={{ width: '14px', height: '14px' }}
+                                      title="Eliminar ubicación"
+                                    >
+                                      <span className="material-symbols-outlined text-[9px] font-bold">close</span>
+                                    </button>
+                                  </span>
+                                ))}
+                              </div>
+                            );
+                          })()}
+
+                          {/* Search Input with add button */}
+                          <div className="flex gap-2">
+                            <div className="relative flex-1">
+                              <input
+                                type="text"
+                                list={`location-options-${idx}`}
+                                value={day.tempLocationInput || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  handleItineraryChange(idx, 'tempLocationInput', val);
+                                  // Auto-add if it exactly matches one of the options (for quick click selection)
+                                  const matched = locations.find(l => formatOptionLabel(l) === val || l.name === val);
+                                  if (matched) {
+                                    addLocationPill(idx, val);
+                                  }
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    addLocationPill(idx, day.tempLocationInput || '');
+                                  }
+                                }}
+                                placeholder="Escribe o selecciona ubicación y presiona Enter..."
+                                className="form-input w-full pr-10"
+                              />
+                              <datalist id={`location-options-${idx}`}>
+                                {locations.map(loc => (
+                                  <option key={loc.id} value={formatOptionLabel(loc)} />
+                                ))}
+                              </datalist>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => addLocationPill(idx, day.tempLocationInput || '')}
+                              className="btn-secondary px-3 flex items-center justify-center"
+                              style={{ height: '48px' }}
+                              title="Añadir ubicación"
+                            >
+                              <span className="material-symbols-outlined text-sm">add</span>
+                            </button>
+                          </div>
                         </div>
 
                         {/* Accommodation Type (Positioned below Location) */}

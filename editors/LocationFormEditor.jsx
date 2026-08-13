@@ -19,13 +19,26 @@ export default function LocationFormEditor({
   const [isUploading, setIsUploading] = React.useState(false);
 
   const handleUploadFile = async (e, field) => {
-    const file = e.target.files[0];
-    if (!file) return;
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
 
     setIsUploading(true);
     try {
-      const url = await uploadFile(file);
-      handleChange(field, url);
+      if (field === 'galleryUpload') {
+        const urls = [];
+        for (const file of files) {
+          const url = await uploadFile(file);
+          urls.push(url);
+        }
+        setFormData(prev => ({
+          ...prev,
+          imageUrls: [...(prev.imageUrls || []), ...urls],
+          imageUrl: prev.imageUrl || urls[0]
+        }));
+      } else {
+        const url = await uploadFile(files[0]);
+        handleChange(field, url);
+      }
     } catch (err) {
       console.error(err);
       alert(`Error al subir el archivo: ${err.message}`);
@@ -176,6 +189,7 @@ export default function LocationFormEditor({
         onChange={(e) => handleUploadFile(e, uploadingField)}
         className="hidden"
         accept="image/*"
+        multiple={uploadingField === 'galleryUpload'}
       />
       {/* 1. Identity Section (Always Visible) */}
       <section id="sec-identity" className="glass-panel p-8">
@@ -991,71 +1005,140 @@ export default function LocationFormEditor({
           )}
 
           {/* Galería e Imágenes */}
-          {activePanels.images && (
-            <section id="sec-images" className="glass-panel">
-              <div 
-                onClick={() => toggleSection('images')}
-                className="p-6 flex items-center justify-between cursor-pointer border-b border-[var(--outline-variant)]"
-              >
-                <h3 className="font-headline-sm flex items-center gap-2" style={{ color: 'var(--on-surface)' }}>
-                  <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>photo_library</span>
-                  Galería e Imágenes
-                </h3>
-                <span className="material-symbols-outlined transition-transform duration-200" style={{ transform: expandedSections.images ? 'rotate(180deg)' : 'rotate(0deg)' }}>
-                  expand_more
-                </span>
-              </div>
+          <section id="sec-images" className="glass-panel">
+            <div 
+              onClick={() => toggleSection('images')}
+              className="p-6 flex items-center justify-between cursor-pointer border-b border-[var(--outline-variant)]"
+            >
+              <h3 className="font-headline-sm flex items-center gap-2" style={{ color: 'var(--on-surface)' }}>
+                <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>photo_library</span>
+                Galería e Imágenes
+              </h3>
+              <span className="material-symbols-outlined transition-transform duration-200" style={{ transform: expandedSections.images ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                expand_more
+              </span>
+            </div>
 
-              <div className="transition-all duration-300 overflow-hidden" style={{ display: expandedSections.images ? 'block' : 'none' }}>
-                <div className="p-8 space-y-6">
-                  {/* Imagen Destacada Principal */}
-                  <div className="flex flex-col gap-2">
-                    <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Imagen Destacada Principal (Cover / Miniatura)</label>
-                    <div className="flex gap-3">
-                      <input
-                        type="text"
-                        value={formData.imageUrl || ''}
-                        onChange={(e) => handleChange('imageUrl', e.target.value)}
-                        placeholder="https://ejemplo.com/portada.jpg"
-                        className="form-input flex-1"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => triggerUpload('imageUrl')}
-                        disabled={isUploading}
-                        className="btn-secondary flex items-center gap-1.5 shrink-0"
-                        style={{ height: '48px', padding: '0 16px' }}
-                      >
-                        <span className={`material-symbols-outlined text-sm ${isUploading && uploadingField === 'imageUrl' ? 'animate-spin' : ''}`}>
-                          {isUploading && uploadingField === 'imageUrl' ? 'sync' : 'upload'}
-                        </span>
-                        {isUploading && uploadingField === 'imageUrl' ? 'Subiendo...' : 'Subir Imagen'}
-                      </button>
-                    </div>
-
-                    {/* Previsualización */}
-                    {formData.imageUrl && (
-                      <div className="mt-3 relative overflow-hidden rounded-xl border border-[var(--outline-variant)] shadow-sm bg-[var(--surface-container-low)] max-w-md">
-                        <img 
-                          src={formData.imageUrl} 
-                          alt="Imagen destacada" 
-                          className="w-full h-auto max-h-60 object-cover"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleChange('imageUrl', '')}
-                          className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white rounded-full p-1.5 transition-colors"
-                          title="Eliminar imagen"
-                        >
-                          <span className="material-symbols-outlined text-sm block">close</span>
-                        </button>
-                      </div>
-                    )}
+            <div className="transition-all duration-300 overflow-hidden" style={{ display: expandedSections.images ? 'block' : 'none' }}>
+              <div className="p-8 space-y-6">
+                {/* Upload button and input */}
+                <div className="flex flex-col gap-2">
+                  <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Subir Nueva Imagen a la Galería</label>
+                  <div className="flex gap-3">
+                    <input
+                      type="text"
+                      value={formData.tempImageUrlInput || ''}
+                      onChange={(e) => handleChange('tempImageUrlInput', e.target.value)}
+                      placeholder="Ingresa URL de imagen externa..."
+                      className="form-input flex-1"
+                    />
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const val = formData.tempImageUrlInput;
+                        if (val && val.trim()) {
+                          const nextUrls = [...(formData.imageUrls || []), val.trim()];
+                          setFormData(prev => ({
+                            ...prev,
+                            imageUrls: nextUrls,
+                            imageUrl: prev.imageUrl || val.trim(),
+                            tempImageUrlInput: ''
+                          }));
+                        }
+                      }}
+                      className="btn-secondary flex items-center gap-1.5 px-4"
+                      style={{ height: '48px' }}
+                    >
+                      Agregar URL
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => triggerUpload('galleryUpload')}
+                      disabled={isUploading}
+                      className="btn-secondary flex items-center gap-1.5 shrink-0"
+                      style={{ height: '48px', padding: '0 16px' }}
+                    >
+                      <span className={`material-symbols-outlined text-sm ${isUploading && uploadingField === 'galleryUpload' ? 'animate-spin' : ''}`}>
+                        {isUploading && uploadingField === 'galleryUpload' ? 'sync' : 'upload'}
+                      </span>
+                      {isUploading && uploadingField === 'galleryUpload' ? 'Subiendo...' : 'Subir Archivo'}
+                    </button>
                   </div>
                 </div>
+
+                {/* Image Grid */}
+                <div className="space-y-3">
+                  <label className="font-label-md block" style={{ color: 'var(--on-surface-variant)' }}>Imágenes Cargadas ({ (formData.imageUrls || []).length })</label>
+                  
+                  {(formData.imageUrls || []).length === 0 ? (
+                    <p className="text-xs text-[var(--on-surface-variant)] italic bg-[var(--surface-container-low)] p-4 rounded-xl text-center border border-dashed border-[var(--outline-variant)]">
+                      No hay imágenes en la galería. Sube una foto o ingresa una URL arriba.
+                    </p>
+                  ) : (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {(formData.imageUrls || []).map((url, gIdx) => {
+                        const isCover = formData.imageUrl === url;
+                        return (
+                          <div key={gIdx} className={`relative overflow-hidden rounded-xl border-2 transition-all flex flex-col justify-between bg-[var(--surface-container-low)] group ${isCover ? 'border-[var(--primary)] shadow-md' : 'border-[var(--outline-variant)]/40 hover:border-[var(--outline)]'}`}>
+                            <div className="relative aspect-video w-full overflow-hidden bg-black/5">
+                              <img src={url} alt={`Imagen ${gIdx + 1}`} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                              
+                              {/* Delete button on top right */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const nextUrls = (formData.imageUrls || []).filter((_, i) => i !== gIdx);
+                                  let nextCover = formData.imageUrl;
+                                  if (isCover) {
+                                    nextCover = nextUrls[0] || '';
+                                  }
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    imageUrls: nextUrls,
+                                    imageUrl: nextCover
+                                  }));
+                                }}
+                                className="absolute top-1.5 right-1.5 bg-black/60 hover:bg-[var(--error)] text-white rounded-full p-1 transition-colors"
+                                title="Eliminar de la galería"
+                                style={{ width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyItems: 'center' }}
+                              >
+                                <span className="material-symbols-outlined text-[10px] block mx-auto">close</span>
+                              </button>
+
+                              {/* Cover indicator on top left */}
+                              {isCover && (
+                                <span className="absolute top-1.5 left-1.5 bg-[var(--primary)] text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-sm flex items-center gap-1 uppercase tracking-wider">
+                                  <span className="material-symbols-outlined text-[9px] fill-current">star</span>
+                                  Portada
+                                </span>
+                              )}
+                            </div>
+                            
+                            <div className="p-2 border-t border-[var(--outline-variant)]/20 bg-white">
+                              {!isCover ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleChange('imageUrl', url)}
+                                  className="w-full text-[10px] font-bold text-[var(--primary)] hover:underline flex items-center justify-center gap-1 bg-transparent border-none cursor-pointer"
+                                >
+                                  <span className="material-symbols-outlined text-xs">star</span>
+                                  Usar como Portada
+                                </button>
+                              ) : (
+                                <span className="w-full text-[10px] font-bold text-[var(--primary)]/60 flex items-center justify-center gap-1 cursor-default">
+                                  ✓ Es Portada Actual
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
-            </section>
-          )}
+            </div>
+          </section>
         </>
       )}
     </div>

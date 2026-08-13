@@ -156,7 +156,7 @@ export default function DashboardView({
                 </div>
 
                 {/* Card Footer Actions */}
-                <div className="grid grid-cols-2 gap-3 mt-6 pt-4 border-t border-[var(--outline)]">
+                <div className="mt-6 pt-4 border-t border-[var(--outline)]">
                   <button
                     type="button"
                     onClick={() => {
@@ -169,15 +169,6 @@ export default function DashboardView({
                   >
                     <span className="material-symbols-outlined text-xs mr-1">list</span>
                     Ver Todos
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleAddNew(modKey)}
-                    className="btn-primary w-full justify-center text-xs text-white"
-                    style={{ padding: '8px 12px', backgroundColor: m.color, borderColor: m.color }}
-                  >
-                    <span className="material-symbols-outlined text-xs mr-1">add</span>
-                    Añadir
                   </button>
                 </div>
               </div>

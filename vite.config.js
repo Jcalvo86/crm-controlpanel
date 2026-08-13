@@ -19,9 +19,16 @@ export default defineConfig({
     }
   },
 
-  // Especifica que el servidor busque el index.html de controlpanel
+  // Especifica que el servidor busque el index.html de controlpanel y configure un proxy para /api para evitar errores CORS en desarrollo local.
   server: {
     open: '/controlpanel/index.html',
+    proxy: {
+      '/api': {
+        target: 'https://www.suenotravel.cl',
+        changeOrigin: true,
+        secure: false
+      }
+    }
   },
 
   build: {
