@@ -28,43 +28,82 @@ export default function TermsFormEditor({
     <>
       {/* Identity Section */}
       <section id="sec-identity" className="glass-panel p-8">
-        <h2 className="font-headline-sm mb-6 flex items-center gap-2" style={{ color: 'var(--on-surface)' }}>
+        <h2 className="font-headline-sm mb-2 flex items-center gap-2" style={{ color: 'var(--on-surface)' }}>
           <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>fingerprint</span>
           Identidad de la Entrada
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div className="md:col-span-2 flex flex-col gap-2">
-            <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Título de la Entrada *</label>
+        <p className="text-xs text-slate-500 mb-6">
+          Define los datos básicos de este concepto: su título, a qué área de trabajo pertenece y el formato del contenido.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="md:col-span-2 flex flex-col gap-1.5">
+            <label className="text-[13px] font-semibold text-slate-700 flex items-center">
+              Título de la Entrada <span className="text-red-500 ml-0.5">*</span>
+            </label>
             <input
               type="text"
               required
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               placeholder="Ej: Vibe Coding Essentials"
-              className="form-input font-headline-sm"
-              style={{ fontSize: '1.1rem' }}
+              className="h-[38px] px-3 py-2 text-sm text-slate-900 placeholder-slate-400 bg-white border border-slate-200 rounded-md focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 hover:bg-slate-50 transition-colors w-full"
             />
           </div>
           {Object.entries(normalizedTax).map(([taxKey, tax]) => (
-            <div key={taxKey} className="flex flex-col gap-2">
-              <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>{tax.label} *</label>
+            <div key={taxKey} className="flex flex-col gap-1.5">
+              <label className="text-[13px] font-semibold text-slate-700 flex items-center">
+                {tax.label} <span className="text-red-500 ml-0.5">*</span>
+              </label>
               <div className="relative">
                 <select
                   value={formData[taxKey] || (tax.items && tax.items[0]?.val) || 'all'}
-                  onChange={(e) => setFormData({ ...formData, [taxKey]: e.target.value })}
-                  className="form-select font-body-sm bg-[var(--surface-container-low)]"
-                  style={{ height: '42px' }}
+                  onChange={async (e) => {
+                    const val = e.target.value;
+                    if (val === '__ADD_NEW__') {
+                      const name = prompt('Ingresa el nombre de la nueva área de trabajo:');
+                      if (name) {
+                        const icon = prompt('Ingresa un emoji para esta área (opcional):') || '📌';
+                        const slug = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '');
+                        const newItem = { val: slug, label: name, icon: icon, chipClass: 'chip-neutral' };
+                        
+                        const currentConfig = window.DataSourceConfig?.getConfig() || config;
+                        const updatedWorkAreas = [...(currentConfig.taxonomies?.workAreas || []), newItem];
+                        const newConfig = {
+                          ...currentConfig,
+                          taxonomies: {
+                            ...currentConfig.taxonomies,
+                            workAreas: updatedWorkAreas
+                          }
+                        };
+                        if (window.DataSourceConfig) {
+                          await window.DataSourceConfig.saveConfig(newConfig);
+                        }
+                        window.dispatchEvent(new CustomEvent('GlosaurioConfigUpdated', { detail: newConfig }));
+                        setFormData({ ...formData, [taxKey]: slug });
+                      }
+                      // Reset value to old if prompt cancelled
+                      e.target.value = formData[taxKey] || (tax.items && tax.items[0]?.val) || 'all';
+                    } else {
+                      setFormData({ ...formData, [taxKey]: val });
+                    }
+                  }}
+                  className="h-[38px] w-full pl-3 pr-10 py-2 text-sm text-slate-900 bg-white border border-slate-200 rounded-md focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 hover:bg-slate-50 transition-colors appearance-none"
                 >
                   {(tax.items || []).map(item => (
                     <option key={item.val} value={item.val}>{item.icon} {item.label}</option>
                   ))}
+                  {taxKey === 'workArea' && (
+                    <option value="__ADD_NEW__">➕ Añadir nueva área...</option>
+                  )}
                 </select>
-                <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-lg" style={{ color: 'var(--outline)' }}>expand_more</span>
+                <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-lg">expand_more</span>
               </div>
             </div>
           ))}
           <div className="md:col-span-2 flex flex-col gap-3">
-            <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Resultado Objetivo / ¿Qué necesito? *</label>
+            <label className="text-[13px] font-semibold text-slate-700 flex items-center">
+              Resultado Objetivo / ¿Qué necesito? <span className="text-red-500 ml-0.5">*</span>
+            </label>
             <div className="flex flex-col gap-3">
               <div className="flex flex-wrap gap-2">
                 {(() => {
@@ -111,13 +150,12 @@ export default function TermsFormEditor({
                   );
                 })()}
               </div>
-              <div className="flex gap-2">
+              <div className="flex rounded-md shadow-sm w-full">
                 <input
                   type="text"
                   id="custom-result-input"
                   placeholder="Escribe un resultado objetivo personalizado y pulsa Añadir..."
-                  className="form-input flex-1"
-                  style={{ padding: '8px 12px', fontSize: '0.85rem' }}
+                  className="h-[38px] flex-1 rounded-l-md border border-r-0 border-slate-200 px-3 text-sm text-slate-900 placeholder-slate-400 bg-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 hover:bg-slate-50 transition-colors"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       e.preventDefault();
@@ -149,33 +187,34 @@ export default function TermsFormEditor({
                       input.value = '';
                     }
                   }}
-                  className="btn-secondary text-xs"
-                  style={{ padding: '6px 14px' }}
+                  className="h-[38px] px-4 rounded-r-md bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-200 transition-colors shrink-0"
                 >
                   Añadir
                 </button>
               </div>
             </div>
           </div>
-          <div className="flex flex-col gap-2">
-            <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Enlace URL (Documentación / Web)</label>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[13px] font-semibold text-slate-700">Enlace URL (Documentación / Web)</label>
             <input
               type="url"
               value={formData.url || ''}
               onChange={(e) => setFormData({ ...formData, url: e.target.value })}
               placeholder="Ej: https://ejemplo.com"
-              className="form-input"
+              className="h-[38px] px-3 py-2 text-sm text-slate-900 placeholder-slate-400 bg-white border border-slate-200 rounded-md focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 hover:bg-slate-50 transition-colors w-full"
             />
           </div>
-          <div className="md:col-span-2 flex flex-col gap-2">
-            <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Descripción Corta *</label>
+          <div className="md:col-span-2 flex flex-col gap-1.5">
+            <label className="text-[13px] font-semibold text-slate-700 flex items-center">
+              Descripción Corta <span className="text-red-500 ml-0.5">*</span>
+            </label>
             <textarea
               required
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               placeholder="Descripción del término que aparecerá en la tarjeta del glosario..."
               rows="3"
-              className="form-textarea"
+              className="px-3 py-2 text-sm text-slate-900 placeholder-slate-400 bg-white border border-slate-200 rounded-md focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 hover:bg-slate-50 transition-colors w-full min-h-[96px] resize-y"
             />
           </div>
         </div>
@@ -228,16 +267,14 @@ export default function TermsFormEditor({
                     value={step.label}
                     onChange={(e) => handleStepChange(idx, 'label', e.target.value)}
                     placeholder="Título del paso"
-                    className="form-input text-sm"
-                    style={{ padding: '10px 14px' }}
+                    className="h-[38px] px-3 py-2 text-sm text-slate-900 placeholder-slate-400 bg-white border border-slate-200 rounded-md focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 hover:bg-slate-50 transition-colors w-full"
                   />
                   <textarea
                     value={step.detail}
                     onChange={(e) => handleStepChange(idx, 'detail', e.target.value)}
                     placeholder="Descripción del paso..."
                     rows="2"
-                    className="form-textarea text-sm"
-                    style={{ padding: '10px 14px' }}
+                    className="px-3 py-2 text-sm text-slate-900 placeholder-slate-400 bg-white border border-slate-200 rounded-md focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 hover:bg-slate-50 transition-colors w-full min-h-[64px] resize-y"
                   />
                 </div>
               ))}
@@ -279,25 +316,25 @@ export default function TermsFormEditor({
             </div>
           </div>
           {expandedSections.problems && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div className="flex flex-col gap-2">
-                <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Problemas que Resuelve (uno por línea)</label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[13px] font-semibold text-slate-700 flex items-center">Problemas que Resuelve (uno por línea)</label>
                 <textarea
                   value={formData.problems}
                   onChange={(e) => setFormData({ ...formData, problems: e.target.value })}
                   placeholder="Ej: Decisiones de diseño lentas&#10;Ciclos de feedback muy largos"
                   rows="4"
-                  className="form-textarea text-sm"
+                  className="px-3 py-2 text-sm text-slate-900 placeholder-slate-400 bg-white border border-slate-200 rounded-md focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 hover:bg-slate-50 transition-colors w-full min-h-[96px] resize-y"
                 />
               </div>
-              <div className="flex flex-col gap-2">
-                <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Beneficios Clave (uno por línea)</label>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[13px] font-semibold text-slate-700 flex items-center">Beneficios Clave (uno por línea)</label>
                 <textarea
                   value={formData.benefits}
                   onChange={(e) => setFormData({ ...formData, benefits: e.target.value })}
                   placeholder="Ej: Reduce semanas de trabajo a días&#10;Valida ideas rápidamente"
                   rows="4"
-                  className="form-textarea text-sm"
+                  className="px-3 py-2 text-sm text-slate-900 placeholder-slate-400 bg-white border border-slate-200 rounded-md focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 hover:bg-slate-50 transition-colors w-full min-h-[96px] resize-y"
                 />
               </div>
             </div>
@@ -330,25 +367,25 @@ export default function TermsFormEditor({
             </div>
           </div>
           {expandedSections.metrics && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div className="flex flex-col gap-2">
-                <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Entregables Esperados</label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[13px] font-semibold text-slate-700 flex items-center">Entregables Esperados</label>
                 <textarea
                   value={formData.results}
                   onChange={(e) => setFormData({ ...formData, results: e.target.value })}
                   placeholder="¿Qué se obtiene al aplicar este término?"
                   rows="4"
-                  className="form-textarea"
+                  className="px-3 py-2 text-sm text-slate-900 placeholder-slate-400 bg-white border border-slate-200 rounded-md focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 hover:bg-slate-50 transition-colors w-full min-h-[96px] resize-y"
                 />
               </div>
-              <div className="flex flex-col gap-2">
-                <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Métricas de Éxito</label>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[13px] font-semibold text-slate-700 flex items-center">Métricas de Éxito</label>
                 <textarea
                   value={formData.metrics}
                   onChange={(e) => setFormData({ ...formData, metrics: e.target.value })}
                   placeholder="¿Cómo saber si se aplicó correctamente?"
                   rows="4"
-                  className="form-textarea"
+                  className="px-3 py-2 text-sm text-slate-900 placeholder-slate-400 bg-white border border-slate-200 rounded-md focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 hover:bg-slate-50 transition-colors w-full min-h-[96px] resize-y"
                 />
               </div>
             </div>
@@ -382,14 +419,14 @@ export default function TermsFormEditor({
           </div>
           {expandedSections.prompt && (
             <>
-              <div className="flex flex-col gap-2 mb-4">
-                <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Variables rápidas (separadas por coma)</label>
+              <div className="flex flex-col gap-1.5 mb-4">
+                <label className="text-[13px] font-semibold text-slate-700 flex items-center">Variables rápidas (separadas por coma)</label>
                 <input
                   type="text"
                   value={formData.promptVars}
                   onChange={(e) => setFormData({ ...formData, promptVars: e.target.value })}
                   placeholder="Ej: nombre_marca, industria, tono"
-                  className="form-input"
+                  className="h-[38px] px-3 py-2 text-sm text-slate-900 placeholder-slate-400 bg-white border border-slate-200 rounded-md focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 hover:bg-slate-50 transition-colors w-full"
                 />
               </div>
               <div className="code-editor">
@@ -456,7 +493,7 @@ export default function TermsFormEditor({
                     value={videoUrl}
                     onChange={(e) => handleVideoChange(idx, e.target.value)}
                     placeholder="Enlace del video (ej. YouTube, Loom, Vimeo)"
-                    className="form-input flex-1"
+                    className="h-[38px] px-3 py-2 text-sm text-slate-900 placeholder-slate-400 bg-white border border-slate-200 rounded-md focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 hover:bg-slate-50 transition-colors flex-1"
                   />
                   {(formData.videos || []).length > 1 && (
                     <button
@@ -500,25 +537,25 @@ export default function TermsFormEditor({
             </div>
           </div>
           {expandedSections.scenarios && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div className="flex flex-col gap-2">
-                <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Dónde SÍ aplicarlo / Casos de Uso Ideales (uno por línea)</label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[13px] font-semibold text-slate-700 flex items-center">Dónde SÍ aplicarlo / Casos de Uso Ideales (uno por línea)</label>
                 <textarea
                   value={formData.recommendedScenarios}
                   onChange={(e) => setFormData({ ...formData, recommendedScenarios: e.target.value })}
                   placeholder="Ej: Pantallas iterativas de planificación (Cartas Gantt, matrices RACI)&#10;Formularios extensos o fichas de configuración"
                   rows="4"
-                  className="form-textarea text-sm"
+                  className="px-3 py-2 text-sm text-slate-900 placeholder-slate-400 bg-white border border-slate-200 rounded-md focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 hover:bg-slate-50 transition-colors w-full min-h-[96px] resize-y"
                 />
               </div>
-              <div className="flex flex-col gap-2">
-                <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Dónde NO aplicarlo / Contraindicaciones (uno por línea)</label>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[13px] font-semibold text-slate-700 flex items-center">Dónde NO aplicarlo / Contraindicaciones (uno por línea)</label>
                 <textarea
                   value={formData.criticalExclusions}
                   onChange={(e) => setFormData({ ...formData, criticalExclusions: e.target.value })}
                   placeholder="Ej: Colaboración multiusuario en tiempo real&#10;Creación o eliminación de entidades principales"
                   rows="4"
-                  className="form-textarea text-sm"
+                  className="px-3 py-2 text-sm text-slate-900 placeholder-slate-400 bg-white border border-slate-200 rounded-md focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 hover:bg-slate-50 transition-colors w-full min-h-[96px] resize-y"
                 />
               </div>
             </div>

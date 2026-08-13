@@ -146,6 +146,15 @@ export default function ItemsTable({
                   highlightsAndTips: false
                 });
                 setCreatingTypeSelected(true);
+              } else if (activeModule === 'design_tokens') {
+                setFormData({
+                  brandName: '',
+                  colors: [],
+                  typographies: [],
+                  logos: [],
+                  isDraft: true
+                });
+                setCreatingTypeSelected(true);
               } else {
                 setFormData({
                   title: '',
@@ -173,7 +182,7 @@ export default function ItemsTable({
                   code: false,
                   videos: false
                 });
-                setCreatingTypeSelected(false);
+                setCreatingTypeSelected(true);
               }
               setShowForm(true);
             }}
@@ -218,7 +227,7 @@ export default function ItemsTable({
                     </button>
                   </div>
                 </th>
-                <th className="pb-3 pr-2" style={{ width: '21%' }}>
+                <th className="pb-3 pr-2" style={{ width: activeModule === 'travel' ? '21%' : '37%' }}>
                   <div className="flex items-center gap-2">
                     <span>
                       {activeModule === 'design_tokens'
@@ -333,8 +342,6 @@ export default function ItemsTable({
                           })()
                         )}
                       </td>
-                      
-                      {/* Location column displaying only countries summary */}
                       <td className="py-3 pr-2 text-xs">
                         {activeModule === 'travel' ? (
                           <div
@@ -350,7 +357,7 @@ export default function ItemsTable({
                                   .split(/,\s*(?![^(]*\))/g)
                                   .map(x => x.trim())
                                   .filter(Boolean);
-                                
+
                                 return parts.map((part, pIdx) => {
                                   const match = part.match(/^([^(]+)(?:\(([^)]+)\))?$/);
                                   const country = match ? match[1].trim() : part;
@@ -404,46 +411,46 @@ export default function ItemsTable({
                       </td>
 
                       <td className="py-3 pr-2">
-                        {activeModule === 'departure' ? (
-                          (() => {
-                            let chipColor = 'chip-primary';
-                            let statusLabel = 'Abierta';
-                            if (item.status === 'confirmed') { chipColor = 'chip-tertiary'; statusLabel = 'Confirmada'; }
-                            if (item.status === 'closed') { chipColor = 'chip-error'; statusLabel = 'Cerrada'; }
-                            if (item.status === 'cancelled') { chipColor = 'chip-neutral'; statusLabel = 'Cancelada'; }
-                            return (
-                              <span className={`chip ${chipColor} font-bold`}>
-                                {statusLabel}
-                              </span>
-                            );
-                          })()
-                        ) : (
-                          <span className={`chip ${isDraft ? 'chip-neutral' : 'chip-tertiary'}`}>
-                            {isDraft ? 'Borrador' : 'Publicado'}
+                    {activeModule === 'departure' ? (
+                      (() => {
+                        let chipColor = 'chip-primary';
+                        let statusLabel = 'Abierta';
+                        if (item.status === 'confirmed') { chipColor = 'chip-tertiary'; statusLabel = 'Confirmada'; }
+                        if (item.status === 'closed') { chipColor = 'chip-error'; statusLabel = 'Cerrada'; }
+                        if (item.status === 'cancelled') { chipColor = 'chip-neutral'; statusLabel = 'Cancelada'; }
+                        return (
+                          <span className={`chip ${chipColor} font-bold`}>
+                            {statusLabel}
                           </span>
-                        )}
-                      </td>
-                      <td className="py-3 text-right space-x-2">
-                        <button
-                          onClick={() => startEdit(item)}
-                          className="btn-icon text-sm inline-flex items-center justify-center"
-                          title="Editar"
-                        >
-                          <span className="material-symbols-outlined text-sm">edit</span>
-                        </button>
-                        <HoldToConfirmButton
-                          onConfirm={() => handleDelete(item.id)}
-                          className="btn-icon text-sm inline-flex items-center justify-center text-[var(--error)]"
-                          title="Mantén presionado para eliminar"
-                        >
-                          <span className="material-symbols-outlined text-sm">delete</span>
-                        </HoldToConfirmButton>
-                      </td>
+                        );
+                      })()
+                    ) : (
+                      <span className={`chip ${isDraft ? 'chip-neutral' : 'chip-tertiary'}`}>
+                        {isDraft ? 'Borrador' : 'Publicado'}
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-3 text-right space-x-2">
+                    <button
+                      onClick={() => startEdit(item)}
+                      className="btn-icon text-sm inline-flex items-center justify-center"
+                      title="Editar"
+                    >
+                      <span className="material-symbols-outlined text-sm">edit</span>
+                    </button>
+                    <HoldToConfirmButton
+                      onConfirm={() => handleDelete(item.id)}
+                      className="btn-icon text-sm inline-flex items-center justify-center text-[var(--error)]"
+                      title="Mantén presionado para eliminar"
+                    >
+                      <span className="material-symbols-outlined text-sm">delete</span>
+                    </HoldToConfirmButton>
+                  </td>
                     </tr>
-                  );
+            );
                 })}
-            </tbody>
-          </table>
+          </tbody>
+        </table>
         </div>
       )}
     </div>
