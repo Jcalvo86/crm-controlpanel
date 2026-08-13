@@ -1645,7 +1645,7 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
                           </div>
 
                           {/* Índice de Secciones */}
-                          <div className="glass-panel p-6 space-y-4">
+                          <div className="glass-panel p-6 space-y-4 lg:sticky lg:top-8">
                             <h3 className="font-headline-sm text-[var(--on-surface)] flex items-center gap-2">
                               <span className="material-symbols-outlined text-base text-[var(--primary)]">toc</span>
                               Índice de Secciones
@@ -1816,6 +1816,72 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
                             >
                               <span className="material-symbols-outlined text-sm">add</span>
                             </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Índice de Secciones para Terms */}
+                      {activeModule === 'terms' && (
+                        <div className="glass-panel p-6 space-y-4 lg:sticky lg:top-8">
+                          <h3 className="font-headline-sm text-[var(--on-surface)] flex items-center gap-2">
+                            <span className="material-symbols-outlined text-base text-[var(--primary)]">toc</span>
+                            Índice de Secciones
+                          </h3>
+                          <p className="text-[11px] text-[var(--on-surface-variant)] mb-2">Secciones activas en este formulario. Haz clic para desplazarte a ella:</p>
+                          <div className="flex flex-col gap-2.5">
+                            <a href="#sec-identity" className="flex items-center justify-between text-xs font-semibold text-[var(--primary)] hover:underline border-l-2 border-[var(--primary)] pl-2">
+                              <span>Identidad (Obligatorio)</span>
+                              <span className="material-symbols-outlined text-xs text-[var(--primary)]">check_circle</span>
+                            </a>
+
+                            {activePanels.steps && (
+                              <a href="#sec-steps" className={`flex items-center justify-between text-xs font-semibold hover:underline pl-2 border-l-2 ${expandedSections.steps ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--on-surface-variant)]'}`}>
+                                <span>Proceso Paso a Paso</span>
+                                <span className="material-symbols-outlined text-xs">{expandedSections.steps ? 'visibility' : 'visibility_off'}</span>
+                              </a>
+                            )}
+
+                            {activePanels.problems && (
+                              <a href="#sec-problems" className={`flex items-center justify-between text-xs font-semibold hover:underline pl-2 border-l-2 ${expandedSections.problems ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--on-surface-variant)]'}`}>
+                                <span>Problemas y Beneficios</span>
+                                <span className="material-symbols-outlined text-xs">{expandedSections.problems ? 'visibility' : 'visibility_off'}</span>
+                              </a>
+                            )}
+
+                            {activePanels.scenarios && (
+                              <a href="#sec-scenarios" className={`flex items-center justify-between text-xs font-semibold hover:underline pl-2 border-l-2 ${expandedSections.scenarios ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--on-surface-variant)]'}`}>
+                                <span>Casos de Uso SÍ/NO</span>
+                                <span className="material-symbols-outlined text-xs">{expandedSections.scenarios ? 'visibility' : 'visibility_off'}</span>
+                              </a>
+                            )}
+
+                            {activePanels.metrics && (
+                              <a href="#sec-metrics" className={`flex items-center justify-between text-xs font-semibold hover:underline pl-2 border-l-2 ${expandedSections.metrics ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--on-surface-variant)]'}`}>
+                                <span>Resultados y Métricas</span>
+                                <span className="material-symbols-outlined text-xs">{expandedSections.metrics ? 'visibility' : 'visibility_off'}</span>
+                              </a>
+                            )}
+
+                            {activePanels.prompt && (
+                              <a href="#sec-prompt" className={`flex items-center justify-between text-xs font-semibold hover:underline pl-2 border-l-2 ${expandedSections.prompt ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--on-surface-variant)]'}`}>
+                                <span>Prompt Template</span>
+                                <span className="material-symbols-outlined text-xs">{expandedSections.prompt ? 'visibility' : 'visibility_off'}</span>
+                              </a>
+                            )}
+
+                            {activePanels.code && (
+                              <a href="#sec-code" className={`flex items-center justify-between text-xs font-semibold hover:underline pl-2 border-l-2 ${expandedSections.code ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--on-surface-variant)]'}`}>
+                                <span>Ejemplo Técnico / Código</span>
+                                <span className="material-symbols-outlined text-xs">{expandedSections.code ? 'visibility' : 'visibility_off'}</span>
+                              </a>
+                            )}
+
+                            {activePanels.videos && (
+                              <a href="#sec-videos" className={`flex items-center justify-between text-xs font-semibold hover:underline pl-2 border-l-2 ${expandedSections.videos ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--on-surface-variant)]'}`}>
+                                <span>Videos Relacionados</span>
+                                <span className="material-symbols-outlined text-xs">{expandedSections.videos ? 'visibility' : 'visibility_off'}</span>
+                              </a>
+                            )}
                           </div>
                         </div>
                       )}
