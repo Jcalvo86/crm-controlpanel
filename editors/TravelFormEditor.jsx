@@ -549,11 +549,17 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
           {/* Imagen del Viaje (Portada y Cabecera) */}
           <div className="md:col-span-2 flex flex-col gap-2">
             <ImageUploader
-              value={formData.imageUrl || formData.image_url || ''}
+              value={formData.imageUrl || formData.image_url || formData.headerImageUrl || formData.header_image_url || ''}
               onChange={(url) => {
-                setFormData(prev => ({ ...prev, imageUrl: url, image_url: url }));
+                setFormData(prev => ({ 
+                  ...prev, 
+                  imageUrl: url, 
+                  image_url: url,
+                  headerImageUrl: url, 
+                  header_image_url: url 
+                }));
               }}
-              label="Imagen del Viaje (Se utilizará como portada en el listado y fondo de cabecera en el detalle)"
+              label="Imagen del Viaje (Portada y Cabecera)"
             />
           </div>
           <div className="flex flex-col gap-2">

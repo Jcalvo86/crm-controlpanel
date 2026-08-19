@@ -13,6 +13,7 @@ import AppHeader from './components/AppHeader.jsx';
 import LoginView from './components/LoginView.jsx';
 import ItemsTable from './components/ItemsTable.jsx';
 import DashboardView from './components/DashboardView.jsx';
+import AccountsManager from './components/AccountsManager.jsx';
 
 
 export default function CRMControlPanel({ config, session: propSession, setSession: propSetSession }) {
@@ -1401,6 +1402,24 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
                       </button>
                     );
                   })}
+                  <button
+                    onClick={() => {
+                      setActiveModule('accounts');
+                      setShowForm(false);
+                      setIsEditing(false);
+                    }}
+                    className={`tab-btn ${activeModule === 'accounts' ? 'active' : ''}`}
+                    style={{
+                      background: activeModule === 'accounts' ? 'var(--primary-container)' : 'transparent',
+                      color: activeModule === 'accounts' ? 'var(--on-primary-container)' : 'var(--on-surface-variant)',
+                      padding: '4px 12px',
+                      borderRadius: '6px',
+                      fontSize: '0.8rem',
+                      fontWeight: '600'
+                    }}
+                  >
+                    👤 Cuentas
+                  </button>
                 </div>
               )
             )}
@@ -1917,6 +1936,8 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
               </div>
             </div>
           )
+        ) : activeModule === 'accounts' ? (
+          <AccountsManager />
         ) : activeModule === 'dashboard' ? (
           <DashboardView
             config={config}

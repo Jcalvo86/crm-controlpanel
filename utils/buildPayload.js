@@ -40,7 +40,13 @@ export const buildTravelPayload = (formData, isDraft) => ({
   itinerary: formData.itinerary || [],
   services_included_list: formData.servicesIncludedList || [],
   services_excluded_list: (formData.servicesExcludedList || []).map(x => x.trim()).filter(Boolean),
-  hotels_planned: formData.hotelsPlanned || []
+  hotels_planned: formData.hotelsPlanned || [],
+  
+  // Image properties
+  imageUrl: formData.imageUrl || formData.image_url || '',
+  image_url: formData.imageUrl || formData.image_url || '',
+  headerImageUrl: formData.headerImageUrl || formData.header_image_url || '',
+  header_image_url: formData.headerImageUrl || formData.header_image_url || ''
 });
 
 /**

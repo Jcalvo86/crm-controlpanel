@@ -1,5 +1,6 @@
 import React from 'react';
 import { uploadFile } from '../utils/upload.js';
+import ImageUploader from '../components/ImageUploader.jsx';
 
 export default function LocationFormEditor({
   formData,
@@ -353,6 +354,20 @@ export default function LocationFormEditor({
 
             </>
           )}
+
+          {/* Imagen de Portada (Cargador de Imagen) */}
+          <div className="md:col-span-2 flex flex-col gap-2 mt-4">
+            <ImageUploader
+              value={formData.imageUrl || ''}
+              onChange={(url) => {
+                handleChange('imageUrl', url);
+                if (url && !(formData.imageUrls || []).includes(url)) {
+                  handleChange('imageUrls', [...(formData.imageUrls || []), url]);
+                }
+              }}
+              label="Imagen de Portada (Tarjeta / Cabecera)"
+            />
+          </div>
         </div>
       </section>
 
