@@ -11,8 +11,11 @@ export const buildTravelPayload = (formData, isDraft) => ({
   description: formData.description || '',
   subtitle: formData.subtitle || '',
   agency: formData.agency || 'Sueño Travel Chile',
+  flavor_text: formData.flavorText || formData.agency || '',
   duration_days: parseInt(formData.durationDays) || 0,
   duration_nights: parseInt(formData.durationNights) || 0,
+  allow_private: formData.allowPrivate || false,
+  private_price_from: formData.privatePriceFrom || '',
   is_published: !isDraft,
   created_at: new Date().toISOString(),
   destinations_summary: typeof formData.destinationsSummary === 'string'
@@ -43,9 +46,7 @@ export const buildTravelPayload = (formData, isDraft) => ({
   hotels_planned: formData.hotelsPlanned || [],
   
   // Image properties
-  imageUrl: formData.imageUrl || formData.image_url || '',
   image_url: formData.imageUrl || formData.image_url || '',
-  headerImageUrl: formData.headerImageUrl || formData.header_image_url || '',
   header_image_url: formData.headerImageUrl || formData.header_image_url || ''
 });
 

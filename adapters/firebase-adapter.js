@@ -33,20 +33,21 @@ window.Glosaurio.FirebaseAdapter = class FirebaseAdapter {
     if (val === null || val === undefined) return { nullValue: null };
     if (typeof val === 'boolean')          return { booleanValue: val };
     if (typeof val === 'number') {
+      if (Number.isNaN(val)) return { nullValue: null };
       return Number.isInteger(val) ? { integerValue: val } : { doubleValue: val };
     }
     if (typeof val === 'string')           return { stringValue: val };
     if (Array.isArray(val)) {
       return {
-        arrayValue: {
-          values: val.map(v => this._valToFirestore(v))
-        }
+        arrayValue: { values: val.filter(v => v !== undefined).map(v => this._valToFirestore(v)) }
       };
     }
     if (typeof val === 'object') {
       const fields = {};
       for (const [k, v] of Object.entries(val)) {
-        fields[k] = this._valToFirestore(v);
+        if (v !== undefined) {
+          fields[k] = this._valToFirestore(v);
+        }
       }
       return { mapValue: { fields } };
     }
@@ -69,7 +70,7 @@ window.Glosaurio.FirebaseAdapter = class FirebaseAdapter {
     if (!fVal) return null;
     if (fVal.nullValue !== undefined)    return null;
     if (fVal.booleanValue !== undefined) return fVal.booleanValue;
-    if (fVal.integerValue !== undefined) return parseInt(fVal.integerValue);
+    if (fVal.integerValue !== undefined) return parseInt(fVal.integerValue, 10);
     if (fVal.doubleValue !== undefined)  return parseFloat(fVal.doubleValue);
     if (fVal.stringValue !== undefined)  return fVal.stringValue;
     if (fVal.arrayValue !== undefined) {
@@ -110,10 +111,14 @@ window.Glosaurio.FirebaseAdapter = class FirebaseAdapter {
   }
 
   async createItem(collection, data) {
+    const fireData = this._toFirestore(data);
+    delete fireData.fields.id;
+    delete fireData.fields.createdAt;
+    delete fireData.fields.updatedAt;
     const res = await fetch(this._url(collection), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(this._toFirestore(data))
+      body: JSON.stringify(fireData)
     });
     if (!res.ok) throw new Error(`Firebase create error in ${collection} — ${res.status}: ${await res.text()}`);
     return this._fromFirestore(await res.json());
@@ -121,6 +126,11 @@ window.Glosaurio.FirebaseAdapter = class FirebaseAdapter {
 
   async updateItem(collection, id, data) {
     const fireData = this._toFirestore(data);
+    // Remover campos que no son de la db
+    delete fireData.fields.id;
+    delete fireData.fields.createdAt;
+    delete fireData.fields.updatedAt;
+
     const fields = Object.keys(fireData.fields).map(f => `updateMask.fieldPaths=${f}`).join('&');
     const baseUrl = `https://firestore.googleapis.com/v1/projects/${this.projectId}/databases/(default)/documents/${collection}`;
     const res = await fetch(`${baseUrl}/${id}?key=${this.apiKey}&${fields}`, {

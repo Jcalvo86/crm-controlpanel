@@ -38,7 +38,7 @@ export default function AppHeader({
   }, []);
 
   return (
-    <header className="nav-shell">
+    <header className="bg-[var(--surface-container-lowest)] w-full relative z-40 border-b border-[var(--outline-variant)]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-[72px]">
         <div className="flex items-center gap-3">
           <a href={backUrl} className="flex items-center gap-3 group cursor-pointer text-left no-underline bg-transparent border-none p-0">

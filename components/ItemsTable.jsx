@@ -23,8 +23,53 @@ export default function ItemsTable({
   setActivePanels,
   setCreatingTypeSelected,
   setShowForm,
-  travels = []
+  travels = [],
+  departures = []
 }) {
+  const [filterLocation, setFilterLocation] = React.useState('all');
+
+  // Reset local filters when module changes
+  React.useEffect(() => {
+    setFilterLocation('all');
+  }, [activeModule]);
+
+  // Derive unique location options from current items
+  const locationOptions = React.useMemo(() => {
+    if (activeModule === 'travel') {
+      const countries = items.flatMap(i => (i.countriesSummaryList || []).map(c => c.country).filter(Boolean));
+      return [...new Set(countries)].sort().map(c => ({ id: c, label: c }));
+    }
+    if (activeModule === 'location') {
+      return items
+        .filter(i => i.type === 'region')
+        .map(r => ({ id: r.id, label: r.name }))
+        .sort((a, b) => a.label.localeCompare(b.label));
+    }
+    if (activeModule === 'departure') {
+      const travelIds = items.map(i => i.travelId).filter(Boolean);
+      const associatedTravels = travels.filter(t => travelIds.includes(t.id));
+      const countries = associatedTravels.flatMap(i => (i.countriesSummaryList || []).map(c => c.country).filter(Boolean));
+      return [...new Set(countries)].sort().map(c => ({ id: c, label: c }));
+    }
+    return [];
+  }, [items, activeModule, travels]);
+
+  // Derive dynamic category options
+  const categoryOptions = React.useMemo(() => {
+    if (activeModule === 'location') {
+      const types = items.map(i => i.type).filter(Boolean);
+      return [...new Set(types)].sort().map(t => ({ id: t, label: t === 'region' ? 'Región' : t === 'city' ? 'Ciudad' : t === 'point_of_interest' ? 'Atracción' : t }));
+    }
+    if (activeModule === 'terms') {
+      return workAreas || [];
+    }
+    if (activeModule !== 'design_tokens' && activeModule !== 'travel' && activeModule !== 'departure') {
+      const cats = items.map(i => i.category).filter(Boolean);
+      return [...new Set(cats)].sort().map(c => ({ id: c, label: c }));
+    }
+    return [];
+  }, [items, activeModule, workAreas]);
+
   return (
     <div className="space-y-6">
       {/* Search & Actions Panel */}
@@ -37,34 +82,18 @@ export default function ItemsTable({
             placeholder={activeModule === 'design_tokens' ? 'Buscar marca...' : 'Buscar registro...'}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="form-input w-full pl-10 text-sm"
-            style={{ padding: '8px 16px' }}
+            className="form-input w-full pl-10 text-sm h-9 rounded-md"
           />
         </div>
 
         {/* Categories Dropdown & Add Button */}
         <div className="flex items-center gap-3">
-          {activeModule !== 'design_tokens' && activeModule !== 'travel' && (
-            <select
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
-              className="form-select text-sm"
-              style={{ padding: '8px 16px' }}
-            >
-              <option value="all">Todas las Áreas de Trabajo</option>
-              {workAreas.map(wa => (
-                <option key={wa.id} value={wa.id}>{wa.label}</option>
-              ))}
-            </select>
-          )}
-
           {activeModule === 'travel' && (
             <div className="relative">
               <button
                 type="button"
                 onClick={() => document.getElementById('travel-import-input').click()}
-                className="btn-secondary flex items-center gap-2 text-sm"
-                style={{ padding: '6px 16px' }}
+                className="btn-secondary flex items-center gap-2 text-sm h-9 rounded-md px-4"
               >
                 <span className="material-symbols-outlined text-sm">upload_file</span>
                 Importar JSON
@@ -186,8 +215,7 @@ export default function ItemsTable({
               }
               setShowForm(true);
             }}
-            className="btn-primary flex items-center gap-2 text-sm whitespace-nowrap"
-            style={{ padding: '6px 16px' }}
+            className="btn-primary flex items-center justify-center gap-2 text-sm whitespace-nowrap h-9 rounded-md px-4"
           >
             <span className="material-symbols-outlined text-sm">add</span>
             Añadir Nuevo
@@ -205,41 +233,86 @@ export default function ItemsTable({
             <thead>
               <tr className="border-b border-[var(--outline-variant)] text-xs font-semibold uppercase tracking-wider text-[var(--on-surface)]">
                 <th className="pb-3 pr-2" style={{ width: '28%' }}>
-                  <div className="flex items-center gap-2">
-                    <span>{activeModule === 'design_tokens' ? 'Marca / Sistema de Diseño' : 'Nombre'}</span>
-                    <button
-                      type="button"
-                      onClick={() => setSortAlphabetical(!sortAlphabetical)}
-                      className="inline-flex items-center justify-center rounded-md p-1 transition-colors"
-                      style={{
-                        background: sortAlphabetical ? 'var(--primary-container)' : 'transparent',
-                        color: sortAlphabetical ? 'var(--primary)' : 'var(--outline)',
-                        border: '1px solid var(--outline-variant)',
-                        cursor: 'pointer',
-                        width: '24px',
-                        height: '24px'
-                      }}
-                      title={sortAlphabetical ? "Ordenado A-Z (clic para desactivar)" : "Ordenar A-Z"}
-                    >
-                      <span className="material-symbols-outlined text-xs">
-                        {sortAlphabetical ? 'sort_by_alpha' : 'sort'}
-                      </span>
-                    </button>
+                  <div className="flex flex-col gap-2 items-start">
+                    <div className="flex items-center gap-2">
+                      <span>{activeModule === 'design_tokens' ? 'Marca / Sistema de Diseño' : 'Nombre'}</span>
+                      <button
+                        type="button"
+                        onClick={() => setSortAlphabetical(!sortAlphabetical)}
+                        className="inline-flex items-center justify-center rounded-md p-1 transition-colors"
+                        style={{
+                          background: sortAlphabetical ? 'var(--primary-container)' : 'transparent',
+                          color: sortAlphabetical ? 'var(--primary)' : 'var(--outline)',
+                          border: '1px solid var(--outline-variant)',
+                          cursor: 'pointer',
+                          width: '24px',
+                          height: '24px'
+                        }}
+                        title={sortAlphabetical ? "Ordenado A-Z (clic para desactivar)" : "Ordenar A-Z"}
+                      >
+                        <span className="material-symbols-outlined text-xs">
+                          {sortAlphabetical ? 'sort_by_alpha' : 'sort'}
+                        </span>
+                      </button>
+                    </div>
+                    {activeModule === 'departure' && (
+                      <select
+                        value={filterLocation}
+                        onChange={(e) => setFilterLocation(e.target.value)}
+                        className="form-select text-xs h-7 rounded bg-[var(--surface-container)] border-[var(--outline-variant)] text-[var(--on-surface)]"
+                        style={{ padding: '0 8px', maxWidth: '100%', fontSize: '11px' }}
+                      >
+                        <option value="all">Todas las regiones</option>
+                        {locationOptions.map(opt => (
+                          <option key={opt.id || opt} value={opt.id || opt}>{opt.label || opt}</option>
+                        ))}
+                      </select>
+                    )}
                   </div>
                 </th>
                 <th className="pb-3 pr-2" style={{ width: activeModule === 'travel' ? '21%' : '37%' }}>
-                  <div className="flex items-center gap-2">
-                    <span>
+                  <div className="flex flex-col gap-2 items-start">
+                    <span className="whitespace-nowrap">
                       {activeModule === 'design_tokens'
                         ? 'Elementos'
                         : activeModule === 'departure'
                           ? 'Fecha Salida'
                           : 'Categoría'}
                     </span>
+                    {activeModule !== 'design_tokens' && activeModule !== 'travel' && activeModule !== 'departure' && (
+                      <select
+                        value={filterCategory}
+                        onChange={(e) => setFilterCategory(e.target.value)}
+                        className="form-select text-xs h-7 rounded bg-[var(--surface-container)] border-[var(--outline-variant)] text-[var(--on-surface)]"
+                        style={{ padding: '0 8px', maxWidth: '100%', fontSize: '11px' }}
+                      >
+                        <option value="all">Todas las categorías</option>
+                        {categoryOptions.map(opt => (
+                          <option key={opt.id} value={opt.id}>{opt.label}</option>
+                        ))}
+                      </select>
+                    )}
                   </div>
                 </th>
                 <th className="pb-3 pr-2" style={{ width: '33%' }}>
-                  {activeModule === 'departure' ? 'Cupos / Pasajeros' : 'Ubicación'}
+                  <div className="flex flex-col gap-2 items-start">
+                    <span className="whitespace-nowrap">
+                      {activeModule === 'departure' ? 'Cupos / Pasajeros' : 'Ubicación'}
+                    </span>
+                    {(activeModule === 'travel' || activeModule === 'location') && (
+                      <select
+                        value={filterLocation}
+                        onChange={(e) => setFilterLocation(e.target.value)}
+                        className="form-select text-xs h-7 rounded bg-[var(--surface-container)] border-[var(--outline-variant)] text-[var(--on-surface)]"
+                        style={{ padding: '0 8px', maxWidth: '100%', fontSize: '11px' }}
+                      >
+                        <option value="all">{activeModule === 'location' ? 'Todas las regiones' : 'Todos los países'}</option>
+                        {locationOptions.map(opt => (
+                          <option key={opt.id || opt} value={opt.id || opt}>{opt.label || opt}</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
                 </th>
                 <th className="pb-3 pr-2" style={{ width: '9%' }}>Estado</th>
                 <th className="pb-3 text-right" style={{ width: '9%' }}>Acciones</th>
@@ -259,11 +332,33 @@ export default function ItemsTable({
 
                   let matchesCategory = true;
                   if (activeModule !== 'design_tokens' && activeModule !== 'travel' && activeModule !== 'departure' && filterCategory !== 'all') {
-                    const parsed = parseCategory(i.category);
-                    matchesCategory = parsed.workArea === filterCategory;
+                    if (activeModule === 'terms') {
+                      const parsed = parseCategory(i.category);
+                      matchesCategory = parsed.workArea === filterCategory;
+                    } else if (activeModule === 'location') {
+                      matchesCategory = i.type === filterCategory;
+                    } else {
+                      matchesCategory = i.category === filterCategory;
+                    }
                   }
 
-                  return matchesSearch && matchesCategory;
+                  let matchesLocation = true;
+                  if (filterLocation !== 'all') {
+                    if (activeModule === 'travel') {
+                      matchesLocation = (i.countriesSummaryList || []).some(c => c.country === filterLocation);
+                    } else if (activeModule === 'location') {
+                      const isRegionItself = i.id === filterLocation;
+                      const isDirectChild = i.parentRegionId === filterLocation || i.parent_region_id === filterLocation;
+                      const parentCity = items.find(loc => loc.id === (i.parentCityId || i.parent_city_id));
+                      const isGrandChild = parentCity && (parentCity.parentRegionId === filterLocation || parentCity.parent_region_id === filterLocation);
+                      matchesLocation = isRegionItself || isDirectChild || isGrandChild;
+                    } else if (activeModule === 'departure') {
+                      const pTravel = (travels || []).find(t => t.id === i.travelId);
+                      matchesLocation = pTravel ? (pTravel.countriesSummaryList || []).some(c => c.country === filterLocation) : false;
+                    }
+                  }
+
+                  return matchesSearch && matchesCategory && matchesLocation;
                 })
                 .sort((a, b) => {
                   if (!sortAlphabetical) return 0;
@@ -299,9 +394,25 @@ export default function ItemsTable({
                       </td>
                       <td className="py-3 text-[var(--on-surface-variant)] pr-2">
                         {activeModule === 'travel' ? (
-                          <div className="flex flex-wrap gap-1 text-xs">
-                            <span className="chip chip-neutral font-bold">{item.durationDays} Días / {item.durationNights} Noches</span>
-                          </div>
+                          (() => {
+                            const tripDepartures = departures.filter(d => d.travelId === item.id && d.status !== 'cancelled');
+                            tripDepartures.sort((a, b) => new Date(a.departureDate) - new Date(b.departureDate));
+                            const now = new Date();
+                            const nextDep = tripDepartures.find(d => new Date(d.departureDate) >= now) || tripDepartures[0];
+                            return (
+                              <div className="flex flex-col gap-1 text-xs">
+                                <div className="flex flex-wrap gap-1">
+                                  <span className="chip chip-neutral font-bold">{item.durationDays} Días / {item.durationNights} Noches</span>
+                                </div>
+                                {nextDep && (
+                                  <div className="flex flex-wrap gap-1 mt-1">
+                                    <span className="chip chip-primary font-bold">📅 {nextDep.departureDate}</span>
+                                    <span className="chip chip-neutral">👥 {nextDep.passengersCount} / {nextDep.capacity}</span>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })()
                         ) : activeModule === 'departure' ? (
                           <div className="flex flex-wrap gap-1 text-xs">
                             <span className="chip chip-neutral font-bold">📅 {item.departureDate}</span>

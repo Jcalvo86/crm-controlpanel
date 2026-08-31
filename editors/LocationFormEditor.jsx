@@ -6,6 +6,7 @@ export default function LocationFormEditor({
   formData,
   setFormData,
   locations = [],
+  travels = [],
   activePanels = {},
   expandedSections = {},
   toggleSection = () => {},
@@ -14,6 +15,30 @@ export default function LocationFormEditor({
   // Filter regions from locations prop
   const regionOptions = (locations || []).filter(l => l.type === 'region' || l.type === undefined);
   const cityOptions = (locations || []).filter(l => l.type === 'city');
+
+  // Extract all existing images from DB for the Media Library
+  const existingImages = React.useMemo(() => {
+    const urls = new Set();
+    
+    (locations || []).forEach(loc => {
+      if (loc.imageUrl) urls.add(loc.imageUrl);
+      if (Array.isArray(loc.imageUrls)) loc.imageUrls.forEach(url => urls.add(url));
+      if (Array.isArray(loc.gallery)) loc.gallery.forEach(img => urls.add(img.url || img));
+    });
+
+    (travels || []).forEach(t => {
+      if (t.imageUrl) urls.add(t.imageUrl);
+      if (Array.isArray(t.imageUrls)) t.imageUrls.forEach(url => urls.add(url));
+      if (Array.isArray(t.gallery)) t.gallery.forEach(img => urls.add(img.url || img));
+      if (Array.isArray(t.itinerary)) {
+        t.itinerary.forEach(day => {
+          if (day.imageUrl) urls.add(day.imageUrl);
+        });
+      }
+    });
+
+    return Array.from(urls).filter(url => typeof url === 'string' && url.startsWith('http'));
+  }, [locations, travels]);
 
   const fileInputRef = React.useRef(null);
   const [uploadingField, setUploadingField] = React.useState(null);
@@ -359,6 +384,7 @@ export default function LocationFormEditor({
           <div className="md:col-span-2 flex flex-col gap-2 mt-4">
             <ImageUploader
               value={formData.imageUrl || ''}
+              existingImages={existingImages}
               onChange={(url) => {
                 handleChange('imageUrl', url);
                 if (url && !(formData.imageUrls || []).includes(url)) {
@@ -449,47 +475,12 @@ export default function LocationFormEditor({
                 <div className="p-8 space-y-6">
                   {/* Mapa */}
                   <div className="flex flex-col gap-2">
-                    <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>URL de Imagen del Mapa de la Región</label>
-                    <div className="flex gap-3">
-                      <input
-                        type="text"
-                        value={formData.mapUrl || ''}
-                        onChange={(e) => handleChange('mapUrl', e.target.value)}
-                        placeholder="https://ejemplo.com/mapa.jpg"
-                        className="form-input flex-1"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => triggerUpload('mapUrl')}
-                        disabled={isUploading}
-                        className="btn-secondary flex items-center gap-1.5 shrink-0"
-                        style={{ height: '48px', padding: '0 16px' }}
-                      >
-                        <span className={`material-symbols-outlined text-sm ${isUploading && uploadingField === 'mapUrl' ? 'animate-spin' : ''}`}>
-                          {isUploading && uploadingField === 'mapUrl' ? 'sync' : 'upload'}
-                        </span>
-                        {isUploading && uploadingField === 'mapUrl' ? 'Subiendo...' : 'Subir Mapa'}
-                      </button>
-                    </div>
-
-                    {/* Previsualización del mapa si existe */}
-                    {formData.mapUrl && (
-                      <div className="mt-3 relative overflow-hidden rounded-xl border border-[var(--outline-variant)] shadow-sm bg-[var(--surface-container-low)] max-w-md">
-                        <img 
-                          src={formData.mapUrl} 
-                          alt="Vista previa del mapa" 
-                          className="w-full h-auto max-h-60 object-cover"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleChange('mapUrl', '')}
-                          className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white rounded-full p-1.5 transition-colors"
-                          title="Eliminar mapa"
-                        >
-                          <span className="material-symbols-outlined text-sm block">close</span>
-                        </button>
-                      </div>
-                    )}
+                    <ImageUploader
+                      value={formData.mapUrl || ''}
+                      existingImages={existingImages}
+                      onChange={(url) => handleChange('mapUrl', url)}
+                      label="Imagen del Mapa de la Región"
+                    />
                   </div>
                 </div>
               </div>
@@ -514,64 +505,44 @@ export default function LocationFormEditor({
 
               <div className="transition-all duration-300 overflow-hidden" style={{ display: expandedSections.itineraries !== false ? 'block' : 'none' }}>
                 <div className="p-8 space-y-6">
-                  <div className="space-y-4">
-                    {(formData.suggestedItineraries || []).map((it, idx) => (
-                      <div key={idx} className="relative bg-[var(--surface-container-low)] p-6 rounded-xl border border-[var(--outline-variant)] space-y-4">
-                        {/* Botón flotante eliminar */}
-                        <button
-                          type="button"
-                          onClick={() => removeItinerary(idx)}
-                          className="absolute top-4 right-4 btn-icon text-[var(--error)]"
-                          title="Eliminar Itinerario"
-                        >
-                          <span className="material-symbols-outlined text-sm">delete</span>
-                        </button>
-
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pr-10">
-                          <div className="flex flex-col gap-1">
-                            <label className="text-xs font-semibold" style={{ color: 'var(--on-surface-variant)' }}>Título de la Ruta</label>
+                  <div className="space-y-3">
+                    <p className="text-xs text-[var(--on-surface-variant)] mb-2">Selecciona los viajes (itinerarios) recomendados para esta región:</p>
+                    <div className="flex flex-col gap-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                      {(travels || []).map(travel => {
+                        // Support both old array of objects and new array of IDs
+                        const current = formData.suggestedItineraries || [];
+                        const isSelected = current.some(it => typeof it === 'string' ? it === travel.id : it.id === travel.id);
+                        
+                        return (
+                          <label key={travel.id} className="flex items-start gap-3 p-3 rounded-lg border border-[var(--outline-variant)] bg-[var(--surface-container-low)] hover:bg-[var(--surface-container)] cursor-pointer transition-colors">
                             <input
-                              type="text"
-                              value={it.title || ''}
-                              onChange={(e) => handleItineraryChange(idx, 'title', e.target.value)}
-                              placeholder="Ej: Ruta de 3 días por la Costa"
-                              className="form-input text-sm"
+                              type="checkbox"
+                              className="mt-1 form-checkbox text-[var(--primary)]"
+                              checked={isSelected}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  // Clean up old objects if any, store only IDs
+                                  const updated = current.map(it => typeof it === 'string' ? it : (it.id || '')).filter(Boolean);
+                                  handleChange('suggestedItineraries', [...updated, travel.id]);
+                                } else {
+                                  const updated = current.filter(it => typeof it === 'string' ? it !== travel.id : it.id !== travel.id);
+                                  handleChange('suggestedItineraries', updated);
+                                }
+                              }}
                             />
-                          </div>
-                          <div className="flex flex-col gap-1">
-                            <label className="text-xs font-semibold" style={{ color: 'var(--on-surface-variant)' }}>Duración</label>
-                            <input
-                              type="text"
-                              value={it.duration || ''}
-                              onChange={(e) => handleItineraryChange(idx, 'duration', e.target.value)}
-                              placeholder="Ej: 3 días"
-                              className="form-input text-sm"
-                            />
-                          </div>
-                          <div className="md:col-span-3 flex flex-col gap-1">
-                            <label className="text-xs font-semibold" style={{ color: 'var(--on-surface-variant)' }}>Descripción de la Ruta</label>
-                            <textarea
-                              value={it.description || ''}
-                              onChange={(e) => handleItineraryChange(idx, 'description', e.target.value)}
-                              rows={2}
-                              placeholder="Describe brevemente las paradas o atractivos de este itinerario..."
-                              className="form-input text-sm"
-                            />
-                          </div>
+                            <div className="flex-1">
+                              <div className="text-sm font-bold text-[var(--on-surface)]">{travel.title || travel.name || 'Sin título'}</div>
+                              <div className="text-xs text-[var(--on-surface-variant)] line-clamp-1">{travel.subtitle || travel.description || 'Sin descripción'}</div>
+                            </div>
+                          </label>
+                        );
+                      })}
+                      {(!travels || travels.length === 0) && (
+                        <div className="text-sm text-[var(--on-surface-variant)] italic p-4 text-center border border-[var(--outline-variant)] border-dashed rounded-lg">
+                          No hay viajes disponibles en la base de datos.
                         </div>
-                      </div>
-                    ))}
-                    
-                    {/* Botón Añadir abajo */}
-                    <button
-                      type="button"
-                      onClick={addItinerary}
-                      className="btn-secondary flex items-center gap-2 text-xs"
-                      style={{ padding: '6px 12px' }}
-                    >
-                      <span className="material-symbols-outlined text-xs">add</span>
-                      Añadir Itinerario Sugerido
-                    </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -612,13 +583,13 @@ export default function LocationFormEditor({
                       </p>
                       <div 
                         className="relative cursor-crosshair overflow-hidden rounded-lg border border-[var(--outline)] shadow-inner"
-                        style={{ maxWidth: '100%', width: '500px', height: 'auto', aspectRatio: '4/3', backgroundColor: 'var(--surface-container-highest)', margin: '0 auto' }}
+                        style={{ maxWidth: '100%', width: '500px', height: 'auto', aspectRatio: '1/1', backgroundColor: 'var(--surface-container-highest)', margin: '0 auto' }}
                         onClick={handleMapClick}
                       >
                         <img 
                           src={parentRegionMapUrl} 
                           alt={`Mapa de ${parentRegion.name}`}
-                          className="w-full h-full object-cover select-none"
+                          className="w-full h-full object-contain select-none"
                         />
                         {formData.mapPosX !== undefined && formData.mapPosY !== undefined && formData.mapPosX !== '' && formData.mapPosY !== '' && (
                           <div 

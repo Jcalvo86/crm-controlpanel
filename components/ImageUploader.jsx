@@ -1,13 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { uploadFileWithProgress } from '../utils/upload.js';
+import MediaLibraryModal from './MediaLibraryModal.jsx';
 
-export default function ImageUploader({ value, onChange, label = 'Imagen', allowedTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'], maxSizeBytes = 10 * 1024 * 1024 }) {
+export default function ImageUploader({ value, onChange, label = 'Imagen', allowedTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'], maxSizeBytes = 10 * 1024 * 1024, existingImages = [] }) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploadStatus, setUploadStatus] = useState(value ? 'success' : 'idle'); // idle, uploading, error, success
   const [progress, setProgress] = useState(0);
   const [uploadStats, setUploadStats] = useState({ speed: '0 MB/s', timeRemaining: '' });
   const [errorMessage, setErrorMessage] = useState('');
   const [currentFile, setCurrentFile] = useState(null);
+  const [showMediaLibrary, setShowMediaLibrary] = useState(false);
   
   const fileInputRef = useRef(null);
   const startTimeRef = useRef(null);
@@ -194,31 +196,44 @@ export default function ImageUploader({ value, onChange, label = 'Imagen', allow
       <div className="w-full">
         {/* 1. Idle or dragging state */}
         {(uploadStatus === 'idle' || isDragOver) && (
-          <div
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            onClick={triggerSelectFile}
-            className={`border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all duration-200 select-none min-h-[170px]
-              ${isDragOver 
-                ? 'border-[var(--success)] bg-[color-mix(in_srgb,var(--success)_5%,transparent)] scale-[1.01]' 
-                : 'border-[var(--outline)] hover:border-[var(--primary)] hover:bg-[color-mix(in_srgb,var(--primary)_3%,transparent)]'
-              }`}
-          >
-            <div className={`p-3 rounded-full flex items-center justify-center transition-colors duration-200
-              ${isDragOver ? 'bg-[color-mix(in_srgb,var(--success)_15%,transparent)] text-[var(--success)]' : 'bg-[var(--surface-container-high)] text-[var(--on-surface-variant)]'}`}>
-              <span className="material-symbols-outlined text-3xl">
-                {isDragOver ? 'cloud_done' : 'cloud_upload'}
-              </span>
+          <div className="flex flex-col gap-3">
+            <div
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={triggerSelectFile}
+              className={`border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all duration-200 select-none min-h-[170px]
+                ${isDragOver 
+                  ? 'border-[var(--success)] bg-[color-mix(in_srgb,var(--success)_5%,transparent)] scale-[1.01]' 
+                  : 'border-[var(--outline)] hover:border-[var(--primary)] hover:bg-[color-mix(in_srgb,var(--primary)_3%,transparent)]'
+                }`}
+            >
+              <div className={`p-3 rounded-full flex items-center justify-center transition-colors duration-200
+                ${isDragOver ? 'bg-[color-mix(in_srgb,var(--success)_15%,transparent)] text-[var(--success)]' : 'bg-[var(--surface-container-high)] text-[var(--on-surface-variant)]'}`}>
+                <span className="material-symbols-outlined text-3xl">
+                  {isDragOver ? 'cloud_done' : 'cloud_upload'}
+                </span>
+              </div>
+              <div className="text-center">
+                <p className="font-body-md font-semibold text-[var(--on-surface)]">
+                  {isDragOver ? '¡Suelta para cargar la imagen!' : 'Arrastra tu archivo aquí o haz clic para buscar'}
+                </p>
+                <p className="font-body-xs mt-1" style={{ color: 'var(--on-surface-variant)' }}>
+                  Formatos permitidos: {allowedTypes.map(t => t.split('/')[1].toUpperCase()).join(', ')} (máx. {formatBytes(maxSizeBytes)})
+                </p>
+              </div>
             </div>
-            <div className="text-center">
-              <p className="font-body-md font-semibold text-[var(--on-surface)]">
-                {isDragOver ? '¡Suelta para cargar la imagen!' : 'Arrastra tu archivo aquí o haz clic para buscar'}
-              </p>
-              <p className="font-body-xs mt-1" style={{ color: 'var(--on-surface-variant)' }}>
-                Formatos permitidos: {allowedTypes.map(t => t.split('/')[1].toUpperCase()).join(', ')} (máx. {formatBytes(maxSizeBytes)})
-              </p>
-            </div>
+            
+            {existingImages && existingImages.length > 0 && (
+              <button 
+                type="button" 
+                onClick={() => setShowMediaLibrary(true)}
+                className="btn-secondary w-full text-sm font-semibold flex items-center justify-center gap-2 py-3 rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)] hover:bg-[var(--surface-container-high)] hover:border-[var(--outline)] transition-all"
+              >
+                <span className="material-symbols-outlined text-lg">photo_library</span>
+                Seleccionar desde la Galería ({existingImages.length} fotos)
+              </button>
+            )}
           </div>
         )}
 
@@ -344,6 +359,17 @@ export default function ImageUploader({ value, onChange, label = 'Imagen', allow
           </div>
         )}
       </div>
+
+      <MediaLibraryModal 
+        isOpen={showMediaLibrary} 
+        onClose={() => setShowMediaLibrary(false)} 
+        images={existingImages} 
+        onSelect={(url) => {
+          onChange(url);
+          setUploadStatus('success');
+          setCurrentFile(null);
+        }} 
+      />
     </div>
   );
 }

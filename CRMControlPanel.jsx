@@ -54,6 +54,7 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
   const [items, setItems] = useState([]);
   const [loadingData, setLoadingData] = useState(false);
   const [activeModule, setActiveModule] = useState('dashboard');
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [dashboardStats, setDashboardStats] = useState({});
   const [loadingStats, setLoadingStats] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -265,6 +266,28 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
   // 2. Fetch data once session is active
   const [locations, setLocations] = useState([]);
   const [travels, setTravels] = useState([]);
+  const [departures, setDepartures] = useState([]);
+
+  const fetchDepartures = async () => {
+    try {
+      if (config.provider === 'localStorage') {
+        const cached = localStorage.getItem('glosaurio_departure');
+        setDepartures(cached ? JSON.parse(cached) : []);
+      } else {
+        const raw = await service.getItems('departure');
+        setDepartures(raw.map(d => ({
+          id: d.id,
+          travelId: d.travel_id || d.travelId || '',
+          departureDate: d.departure_date || d.departureDate || '',
+          capacity: d.capacity !== undefined ? d.capacity : 10,
+          passengersCount: d.passengers_count !== undefined ? d.passengers_count : (d.passengersCount || 0),
+          status: d.status || 'open'
+        })));
+      }
+    } catch (e) {
+      console.error('Error fetching departures:', e);
+    }
+  };
 
   const fetchLocations = async () => {
     try {
@@ -348,6 +371,7 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
       }
       fetchLocations();
       fetchTravels();
+      fetchDepartures();
     }
   }, [session, activeModule]);
 
@@ -447,6 +471,9 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
           technicalExample: item.technical_example || item.technicalExample || '',
           // Load rich travel fields if present
           agency: item.agency || 'Sueño Travel Chile',
+          flavorText: item.flavor_text || item.flavorText || item.agency || '',
+          imageUrl: item.imageUrl || item.image_url || '',
+          headerImageUrl: item.headerImageUrl || item.header_image_url || '',
           durationDays: item.duration_days !== undefined ? item.duration_days : (item.durationDays || 1),
           durationNights: item.duration_nights !== undefined ? item.duration_nights : (item.durationNights || 0),
           destinationsSummary: Array.isArray(item.destinations_summary) ? item.destinations_summary : (Array.isArray(item.destinationsSummary) ? item.destinationsSummary : []),
@@ -583,12 +610,18 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
     setSelectedId(item.id);
     if (activeModule === 'travel') {
       setFormData({
+        id: item.id,
         title: item.title || '',
         description: item.description || '',
         subtitle: item.subtitle || '',
         agency: item.agency || 'Sueño Travel Chile',
+        flavorText: item.flavor_text || item.flavorText || item.agency || '',
+        imageUrl: item.imageUrl || item.image_url || '',
+        headerImageUrl: item.headerImageUrl || item.header_image_url || '',
         durationDays: item.durationDays || 1,
         durationNights: item.durationNights || 0,
+        allowPrivate: item.allowPrivate || item.allow_private || false,
+        privatePriceFrom: item.privatePriceFrom || item.private_price_from || '',
         destinationsSummary: Array.isArray(item.destinationsSummary) ? item.destinationsSummary.join(', ') : (item.destinationsSummary || ''),
         visaCostUSD: item.visaCostUSD !== undefined ? item.visaCostUSD : (item.pricingAndNotes?.visaCostUSD || 0),
         hotelTaxUSD: item.hotelTaxUSD !== undefined ? item.hotelTaxUSD : (item.pricingAndNotes?.hotelTaxUSD || 0),
@@ -1070,8 +1103,11 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
       setFormData({
         title: item.title || '',
         agency: item.agency || 'Sueño Travel Chile',
+        flavorText: item.flavor_text || item.flavorText || item.agency || '',
         durationDays: item.durationDays || item.duration_days || 1,
         durationNights: item.durationNights || item.duration_nights || 0,
+        allowPrivate: item.allowPrivate || item.allow_private || false,
+        privatePriceFrom: item.privatePriceFrom || item.private_price_from || '',
         destinationsSummary: Array.isArray(item.destinationsSummary) ? item.destinationsSummary.join(', ') : (Array.isArray(item.destinations_summary) ? item.destinations_summary.join(', ') : (item.destinationsSummary || '')),
         visaCostUSD: item.visaCostUSD !== undefined ? item.visaCostUSD : (item.pricingAndNotes?.visaCostUSD !== undefined ? item.pricingAndNotes.visaCostUSD : (item.pricing_and_notes?.visaCostUSD || 0)),
         hotelTaxUSD: item.hotelTaxUSD !== undefined ? item.hotelTaxUSD : (item.pricingAndNotes?.hotelTaxUSD !== undefined ? item.pricingAndNotes.hotelTaxUSD : (item.pricing_and_notes?.hotelTaxUSD || 0)),
@@ -1235,196 +1271,280 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
 
   // Active Workspace
   return (
-    <div className="min-h-screen bg-[var(--background)]">
-      <AppHeader
-        config={config}
-        session={session}
-        onLogout={handleLogout}
-        guessSetupUrl={guessSetupUrl}
-        appName={appName}
-        logoUrl={logoUrl}
-        backUrl={backUrl}
-      />
-      <div className="pt-[100px] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        {/* Header bar */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-[var(--outline-variant)] pb-4 gap-4">
-          <div className="flex items-center gap-4 flex-wrap">
-            {showForm && (
-              <button
-                onClick={() => {
-                  setIsEditing(false);
-                  setSelectedId(null);
-                  setShowForm(false);
-                }}
-                className="btn-icon shrink-0"
-                title="Volver al listado"
-                style={{ width: '36px', height: '36px' }}
-              >
-                <span className="material-symbols-outlined text-sm">arrow_back</span>
-              </button>
-            )}
-            <h2 className="text-xl md:text-2xl font-bold text-[var(--on-surface)] whitespace-nowrap">
-              {showForm
-                ? (isEditing 
-                    ? (activeModule === 'travel' ? 'Editar Viaje' : activeModule === 'location' ? 'Editar Destino' : activeModule === 'departure' ? 'Editar Salida' : activeModule === 'terms' ? 'Editar Término / Condición' : activeModule === 'design_tokens' ? 'Editar UI Kit' : 'Editar Concepto')
-                    : (!creatingTypeSelected ? 'Añadir Nuevo Registro' : (activeModule === 'travel' ? 'Nuevo Viaje' : activeModule === 'location' ? 'Nuevo Destino' : activeModule === 'departure' ? 'Nueva Salida' : activeModule === 'terms' ? 'Nuevo Término / Condición' : activeModule === 'design_tokens' ? 'Nuevo UI Kit' : 'Nuevo Concepto'))
-                  )
-                : (activeModule === 'dashboard' ? 'Panel de Control' : activeModule === 'travel' ? 'Gestión de Viajes' : activeModule === 'design_tokens' ? 'Gestión de UI Kit / Marca' : activeModule === 'terms' ? 'Gestión de Conceptos / Glosario' : activeModule === 'products' ? 'Gestión de Productos' : activeModule === 'location' ? 'Gestión de Destinos' : activeModule === 'departure' ? 'Salidas Programadas' : 'Gestión de Contenidos')}
-            </h2>
-          </div>
+    <>
+      <style>{`
+        .admin-theme {
+          --primary: #475569; /* slate-600 */
+          --primary-container: #e2e8f0; /* slate-200 */
+          --on-primary-container: #0f172a; /* slate-900 */
+          --secondary: #64748b; /* slate-500 */
+          --secondary-container: #f1f5f9; /* slate-100 */
+          --tertiary: #94a3b8; /* slate-400 */
+          
+          --surface: #ffffff;
+          --surface-container-lowest: #ffffff;
+          --surface-container-low: #f8fafc;
+          --surface-container: #f1f5f9;
+          --surface-container-high: #e2e8f0;
+          --surface-container-highest: #cbd5e1;
+          
+          --on-surface: #0f172a;
+          --on-surface-variant: #475569;
+          
+          --outline: #cbd5e1;
+          --outline-variant: #e2e8f0;
+          
+          --background: #f8fafc;
+        }
 
-          {/* Right Action Row */}
-          <div className="flex flex-wrap items-center gap-3">
-            {showForm ? (
-              creatingTypeSelected && (
-                <>
-                  {/* Dropdown for Plantilla actions */}
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() => setTemplateDropdownOpen(!templateDropdownOpen)}
-                      className="btn-secondary flex items-center gap-2"
-                      style={{ padding: '8px 16px', fontSize: '0.85rem' }}
-                    >
-                      <span className="material-symbols-outlined text-sm">folder_open</span>
-                      Plantilla
-                      <span className="material-symbols-outlined text-sm">expand_more</span>
-                    </button>
-                    {templateDropdownOpen && (
-                      <div className="absolute right-0 mt-2 w-max rounded-xl bg-[var(--surface-container-high)] border border-[var(--outline-variant)] shadow-lg z-50 py-1">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            handleDownloadTemplate();
-                            setTemplateDropdownOpen(false);
-                          }}
-                          className="w-full text-left px-4 py-2 text-sm text-[var(--on-surface)] hover:bg-[var(--surface-container-highest)] flex items-center gap-2 border-none bg-transparent cursor-pointer"
-                        >
-                          <span className="material-symbols-outlined text-sm">download</span>
-                          Descargar Plantilla
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            document.getElementById('form-template-input').click();
-                            setTemplateDropdownOpen(false);
-                          }}
-                          className="w-full text-left px-4 py-2 text-sm text-[var(--on-surface)] hover:bg-[var(--surface-container-highest)] flex items-center gap-2 border-none bg-transparent cursor-pointer"
-                        >
-                          <span className="material-symbols-outlined text-sm">upload_file</span>
-                          Cargar Plantilla
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setShowPasteJsonModal(true);
-                            setTemplateDropdownOpen(false);
-                          }}
-                          className="w-full text-left px-4 py-2 text-sm text-[var(--on-surface)] hover:bg-[var(--surface-container-highest)] flex items-center gap-2 border-none bg-transparent cursor-pointer"
-                        >
-                          <span className="material-symbols-outlined text-sm">content_paste</span>
-                          Pegar JSON
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                  <input
-                    type="file"
-                    id="form-template-input"
-                    accept=".json"
-                    className="hidden"
-                    onChange={handleUploadFormTemplate}
-                  />
-                  <button
-                    type="button"
-                    onClick={(e) => handleSave(e, true)}
-                    className="btn-secondary"
-                    style={{ padding: '8px 16px', fontSize: '0.85rem' }}
-                  >
-                    <span className="material-symbols-outlined text-sm">save</span>
-                    Guardar Borrador
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => handleSave(e, false)}
-                    className="btn-primary"
-                    style={{ padding: '8px 16px', fontSize: '0.85rem' }}
-                  >
-                    <span className="material-symbols-outlined text-sm">publish</span>
-                    {activeModule === 'travel' ? 'Publicar Viaje' : activeModule === 'design_tokens' ? 'Publicar UI Kit' : 'Publicar Concepto'}
-                  </button>
-                </>
-              )
-            ) : (
-              config.activeModules && config.activeModules.length > 1 && (
-                <div className="flex gap-1 p-0.5 rounded-lg w-fit bg-[var(--surface-container-high)]">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveModule('dashboard');
-                      setShowForm(false);
-                      setIsEditing(false);
-                    }}
-                    className={`tab-btn ${activeModule === 'dashboard' ? 'active' : ''}`}
-                    style={{
-                      background: activeModule === 'dashboard' ? 'var(--primary-container)' : 'transparent',
-                      color: activeModule === 'dashboard' ? 'var(--on-primary-container)' : 'var(--on-surface-variant)',
-                      padding: '4px 12px',
-                      borderRadius: '6px',
-                      fontSize: '0.8rem',
-                      fontWeight: '600'
-                    }}
-                  >
-                    📊 Dashboard
-                  </button>
-                  {config.activeModules.map(modKey => {
-                    const label = modKey === 'design_tokens' ? '🎨 UI Kit' : (modKey === 'terms' ? '📚 Concepto' : modKey === 'travel' ? '✈️ Viajes' : modKey === 'location' ? '📍 Destinos' : modKey === 'departure' ? '📅 Salidas' : modKey === 'products' ? '🛍️ Productos' : modKey);
-                    const isActive = activeModule === modKey;
-                    return (
-                      <button
-                        key={modKey}
-                        onClick={() => {
-                          setActiveModule(modKey);
-                          setShowForm(false);
-                          setIsEditing(false);
-                        }}
-                        className={`tab-btn ${isActive ? 'active' : ''}`}
-                        style={{
-                          background: isActive ? 'var(--primary-container)' : 'transparent',
-                          color: isActive ? 'var(--on-primary-container)' : 'var(--on-surface-variant)',
-                          padding: '4px 12px',
-                          borderRadius: '6px',
-                          fontSize: '0.8rem',
-                          fontWeight: '600'
-                        }}
-                      >
-                        {label}
-                      </button>
-                    );
-                  })}
-                  <button
-                    onClick={() => {
-                      setActiveModule('accounts');
-                      setShowForm(false);
-                      setIsEditing(false);
-                    }}
-                    className={`tab-btn ${activeModule === 'accounts' ? 'active' : ''}`}
-                    style={{
-                      background: activeModule === 'accounts' ? 'var(--primary-container)' : 'transparent',
-                      color: activeModule === 'accounts' ? 'var(--on-primary-container)' : 'var(--on-surface-variant)',
-                      padding: '4px 12px',
-                      borderRadius: '6px',
-                      fontSize: '0.8rem',
-                      fontWeight: '600'
-                    }}
-                  >
-                    👤 Cuentas
-                  </button>
-                </div>
-              )
+        html.dark .admin-theme {
+          --primary: #94a3b8;
+          --primary-container: #334155;
+          --on-primary-container: #f8fafc;
+          --secondary: #cbd5e1;
+          --secondary-container: #1e293b;
+          
+          --surface: #0f172a;
+          --surface-container-lowest: #020617;
+          --surface-container-low: #0f172a;
+          --surface-container: #1e293b;
+          --surface-container-high: #334155;
+          --surface-container-highest: #475569;
+          
+          --on-surface: #f8fafc;
+          --on-surface-variant: #cbd5e1;
+          
+          --outline: #475569;
+          --outline-variant: #334155;
+          
+          --background: #020617;
+        }
+      `}</style>
+      <div className="admin-theme min-h-screen bg-[var(--background)] flex flex-col lg:flex-row">
+      
+      {/* SIDEBAR NAVIGATION (Hidden on mobile, flows as side column on desktop) */}
+      <aside className={`hidden lg:flex flex-col border-r border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] shrink-0 h-screen sticky top-0 overflow-y-auto transition-all duration-300 ${isSidebarCollapsed ? 'w-[80px]' : 'w-[260px]'}`}>
+        <div className={`h-full flex flex-col ${isSidebarCollapsed ? 'p-4' : 'p-6'}`}>
+          <div className={`flex items-center mb-8 ${isSidebarCollapsed ? 'justify-center' : 'justify-between gap-3'}`}>
+            {!isSidebarCollapsed && (
+              <div className="flex items-center gap-3">
+                <img src={logoUrl} alt={`${appName} Logo`} className="w-8 h-8 rounded-lg shadow-sm object-cover shrink-0" />
+                <span className="font-headline-sm whitespace-nowrap" style={{ color: 'var(--primary)', letterSpacing: '-0.02em' }}>{appName}</span>
+              </div>
             )}
+            <button 
+              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} 
+              className="btn-icon shrink-0" 
+              style={{ width: '32px', height: '32px' }}
+              title={isSidebarCollapsed ? "Expandir" : "Contraer"}
+            >
+              <span className="material-symbols-outlined text-[18px]">{isSidebarCollapsed ? 'menu_open' : 'menu'}</span>
+            </button>
+          </div>
+          
+          <nav className="flex flex-col gap-1.5 flex-grow">
+            <button
+              onClick={() => {
+                setActiveModule('dashboard');
+                setShowForm(false);
+                setIsEditing(false);
+              }}
+              className={`w-full flex items-center py-2 rounded-md transition-colors text-sm font-semibold ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-start gap-3 px-3'} ${
+                activeModule === 'dashboard'
+                  ? 'bg-[var(--primary-container)] text-[var(--on-primary-container)]'
+                  : 'text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-low)] hover:text-[var(--on-surface)]'
+              }`}
+              title={isSidebarCollapsed ? "Dashboard" : undefined}
+            >
+              <span className="material-symbols-outlined text-[20px] shrink-0">space_dashboard</span>
+              {!isSidebarCollapsed && <span>Dashboard</span>}
+            </button>
+
+            {config.activeModules && config.activeModules.map(modKey => {
+              const label = modKey === 'design_tokens' ? 'UI Kit / Marca' : (modKey === 'terms' ? 'Conceptos' : modKey === 'travel' ? 'Viajes' : modKey === 'location' ? 'Destinos' : modKey === 'departure' ? 'Salidas' : modKey === 'products' ? 'Productos' : modKey);
+              const icon = modKey === 'design_tokens' ? 'palette' : (modKey === 'terms' ? 'menu_book' : modKey === 'travel' ? 'flight_takeoff' : modKey === 'location' ? 'map' : modKey === 'departure' ? 'calendar_month' : modKey === 'products' ? 'shopping_bag' : 'extension');
+              const isActive = activeModule === modKey;
+
+              return (
+                <button
+                  key={modKey}
+                  onClick={() => {
+                    setActiveModule(modKey);
+                    setShowForm(false);
+                    setIsEditing(false);
+                  }}
+                  className={`w-full flex items-center py-2 rounded-md transition-colors text-sm font-semibold ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-start gap-3 px-3'} ${
+                    isActive
+                      ? 'bg-[var(--primary-container)] text-[var(--on-primary-container)]'
+                      : 'text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-low)] hover:text-[var(--on-surface)]'
+                  }`}
+                  title={isSidebarCollapsed ? label : undefined}
+                >
+                  <span className="material-symbols-outlined text-[20px] shrink-0">{icon}</span>
+                  {!isSidebarCollapsed && <span>{label}</span>}
+                </button>
+              );
+            })}
+          </nav>
+          
+          <div className="pt-4 border-t border-[var(--outline-variant)] mt-auto">
+            <button
+              onClick={() => {
+                setActiveModule('accounts');
+                setShowForm(false);
+                setIsEditing(false);
+              }}
+              className={`w-full flex items-center py-2 rounded-md transition-colors text-sm font-semibold ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-start gap-3 px-3'} ${
+                activeModule === 'accounts'
+                  ? 'bg-[var(--primary-container)] text-[var(--on-primary-container)]'
+                  : 'text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-low)] hover:text-[var(--on-surface)]'
+              }`}
+              title={isSidebarCollapsed ? "Cuentas" : undefined}
+            >
+              <span className="material-symbols-outlined text-[20px] shrink-0">group</span>
+              {!isSidebarCollapsed && <span>Cuentas</span>}
+            </button>
           </div>
         </div>
+      </aside>
+
+      {/* MAIN CONTENT AREA */}
+      <div className="flex-1 flex flex-col min-w-0">
+        <div className="lg:hidden">
+          <AppHeader
+            config={config}
+            session={session}
+            onLogout={handleLogout}
+            guessSetupUrl={guessSetupUrl}
+            appName={appName}
+            logoUrl={logoUrl}
+            backUrl={backUrl}
+          />
+        </div>
+        
+        {/* On desktop, maybe we can hide AppHeader since we have sidebar, or adapt it. Let's keep it for now and use it as top bar */}
+        <div className="hidden lg:block border-b border-[var(--outline-variant)] bg-[var(--surface-container-lowest)]">
+           <AppHeader
+            config={config}
+            session={session}
+            onLogout={handleLogout}
+            guessSetupUrl={guessSetupUrl}
+            appName={appName}
+            logoUrl={logoUrl}
+            backUrl={backUrl}
+          />
+        </div>
+
+        <main className="flex-1 p-4 lg:p-6 space-y-4 lg:space-y-6 w-full">
+          {/* Header bar */}
+          {activeModule !== 'dashboard' && (
+            <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-[var(--outline-variant)] pb-4 gap-4">
+            <div className="flex items-center gap-4 flex-wrap">
+              {showForm && (
+                <button
+                  onClick={() => {
+                    setIsEditing(false);
+                    setSelectedId(null);
+                    setShowForm(false);
+                  }}
+                  className="btn-icon shrink-0"
+                  title="Volver al listado"
+                  style={{ width: '36px', height: '36px' }}
+                >
+                  <span className="material-symbols-outlined text-sm">arrow_back</span>
+                </button>
+              )}
+              <h2 className="text-xl md:text-2xl font-bold text-[var(--on-surface)] whitespace-nowrap">
+                {showForm
+                  ? (isEditing 
+                      ? (activeModule === 'travel' ? 'Editar Viaje' : activeModule === 'location' ? 'Editar Destino' : activeModule === 'departure' ? 'Editar Salida' : activeModule === 'terms' ? 'Editar Término / Condición' : activeModule === 'design_tokens' ? 'Editar UI Kit' : 'Editar Concepto')
+                      : (!creatingTypeSelected ? 'Añadir Nuevo Registro' : (activeModule === 'travel' ? 'Nuevo Viaje' : activeModule === 'location' ? 'Nuevo Destino' : activeModule === 'departure' ? 'Nueva Salida' : activeModule === 'terms' ? 'Nuevo Término / Condición' : activeModule === 'design_tokens' ? 'Nuevo UI Kit' : 'Nuevo Concepto'))
+                    )
+                  : (activeModule === 'dashboard' ? 'Panel de Control' : activeModule === 'travel' ? 'Gestión de Viajes' : activeModule === 'design_tokens' ? 'Gestión de UI Kit / Marca' : activeModule === 'terms' ? 'Gestión de Conceptos / Glosario' : activeModule === 'products' ? 'Gestión de Productos' : activeModule === 'location' ? 'Gestión de Destinos' : activeModule === 'departure' ? 'Salidas Programadas' : 'Gestión de Contenidos')}
+              </h2>
+            </div>
+
+            {/* Right Action Row */}
+            <div className="flex flex-wrap items-center gap-3">
+              {showForm && creatingTypeSelected && (
+                  <>
+                    {/* Dropdown for Plantilla actions */}
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setTemplateDropdownOpen(!templateDropdownOpen)}
+                        className="btn-secondary flex items-center justify-center gap-2 h-9 rounded-md text-sm px-4"
+                      >
+                        <span className="material-symbols-outlined text-sm">folder_open</span>
+                        Plantilla
+                        <span className="material-symbols-outlined text-sm">expand_more</span>
+                      </button>
+                      {templateDropdownOpen && (
+                        <div className="absolute right-0 mt-2 w-max rounded-xl bg-[var(--surface-container-high)] border border-[var(--outline-variant)] shadow-lg z-50 py-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleDownloadTemplate();
+                              setTemplateDropdownOpen(false);
+                            }}
+                            className="w-full text-left px-4 py-2 text-sm text-[var(--on-surface)] hover:bg-[var(--surface-container-highest)] flex items-center gap-2 border-none bg-transparent cursor-pointer"
+                          >
+                            <span className="material-symbols-outlined text-sm">download</span>
+                            Descargar Plantilla
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              document.getElementById('form-template-input').click();
+                              setTemplateDropdownOpen(false);
+                            }}
+                            className="w-full text-left px-4 py-2 text-sm text-[var(--on-surface)] hover:bg-[var(--surface-container-highest)] flex items-center gap-2 border-none bg-transparent cursor-pointer"
+                          >
+                            <span className="material-symbols-outlined text-sm">upload_file</span>
+                            Cargar Plantilla
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowPasteJsonModal(true);
+                              setTemplateDropdownOpen(false);
+                            }}
+                            className="w-full text-left px-4 py-2 text-sm text-[var(--on-surface)] hover:bg-[var(--surface-container-highest)] flex items-center gap-2 border-none bg-transparent cursor-pointer"
+                          >
+                            <span className="material-symbols-outlined text-sm">content_paste</span>
+                            Pegar JSON
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <input
+                      type="file"
+                      id="form-template-input"
+                      accept=".json"
+                      className="hidden"
+                      onChange={handleUploadFormTemplate}
+                    />
+                    <button
+                      type="button"
+                      onClick={(e) => handleSave(e, true)}
+                      className="btn-secondary h-9 rounded-md text-sm px-4"
+                    >
+                      <span className="material-symbols-outlined text-sm mr-1">save</span>
+                      Guardar Borrador
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => handleSave(e, false)}
+                      className="btn-primary h-9 rounded-md text-sm px-4"
+                    >
+                      <span className="material-symbols-outlined text-sm mr-1">publish</span>
+                      {activeModule === 'travel' ? 'Publicar Viaje' : activeModule === 'design_tokens' ? 'Publicar UI Kit' : 'Publicar Concepto'}
+                    </button>
+                  </>
+              )}
+            </div>
+          </div>
+          )}
 
         {showForm ? (
           !creatingTypeSelected ? (
@@ -1478,12 +1598,37 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
             <div className="space-y-6">
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 {/* MAIN FORM: (9 cols) */}
-                <div className="lg:col-span-9 space-y-6">
+                <div className="lg:col-span-9 space-y-6 order-2 lg:order-last">
                   {activeModule === 'travel' ? (
                     <TravelFormEditor
                       formData={formData}
                       setFormData={setFormData}
                       locations={locations}
+                      departures={departures}
+                      travels={travels}
+                      onSaveQuickDeparture={async (departureData) => {
+                        const { buildDeparturePayload } = await import('./utils/buildPayload.js');
+                        const formattedData = buildDeparturePayload(departureData, departureData.isDraft);
+                        if (config.provider === 'localStorage') {
+                          const cached = localStorage.getItem('glosaurio_departure');
+                          const localItems = cached ? JSON.parse(cached) : [];
+                          const newItem = { ...formattedData, id: `departure-${Date.now()}` };
+                          localItems.unshift(newItem);
+                          localStorage.setItem('glosaurio_departure', JSON.stringify(localItems));
+                          setDepartures(localItems);
+                        } else {
+                          await service.createItem('departure', formattedData);
+                          // Re-fetch departures
+                          const raw = await service.getItems('departure');
+                          setDepartures(raw.map(d => ({
+                            ...d,
+                            travelId: d.travel_id || d.travelId || '',
+                            departureDate: d.departure_date || d.departureDate || '',
+                            status: d.status || 'open',
+                            isDraft: d.is_published !== undefined ? !d.is_published : (d.isPublished !== undefined ? !d.isPublished : false)
+                          })));
+                        }
+                      }}
                     />
                   ) : activeModule === 'departure' ? (
                     <DepartureFormEditor
@@ -1496,6 +1641,7 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
                       formData={formData}
                       setFormData={setFormData}
                       locations={locations}
+                      travels={travels}
                       activePanels={activePanels}
                       expandedSections={expandedSections}
                       toggleSection={toggleSection}
@@ -1543,7 +1689,7 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
                 </div>
 
                 {/* SIDEBAR: (3 cols) */}
-                <aside className="lg:col-span-3 space-y-6">
+                <aside className="lg:col-span-3 space-y-6 order-1 lg:order-first lg:sticky lg:top-8 self-start">
                   {activeModule === 'design_tokens' ? (
                     <div className="space-y-6">
                       {/* Secciones Disponibles para Design Tokens */}
@@ -1913,23 +2059,44 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
                     </>
                   )}
 
-                  {/* Editing Banner */}
-                  {isEditing && (
-                    <div className="glass-panel p-5" style={{ borderLeft: '4px solid var(--secondary)' }}>
-                      <p className="font-label-md mb-1 text-[var(--secondary)]">✏️ Modo Edición</p>
-                      <p className="font-body-md text-[var(--on-surface-variant)]">Editando: "{formData.title}"</p>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsEditing(false);
-                          setSelectedId(null);
-                          setShowForm(false);
-                        }}
-                        className="btn-secondary mt-3 w-full justify-center text-sm"
-                        style={{ padding: '8px 14px' }}
-                      >
-                        Cancelar edición
-                      </button>
+                  {/* Índice de Secciones para Travel */}
+                  {activeModule === 'travel' && (
+                    <div className="glass-panel p-6 space-y-4 lg:sticky lg:top-8">
+                      <h3 className="font-headline-sm text-[var(--on-surface)] flex items-center gap-2">
+                        <span className="material-symbols-outlined text-base text-[var(--primary)]">toc</span>
+                        Índice de Secciones
+                      </h3>
+                      <p className="text-[11px] text-[var(--on-surface-variant)] mb-2">Secciones de este viaje. Haz clic para desplazarte a ella:</p>
+                      <div className="flex flex-col gap-2.5">
+                        <a href="#sec-travel-details" className="flex items-center justify-between text-xs font-semibold text-[var(--primary)] hover:underline border-l-2 border-[var(--primary)] pl-2">
+                          <span>Detalles del Plan</span>
+                          <span className="material-symbols-outlined text-xs text-[var(--primary)]">check_circle</span>
+                        </a>
+                        <a href="#sec-travel-destinations" className="flex items-center justify-between text-xs font-semibold hover:underline pl-2 border-l-2 border-[var(--primary)] text-[var(--primary)]">
+                          <span>Destinos y Países</span>
+                          <span className="material-symbols-outlined text-xs">map</span>
+                        </a>
+                        <a href="#sec-travel-itinerary" className="flex items-center justify-between text-xs font-semibold hover:underline pl-2 border-l-2 border-[var(--primary)] text-[var(--primary)]">
+                          <span>Itinerario Día a Día</span>
+                          <span className="material-symbols-outlined text-xs">calendar_today</span>
+                        </a>
+                        <a href="#sec-travel-included" className="flex items-center justify-between text-xs font-semibold hover:underline pl-2 border-l-2 border-[var(--primary)] text-[var(--primary)]">
+                          <span>Servicios Incluidos</span>
+                          <span className="material-symbols-outlined text-xs">done_all</span>
+                        </a>
+                        <a href="#sec-travel-excluded" className="flex items-center justify-between text-xs font-semibold hover:underline pl-2 border-l-2 border-[var(--primary)] text-[var(--primary)]">
+                          <span>Servicios No Incluidos</span>
+                          <span className="material-symbols-outlined text-xs">cancel</span>
+                        </a>
+                        <a href="#sec-travel-hotels" className="flex items-center justify-between text-xs font-semibold hover:underline pl-2 border-l-2 border-[var(--primary)] text-[var(--primary)]">
+                          <span>Hoteles Previstos</span>
+                          <span className="material-symbols-outlined text-xs">apartment</span>
+                        </a>
+                        <a href="#sec-travel-departures" className="flex items-center justify-between text-xs font-semibold hover:underline pl-2 border-l-2 border-[var(--primary)] text-[var(--primary)]">
+                          <span>Salidas Programadas</span>
+                          <span className="material-symbols-outlined text-xs">event_available</span>
+                        </a>
+                      </div>
                     </div>
                   )}
                 </aside>
@@ -1972,9 +2139,10 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
             setCreatingTypeSelected={setCreatingTypeSelected}
             setShowForm={setShowForm}
             travels={travels}
+            departures={departures}
           />
         )}
-      </div>
+      </main>
 
       {showPasteJsonModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] p-4 backdrop-blur-sm">
@@ -2032,6 +2200,8 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
           </div>
         </div>
       )}
-    </div>
+      </div>
+      </div>
+    </>
   );
 }

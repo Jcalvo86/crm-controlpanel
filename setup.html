@@ -209,16 +209,16 @@
           <h2 class="font-headline-sm mb-6" style="color: var(--on-surface);">Credenciales de Supabase</h2>
           <div class="space-y-4">
             <div>
-              <label class="font-label-md block mb-2" style="color: var(--on-surface-variant);">URL del Proyecto</label>
-              <input id="sb-url" type="text" class="form-input" placeholder="https://xxx.supabase.co">
+              <label class="text-xs font-semibold block mb-1.5" style="color: var(--on-surface-variant);">URL del Proyecto</label>
+              <input id="sb-url" type="text" class="form-input h-9 rounded-md text-sm w-full" placeholder="https://xxx.supabase.co">
             </div>
             <div>
-              <label class="font-label-md block mb-2" style="color: var(--on-surface-variant);">Anon Key (Client Public Key)</label>
-              <input id="sb-key" type="text" class="form-input" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+              <label class="text-xs font-semibold block mb-1.5" style="color: var(--on-surface-variant);">Anon Key (Client Public Key)</label>
+              <input id="sb-key" type="text" class="form-input h-9 rounded-md text-sm w-full" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
             </div>
             <div class="hidden">
-              <label class="font-label-md block mb-2" style="color: var(--on-surface-variant);">Tabla por defecto</label>
-              <input id="sb-table" type="text" class="form-input" placeholder="terms" value="terms">
+              <label class="text-xs font-semibold block mb-1.5" style="color: var(--on-surface-variant);">Tabla por defecto</label>
+              <input id="sb-table" type="text" class="form-input h-9 rounded-md text-sm w-full" placeholder="terms" value="terms">
             </div>
           </div>
         </div>
@@ -230,20 +230,20 @@
           <h2 class="font-headline-sm mb-6" style="color: var(--on-surface);">Credenciales de Firebase</h2>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label class="font-label-md block mb-2" style="color: var(--on-surface-variant);">API Key</label>
-              <input id="fb-apikey" type="text" class="form-input" placeholder="AIzaSy...">
+              <label class="text-xs font-semibold block mb-1.5" style="color: var(--on-surface-variant);">API Key</label>
+              <input id="fb-apikey" type="text" class="form-input h-9 rounded-md text-sm w-full" placeholder="AIzaSy...">
             </div>
             <div>
-              <label class="font-label-md block mb-2" style="color: var(--on-surface-variant);">Project ID</label>
-              <input id="fb-projectid" type="text" class="form-input" placeholder="mi-proyecto-123">
+              <label class="text-xs font-semibold block mb-1.5" style="color: var(--on-surface-variant);">Project ID</label>
+              <input id="fb-projectid" type="text" class="form-input h-9 rounded-md text-sm w-full" placeholder="mi-proyecto-123">
             </div>
             <div>
-              <label class="font-label-md block mb-2" style="color: var(--on-surface-variant);">Auth Domain (opcional)</label>
-              <input id="fb-authdomain" type="text" class="form-input" placeholder="mi-proyecto.firebaseapp.com">
+              <label class="text-xs font-semibold block mb-1.5" style="color: var(--on-surface-variant);">Auth Domain (opcional)</label>
+              <input id="fb-authdomain" type="text" class="form-input h-9 rounded-md text-sm w-full" placeholder="mi-proyecto.firebaseapp.com">
             </div>
             <div class="hidden">
-              <label class="font-label-md block mb-2" style="color: var(--on-surface-variant);">Colección</label>
-              <input id="fb-collection" type="text" class="form-input" placeholder="terms" value="terms">
+              <label class="text-xs font-semibold block mb-1.5" style="color: var(--on-surface-variant);">Colección</label>
+              <input id="fb-collection" type="text" class="form-input h-9 rounded-md text-sm w-full" placeholder="terms" value="terms">
             </div>
           </div>
         </div>
@@ -391,8 +391,8 @@
 
         <!-- Proveedor de Almacenamiento -->
         <div class="mt-8 pt-6 border-t border-[var(--outline-variant)]">
-          <label class="font-label-md block mb-2" style="color: var(--on-surface-variant);">Proveedor de Almacenamiento de Imágenes</label>
-          <select id="storage-provider-select" class="form-select bg-[var(--surface-container-low)] w-full rounded-xl border-[var(--outline-variant)]">
+          <label class="text-xs font-semibold block mb-1.5" style="color: var(--on-surface-variant);">Proveedor de Almacenamiento de Imágenes</label>
+          <select id="storage-provider-select" class="form-select bg-[var(--surface-container-low)] w-full h-9 rounded-md border-[var(--outline-variant)]">
             <option value="uploadthing">UploadThing (Recomendado - Backend dedicado)</option>
             <option value="firebase">Firebase Storage</option>
             <option value="supabase">Supabase Storage (Bucket 'images')</option>
@@ -476,8 +476,8 @@
         <!-- New Taxonomy Creator -->
         <div class="glass-panel p-5 mb-6 flex flex-col sm:flex-row items-end gap-4" style="background: var(--surface-container-low);">
           <div class="flex-grow space-y-1 w-full">
-            <label class="font-label-md" style="color: var(--on-surface-variant);">Nombre de la Estructura (ej: Continentes)</label>
-            <input type="text" id="new-tax-label" class="form-input text-sm w-full" placeholder="Ej: Continentes">
+            <label class="text-xs font-semibold mb-1.5" style="color: var(--on-surface-variant);">Nombre de la Estructura (ej: Continentes)</label>
+            <input type="text" id="new-tax-label" class="form-input h-9 rounded-md text-sm w-full" placeholder="Ej: Continentes">
           </div>
           <button id="btn-create-tax" class="btn-primary flex items-center gap-2 whitespace-nowrap w-full sm:w-auto justify-center">
             <span class="material-symbols-outlined text-sm">add_box</span>
