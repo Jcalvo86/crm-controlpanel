@@ -815,6 +815,51 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
     }
   };
 
+  const handleToggleStatus = async (item) => {
+    try {
+      const isCurrentlyPublished = activeModule === 'travel' ? item.isPublished : !item.isDraft;
+      const newPublishedStatus = !isCurrentlyPublished;
+      const newDraftStatus = !newPublishedStatus;
+      
+      let updatePayload = {};
+      if (activeModule === 'travel') {
+        updatePayload = { is_published: newPublishedStatus };
+      } else {
+        updatePayload = { is_draft: newDraftStatus };
+      }
+
+      if (config.provider === 'localStorage') {
+        const localItems = [...items];
+        const idx = localItems.findIndex(i => i.id === item.id);
+        if (idx !== -1) {
+          if (activeModule === 'travel') {
+            localItems[idx].is_published = newPublishedStatus;
+            localItems[idx].isPublished = newPublishedStatus;
+            localItems[idx].isDraft = newDraftStatus;
+          } else {
+            localItems[idx].is_draft = newDraftStatus;
+            localItems[idx].isDraft = newDraftStatus;
+          }
+        }
+        localStorage.setItem(`glosaurio_${activeModule}`, JSON.stringify(localItems));
+        setItems(localItems);
+      } else {
+        await service.updateItem(activeModule, item.id, updatePayload);
+        await fetchCMSData();
+      }
+    } catch (err) {
+      if (err.message === 'Unauthorized') {
+        if (config.provider === 'supabase') {
+          localStorage.removeItem(`crm_session_${config.supabase?.url}`);
+        }
+        setSession(null);
+        alert('Tu sesión ha expirado o las credenciales son inválidas. Por favor, inicia sesión de nuevo.');
+      } else {
+        alert(`Error al cambiar estado: ${err.message}`);
+      }
+    }
+  };
+
   const handleDownloadTemplate = () => {
     let template = {};
     if (isEditing) {
@@ -2131,6 +2176,7 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
             loadingData={loadingData}
             startEdit={startEdit}
             handleDelete={handleDelete}
+            handleToggleStatus={handleToggleStatus}
             handleImportFile={handleImportFile}
             setIsEditing={setIsEditing}
             setSelectedId={setSelectedId}

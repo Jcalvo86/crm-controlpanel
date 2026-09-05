@@ -16,6 +16,7 @@ export default function ItemsTable({
   loadingData,
   startEdit,
   handleDelete,
+  handleToggleStatus,
   handleImportFile,
   setIsEditing,
   setSelectedId,
@@ -542,6 +543,15 @@ export default function ItemsTable({
                     )}
                   </td>
                   <td className="py-3 text-right space-x-2">
+                    <button
+                      onClick={() => handleToggleStatus && handleToggleStatus(item)}
+                      className="btn-icon text-sm inline-flex items-center justify-center"
+                      title={isDraft ? 'Activar/Publicar' : 'Desactivar/Ocultar'}
+                    >
+                      <span className="material-symbols-outlined text-sm">
+                        {isDraft ? 'visibility_off' : 'visibility'}
+                      </span>
+                    </button>
                     <button
                       onClick={() => startEdit(item)}
                       className="btn-icon text-sm inline-flex items-center justify-center"
