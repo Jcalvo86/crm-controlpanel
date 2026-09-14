@@ -653,10 +653,10 @@ export default function LocationFormEditor({
                         <div className="flex flex-wrap gap-2.5 items-center">
                           {[
                             { name: 'Pin Estándar', url: '' },
-                            { name: 'Destino', url: '/Imagenes_suenotravel/destination.svg' },
-                            { name: 'Descubrir', url: '/Imagenes_suenotravel/discover.svg' },
-                            { name: 'Mundo', url: '/Imagenes_suenotravel/world.svg' },
-                            { name: 'Reserva', url: '/Imagenes_suenotravel/booking.svg' },
+                            { name: 'Destino', url: '/Imagenes/destination.svg' },
+                            { name: 'Descubrir', url: '/Imagenes/discover.svg' },
+                            { name: 'Mundo', url: '/Imagenes/world.svg' },
+                            { name: 'Reserva', url: '/Imagenes/booking.svg' },
                           ].map((iconItem, i) => {
                             const isSelected = (!iconItem.url && !formData.mapIcon) || (formData.mapIcon === iconItem.url);
                             return (

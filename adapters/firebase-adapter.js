@@ -93,10 +93,10 @@ window.Glosaurio.FirebaseAdapter = class FirebaseAdapter {
 
   // ── Interface implementation (Generic Methods) ───────────
   async getItems(collection, filters = {}) {
-    const res = await fetch(this._url(collection));
-    if (!res.ok) throw new Error(`Firebase error fetching ${collection} — ${res.status}: ${await res.text()}`);
-    const data = await res.json();
-    const docs = data.documents || [];
+    const res = await fetch(this._url(collection), { cache: 'no-store' });
+    if (!res.ok) throw new Error(`Firebase error ${res.status}`);
+    const json = await res.json();
+    const docs = json.documents || [];
     let items = docs.map(d => this._fromFirestore(d));
     if (filters.published) items = items.filter(t => !t.isDraft);
     if (filters.category)  items = items.filter(t => t.category === filters.category);
@@ -104,7 +104,7 @@ window.Glosaurio.FirebaseAdapter = class FirebaseAdapter {
   }
 
   async getItem(collection, id) {
-    const res = await fetch(this._url(collection, `/${id}`));
+    const res = await fetch(this._url(collection, `/${id}`), { cache: 'no-store' });
     if (res.status === 404) return null;
     if (!res.ok) throw new Error(`Firebase error ${res.status}`);
     return this._fromFirestore(await res.json());

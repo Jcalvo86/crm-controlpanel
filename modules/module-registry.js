@@ -83,12 +83,15 @@ window.Glosaurio.CMS_MODULES = {
     titleField: 'name',
     schema: [
       { id: 'name', label: 'Nombre del Viaje', type: 'text', required: true, placeholder: 'Ej: Egipto: El Legado de los Faraones' },
+      { id: 'name_en', label: 'Nombre del Viaje (Inglés)', type: 'text', placeholder: 'Ej: Egypt: The Legacy of the Pharaohs' },
       { id: 'subtitle', label: 'Subtítulo / Lema', type: 'text', placeholder: 'Ej: Un viaje de 10 días a través del tiempo...' },
+      { id: 'subtitle_en', label: 'Subtítulo / Lema (Inglés)', type: 'text' },
       { id: 'sku', label: 'Código SKU / Identificador', type: 'text', required: true, placeholder: 'Ej: EGI-LEGADO-10D' },
       { id: 'price', label: 'Precio base', type: 'number', required: true, placeholder: 'Ej: 2990' },
       { id: 'comparePrice', label: 'Precio Anterior (Oferta)', type: 'number', placeholder: 'Ej: 3490' },
       { id: 'imageUrl', label: 'Imagen del Viaje (URL)', type: 'text', placeholder: 'https://ejemplo.com/viaje.jpg' },
       { id: 'overview', label: 'Descripción general (La Magia del Destino)', type: 'textarea', rows: 4, placeholder: 'Egipto no es solo un destino; es un portal...' },
+      { id: 'overview_en', label: 'Descripción general (Inglés)', type: 'textarea', rows: 4 },
       { id: 'duration', label: 'Duración (Días)', type: 'number', placeholder: 'Ej: 10' },
       { id: 'itineraryJson', label: 'Itinerario JSON', type: 'textarea', rows: 6, placeholder: '[\n  {"day": "Día 01", "title": "Llegada", "desc": "Detalle...", "info": "Mena House"}\n]' },
       { id: 'bestSeason', label: 'Mejor Época', type: 'text', placeholder: 'Ej: Octubre a Abril' },
@@ -138,10 +141,13 @@ window.Glosaurio.CMS_MODULES = {
     titleField: 'title',
     schema: [
       { id: 'title', label: 'Título del Viaje', type: 'text', required: true, placeholder: 'Ej: Aventura por la Patagonia' },
+      { id: 'title_en', label: 'Título del Viaje (Inglés)', type: 'text' },
       { id: 'destination', label: 'Destino', type: 'text', required: true, placeholder: 'Ej: Patagonia Chilena' },
+      { id: 'destination_en', label: 'Destino (Inglés)', type: 'text' },
       { id: 'duration', label: 'Duración (Días)', type: 'text', placeholder: 'Ej: 7 días' },
       { id: 'price', label: 'Precio Base ($)', type: 'number', placeholder: 'Ej: 1500' },
       { id: 'description', label: 'Descripción', type: 'textarea', rows: 4, placeholder: 'Detalles del viaje...' },
+      { id: 'description_en', label: 'Descripción (Inglés)', type: 'textarea', rows: 4 },
       { id: 'isDraft', label: 'Borrador', type: 'boolean', default: true }
     ]
   },
@@ -156,6 +162,7 @@ window.Glosaurio.CMS_MODULES = {
     titleField: 'name',
     schema: [
       { id: 'name', label: 'Nombre', type: 'text', required: true, placeholder: 'Ej: Chile Costa o Casa de Pablo Neruda' },
+      { id: 'name_en', label: 'Nombre (Inglés)', type: 'text' },
       { id: 'type', label: 'Tipo de Entrada', type: 'select', required: true, default: 'attraction', options: [
         { value: 'region', label: '📍 Región (Macro / Inspiración y Contexto)' },
         { value: 'city', label: '🏙️ Ciudad o Área (Meso / Contexto Intermedio)' },
@@ -163,9 +170,12 @@ window.Glosaurio.CMS_MODULES = {
       ]},
       // Región específicos
       { id: 'subtitle', label: 'Subtítulo inspirador', type: 'text', placeholder: 'Ej: Playas, gastronomía marina...' },
+      { id: 'subtitle_en', label: 'Subtítulo inspirador (Inglés)', type: 'text' },
       { id: 'travelStyles', label: 'Etiquetas de estilo de viaje', type: 'tags', placeholder: 'Ej: Familiar, Gastronomía, Relax' },
       { id: 'guideBestSeason', label: 'Mejor época para visitar', type: 'text', placeholder: 'Ej: De Octubre a Marzo...' },
+      { id: 'guideBestSeason_en', label: 'Mejor época para visitar (Inglés)', type: 'text' },
       { id: 'guideHowToGetAround', label: 'Cómo moverse', type: 'text', placeholder: 'Ej: Conviene rentar auto...' },
+      { id: 'guideHowToGetAround_en', label: 'Cómo moverse (Inglés)', type: 'text' },
       { id: 'guideRecommendedDuration', label: 'Duración recomendada', type: 'text', placeholder: 'Ej: 3 a 5 días' },
       { id: 'mapUrl', label: 'URL de Imagen del Mapa de la Región', type: 'text', placeholder: 'https://ejemplo.com/mapa-region.jpg' },
       { id: 'suggestedItineraries', label: 'Itinerarios sugeridos', type: 'json' },
@@ -185,8 +195,11 @@ window.Glosaurio.CMS_MODULES = {
       { id: 'estimatedVisitTime', label: 'Tiempo de visita estimado', type: 'text', placeholder: 'Ej: 1 a 2 horas' },
       { id: 'amenities', label: 'Servicios / Amenidades', type: 'json' },
       { id: 'description', label: 'Descripción de la Experiencia', type: 'textarea', rows: 4, placeholder: 'Breve reseña o historia...' },
+      { id: 'description_en', label: 'Descripción de la Experiencia (Inglés)', type: 'textarea', rows: 4 },
       { id: 'highlights', label: 'Qué no te puedes perder (Highlights)', type: 'lines', placeholder: 'Un highlight por línea...' },
+      { id: 'highlights_en', label: 'Qué no te puedes perder (Highlights) (Inglés)', type: 'lines' },
       { id: 'travelerTips', label: 'Tips de viajero', type: 'textarea', rows: 3, placeholder: 'Ej: Sube temprano para evitar la fila...' },
+      { id: 'travelerTips_en', label: 'Tips de viajero (Inglés)', type: 'textarea', rows: 3 },
       { id: 'nearbyLocations', label: 'Lugares cercanos recomendados', type: 'lines', placeholder: 'Un lugar cercano por línea...' },
       { id: 'isDraft', label: 'Borrador', type: 'boolean', default: true }
     ]

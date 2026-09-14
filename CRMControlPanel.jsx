@@ -3,12 +3,13 @@ import { parseCategory } from './utils/parseCategory.js';
 import { SupabaseRESTService } from './adapters/SupabaseRESTService.js';
 import HoldToConfirmButton from './components/HoldToConfirmButton.jsx';
 import { createEmptyFormData, derivePanelsFromItem, normalizeTaxonomies } from './utils/formDefaults.js';
-import { buildTravelPayload, buildDesignTokensPayload, buildTermsPayload, buildLocationPayload, buildDeparturePayload } from './utils/buildPayload.js';
+import { buildTravelPayload, buildDesignTokensPayload, buildTermsPayload, buildLocationPayload, buildDeparturePayload, buildBlogPayload } from './utils/buildPayload.js';
 import TravelFormEditor from './editors/TravelFormEditor.jsx';
 import DesignTokensFormEditor from './editors/DesignTokensFormEditor.jsx';
 import TermsFormEditor from './editors/TermsFormEditor.jsx';
 import LocationFormEditor from './editors/LocationFormEditor.jsx';
 import DepartureFormEditor from './editors/DepartureFormEditor.jsx';
+import BlogFormEditor from './editors/BlogFormEditor.jsx';
 import AppHeader from './components/AppHeader.jsx';
 import LoginView from './components/LoginView.jsx';
 import ItemsTable from './components/ItemsTable.jsx';
@@ -96,6 +97,9 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
   });
 
   const [showAllResults, setShowAllResults] = useState(false);
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [translationLog, setTranslationLog] = useState([]);
+  const [translationProgress, setTranslationProgress] = useState(0);
 
   const allResultsFromData = React.useMemo(() => {
     if (activeModule !== 'terms') return [];
@@ -384,7 +388,8 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
 
     setLoadingData(true);
     try {
-      const rawItems = await service.getItems(activeModule);
+      const collectionName = activeModule === 'blog' ? 'cms_posts' : activeModule;
+      const rawItems = await service.getItems(collectionName);
       // Map keys snake_case to camelCase
       const mapped = rawItems.map(item => {
         if (activeModule === 'design_tokens') {
@@ -497,7 +502,15 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
           
           steps: Array.isArray(item.steps) ? item.steps : [],
           results: item.results || '',
-          metrics: item.metrics || ''
+          metrics: item.metrics || '',
+          
+          slug: item.slug || '',
+          author: item.author || '',
+          readTime: item.read_time || item.readTime || 0,
+          summary: item.summary || '',
+          coverImage: item.cover_image || item.coverImage || '',
+          tags: Array.isArray(item.tags) ? item.tags : [],
+          content: item.content || ''
         };
       });
       setItems(mapped);
@@ -553,6 +566,8 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
       formattedData = buildDesignTokensPayload(formData, finalDraftStatus);
     } else if (activeModule === 'location') {
       formattedData = buildLocationPayload(formData, finalDraftStatus);
+    } else if (activeModule === 'blog') {
+      formattedData = buildBlogPayload(formData, finalDraftStatus);
     } else {
       formattedData = buildTermsPayload(formData, config.taxonomies, finalDraftStatus);
     }
@@ -572,10 +587,11 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
         localStorage.setItem(`glosaurio_${activeModule}`, JSON.stringify(localItems));
         setItems(localItems);
       } else {
+        const collectionName = activeModule === 'blog' ? 'cms_posts' : activeModule;
         if (isEditing) {
-          await service.updateItem(activeModule, selectedId, formattedData);
+          await service.updateItem(collectionName, selectedId, formattedData);
         } else {
-          await service.createItem(activeModule, formattedData);
+          await service.createItem(collectionName, formattedData);
         }
         await fetchCMSData();
       }
@@ -726,6 +742,20 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
         promptVars: ''
       });
       setCreatingTypeSelected(true);
+    } else if (activeModule === 'blog') {
+      setFormData({
+        title: item.title || '',
+        slug: item.slug || '',
+        author: item.author || 'Equipo Sueño Travel',
+        category: item.category || 'Destinos',
+        summary: item.summary || '',
+        content: item.content || '',
+        coverImage: item.coverImage || '',
+        tags: Array.isArray(item.tags) ? item.tags : [],
+        readTime: item.readTime || 5,
+        isDraft: item.isDraft || false
+      });
+      setCreatingTypeSelected(true);
     } else {
       const parsedCat = parseCategory(item.category);
       let parsedVideos = [''];
@@ -844,7 +874,8 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
         localStorage.setItem(`glosaurio_${activeModule}`, JSON.stringify(localItems));
         setItems(localItems);
       } else {
-        await service.updateItem(activeModule, item.id, updatePayload);
+        const collectionName = activeModule === 'blog' ? 'cms_posts' : activeModule;
+        await service.updateItem(collectionName, item.id, updatePayload);
         await fetchCMSData();
       }
     } catch (err) {
@@ -871,6 +902,19 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
         template = buildLocationPayload(formData, formData.isDraft);
       } else if (activeModule === 'design_tokens') {
         template = buildDesignTokensPayload(formData, formData.isDraft);
+      } else if (activeModule === 'blog') {
+        template = {
+          title: formData.title,
+          slug: formData.slug,
+          author: formData.author,
+          category: formData.category,
+          summary: formData.summary,
+          content: formData.content,
+          coverImage: formData.coverImage,
+          tags: formData.tags,
+          readTime: formData.readTime,
+          isDraft: formData.isDraft
+        };
       } else {
         template = buildTermsPayload(formData, config.taxonomies, formData.isDraft);
       }
@@ -1026,6 +1070,19 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
               svgContent: "[Código XML crudo del SVG, ej: <svg ...>...</svg>]"
             }
           ],
+          isDraft: true
+        };
+      } else if (activeModule === 'blog') {
+        template = {
+          title: "Título de Ejemplo",
+          slug: "titulo-de-ejemplo",
+          author: "Equipo Sueño Travel",
+          category: "Destinos",
+          summary: "Resumen del artículo...",
+          content: "Contenido del artículo en markdown...",
+          coverImage: "https://ejemplo.com/imagen.jpg",
+          tags: ["viajes", "tips"],
+          readTime: 5,
           isDraft: true
         };
       } else {
@@ -1219,6 +1276,19 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
         colors: (item.colors && item.colors.length > 0) ? item.colors : [{ hex: '', role: '', description: '' }],
         typographies: (item.typographies && item.typographies.length > 0) ? item.typographies : [{ fontFamily: '', weights: [], fontSize: '', sampleText: '' }],
         logos: (item.logos && item.logos.length > 0) ? item.logos : [{ name: '', svgContent: '' }],
+        isDraft: item.isDraft !== undefined ? item.isDraft : (item.is_draft !== undefined ? item.is_draft : true)
+      });
+    } else if (activeModule === 'blog') {
+      setFormData({
+        title: item.title || '',
+        slug: item.slug || '',
+        author: item.author || 'Equipo Sueño Travel',
+        category: item.category || 'Destinos',
+        summary: item.summary || '',
+        content: item.content || '',
+        coverImage: item.coverImage || '',
+        tags: Array.isArray(item.tags) ? item.tags : [],
+        readTime: item.readTime || 5,
         isDraft: item.isDraft !== undefined ? item.isDraft : (item.is_draft !== undefined ? item.is_draft : true)
       });
     } else {
@@ -1571,6 +1641,174 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
                     />
                     <button
                       type="button"
+                      onClick={async (e) => {
+                        e.preventDefault();
+                        setIsTranslating(true);
+                        setTranslationLog(['Iniciando traducción...']);
+                        setTranslationProgress(0);
+                        
+                        try {
+                          const log = (msg) => {
+                            setTranslationLog(prev => [...prev, msg]);
+                          };
+                          
+                          const translateText = async (text) => {
+                            if (!text || typeof text !== 'string') return text;
+                            const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=es&tl=en&dt=t&q=${encodeURIComponent(text)}`);
+                            if (res.status === 429) {
+                                throw new Error("429 Too Many Requests");
+                            }
+                            const json = await res.json();
+                            return json[0].map(item => item[0]).join('');
+                          };
+
+                          const newFormData = { ...formData };
+                          let updated = false;
+
+                          const fieldsToTranslate = [
+                            { src: 'name', dst: 'name_en', label: 'Nombre' },
+                            { src: 'title', dst: 'title_en', label: 'Título' },
+                            { src: 'subtitle', dst: 'subtitle_en', label: 'Subtítulo' },
+                            { src: 'overview', dst: 'overview_en', label: 'Overview' },
+                            { src: 'description', dst: 'description_en', label: 'Descripción' },
+                            { src: 'destination', dst: 'destination_en', label: 'Destino' },
+                            { src: 'destinationsSummary', dst: 'destinationsSummary_en', label: 'Resumen de Destinos' },
+                            { src: 'flavorText', dst: 'flavorText_en', label: 'Etiqueta (Flavor Text)' },
+                            { src: 'highlights', dst: 'highlights_en', label: 'Highlights' },
+                            { src: 'travelerTips', dst: 'travelerTips_en', label: 'Tips' },
+                            { src: 'guideBestSeason', dst: 'guideBestSeason_en', label: 'Mejor época' },
+                            { src: 'guideHowToGetAround', dst: 'guideHowToGetAround_en', label: 'Cómo moverse' }
+                          ];
+                          let totalItems = fieldsToTranslate.length;
+                          
+                          if (newFormData.itinerary && Array.isArray(newFormData.itinerary)) {
+                            totalItems += newFormData.itinerary.length;
+                          }
+                          if (newFormData.servicesExcludedList) totalItems++;
+                          if (newFormData.servicesIncludedList) totalItems++;
+                          
+                          let currentItem = 0;
+                          const updateProgress = () => {
+                            currentItem++;
+                            setTranslationProgress(Math.round((currentItem / totalItems) * 100));
+                          };
+
+                          for (const field of fieldsToTranslate) {
+                            if (newFormData[field.src] && (!newFormData[field.dst] || newFormData[field.dst] === newFormData[field.src])) {
+                              log(`Traduciendo: ${field.label}...`);
+                              const translated = await translateText(newFormData[field.src]);
+                              if (translated && translated !== newFormData[field.src]) {
+                                newFormData[field.dst] = translated;
+                                updated = true;
+                              }
+                            } else if (newFormData[field.src]) {
+                              log(`Omitido: ${field.label} (Ya traducido)`);
+                            } else {
+                              log(`Omitido: ${field.label} (Vacío)`);
+                            }
+                            updateProgress();
+                          }
+
+                          // Itinerary
+                          if (newFormData.itinerary && Array.isArray(newFormData.itinerary)) {
+                            for (let i = 0; i < newFormData.itinerary.length; i++) {
+                              const day = newFormData.itinerary[i];
+                              let dayUpdated = false;
+                              if (day.dayTitle && (!day.dayTitle_en || day.dayTitle_en === day.dayTitle)) {
+                                const translated = await translateText(day.dayTitle);
+                                if (translated && translated !== day.dayTitle) { day.dayTitle_en = translated; updated = true; dayUpdated = true; }
+                              }
+                              if (day.accommodationType && (!day.accommodationType_en || day.accommodationType_en === day.accommodationType)) {
+                                const translated = await translateText(day.accommodationType);
+                                if (translated && translated !== day.accommodationType) { day.accommodationType_en = translated; updated = true; dayUpdated = true; }
+                              }
+                              if (day.activities && Array.isArray(day.activities)) {
+                                for (const act of day.activities) {
+                                  if (act.description && (!act.description_en || act.description_en === act.description)) {
+                                    const translated = await translateText(act.description);
+                                    if (translated && translated !== act.description) { act.description_en = translated; updated = true; dayUpdated = true; }
+                                  }
+                                }
+                              }
+                              if (!dayUpdated) {
+                                log(`Omitido: Día ${i + 1} (Ya traducido o sin cambios)`);
+                              } else {
+                                log(`Traducido: Día ${i + 1}`);
+                              }
+                              updateProgress();
+                            }
+                          }
+
+                          // Services Excluded
+                          if (newFormData.servicesExcludedList && Array.isArray(newFormData.servicesExcludedList) && newFormData.servicesExcludedList.length > 0) {
+                            if (!newFormData.servicesExcludedList_en || newFormData.servicesExcludedList.length !== newFormData.servicesExcludedList_en.length) {
+                              newFormData.servicesExcludedList_en = [];
+                              log(`Traduciendo Servicios Excluidos...`);
+                              for (const str of newFormData.servicesExcludedList) {
+                                if (str && str.trim()) {
+                                  const translated = await translateText(str);
+                                  newFormData.servicesExcludedList_en.push(translated || str);
+                                  updated = true;
+                                } else {
+                                  newFormData.servicesExcludedList_en.push(str);
+                                }
+                              }
+                            } else {
+                              log(`Omitido: Servicios Excluidos (Ya traducido)`);
+                            }
+                            updateProgress();
+                          }
+
+                          // Services Included
+                          if (newFormData.servicesIncludedList && Array.isArray(newFormData.servicesIncludedList)) {
+                            let servicesUpdated = false;
+                            for (const group of newFormData.servicesIncludedList) {
+                              if (group.items && Array.isArray(group.items) && group.items.length > 0) {
+                                if (!group.items_en || group.items.length !== group.items_en.length) {
+                                  group.items_en = [];
+                                  for (const str of group.items) {
+                                    if (str && str.trim()) {
+                                      const translated = await translateText(str);
+                                      group.items_en.push(translated || str);
+                                      updated = true;
+                                      servicesUpdated = true;
+                                    } else {
+                                      group.items_en.push(str);
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                            if (servicesUpdated) {
+                              log(`Traducido: Servicios Incluidos`);
+                            } else {
+                              log(`Omitido: Servicios Incluidos (Ya traducido)`);
+                            }
+                            updateProgress();
+                          }
+
+                          if (updated) {
+                            setFormData(newFormData);
+                            log('¡Traducción completada con éxito!');
+                          } else {
+                            log('No se encontraron campos nuevos por traducir.');
+                          }
+                          setTranslationProgress(100);
+                        } catch (err) {
+                          if (err.message && err.message.includes('429')) {
+                            setTranslationLog(prev => [...prev, 'Error: Google Translate ha bloqueado temporalmente las peticiones por exceso de uso (Error 429).']);
+                          } else {
+                            setTranslationLog(prev => [...prev, 'Error en auto-traducción: ' + err.message]);
+                          }
+                        }
+                      }}
+                      className="btn-secondary h-9 rounded-md text-sm px-4 mr-2 border border-[var(--primary)] text-[var(--primary)]"
+                    >
+                      <span className="material-symbols-outlined text-sm mr-1">translate</span>
+                      Auto-Traducir a Inglés
+                    </button>
+                    <button
+                      type="button"
                       onClick={(e) => handleSave(e, true)}
                       className="btn-secondary h-9 rounded-md text-sm px-4"
                     >
@@ -1680,6 +1918,11 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
                       formData={formData}
                       setFormData={setFormData}
                       travels={travels}
+                    />
+                  ) : activeModule === 'blog' ? (
+                    <BlogFormEditor
+                      formData={formData}
+                      setFormData={setFormData}
                     />
                   ) : activeModule === 'location' ? (
                     <LocationFormEditor
@@ -2241,6 +2484,44 @@ export default function CRMControlPanel({ config, session: propSession, setSessi
                 className="btn-primary text-xs font-semibold px-4 py-2 rounded-md transition-colors"
               >
                 Cargar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isTranslating && (
+        <div className="fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-[var(--surface)] text-[var(--on-surface)] rounded-2xl w-full max-w-lg p-6 shadow-2xl animate-fade-in-up border border-[var(--outline-variant)]">
+            <h3 className="text-xl font-headline-sm mb-4">Traduciendo Viaje al Inglés</h3>
+            <div className="mb-4">
+              <div className="h-2 w-full bg-[var(--surface-container-high)] rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-[var(--primary)] transition-all duration-300 ease-out"
+                  style={{ width: `${translationProgress}%` }}
+                />
+              </div>
+              <p className="text-right text-xs mt-1 text-[var(--on-surface-variant)]">{translationProgress}%</p>
+            </div>
+            
+            <div className="bg-[var(--surface-container-low)] border border-[var(--outline-variant)] rounded-xl p-4 h-48 overflow-y-auto font-mono text-xs space-y-1 mb-6 flex flex-col-reverse">
+              {translationLog.map((log, i) => (
+                <div key={i} className="text-[var(--on-surface-variant)]">{log}</div>
+              ))}
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                className="btn-primary px-4 py-2 text-sm rounded-md"
+                onClick={() => setIsTranslating(false)}
+                disabled={translationProgress < 100}
+              >
+                {translationProgress < 100 ? (
+                  <><span className="material-symbols-outlined text-sm mr-1 animate-spin">sync</span> Procesando...</>
+                ) : (
+                  'Cerrar'
+                )}
               </button>
             </div>
           </div>

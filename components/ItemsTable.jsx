@@ -185,6 +185,20 @@ export default function ItemsTable({
                   isDraft: true
                 });
                 setCreatingTypeSelected(true);
+              } else if (activeModule === 'blog') {
+                setFormData({
+                  title: '',
+                  slug: '',
+                  author: 'Sueño Travel',
+                  category: '',
+                  readTime: 5,
+                  summary: '',
+                  coverImage: '',
+                  tags: [],
+                  content: '',
+                  isDraft: true
+                });
+                setCreatingTypeSelected(true);
               } else {
                 setFormData({
                   title: '',

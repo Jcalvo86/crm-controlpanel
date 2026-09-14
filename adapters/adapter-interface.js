@@ -107,6 +107,83 @@ window.Glosaurio.SEED_TERMS = [
   }
 ];
 
+window.Glosaurio.SEED_ARTICLES = [
+  {
+    id: 'egipto-magico',
+    title: 'Egipto Mágico: El Legado de los Faraones',
+    tag: 'Destino Destacado',
+    excerpt: 'Acompáñame a descubrir por qué la tierra de los faraones sigue siendo uno de los rincones más fascinantes y transformadores del planeta.',
+    author: 'Jessica Lagos',
+    authorRole: 'Operadora para Sueño Travel Chile • Especialista en Egipto',
+    authorAvatar: 'Imagenes/JessicaLagos.jfif',
+    headerImage: 'Imagenes/Egipto3.webp',
+    content: `<p>
+        Egipto no es simplemente un destino de viaje; es un encuentro directo con los cimientos de la historia humana. Para mí, tras visitarlo año tras año durante casi una década, se ha convertido en mi segundo hogar. En este post quiero compartir contigo un poco de esa fascinación que hace que cada viajero regrese con el alma encendida.
+    </p>
+    
+    <h3 class="text-2xl font-bold text-primary font-display-lg mt-8 mb-4">El Misterio en las Arenas de Giza</h3>
+    <p>
+        Ninguna fotografía te prepara para el momento en que contemplas las Pirámides de Giza por primera vez. Levantándose con orgullo contra el horizonte desértico, la Gran Pirámide es la única de las Siete Maravillas del Mundo Antiguo que aún permanece en pie. Su construcción sigue albergando enigmas que desafían la lógica moderna y pasear entre ellas al amanecer es una experiencia que redefine tu perspectiva del tiempo.
+    </p>
+    
+    <h3 class="text-2xl font-bold text-primary font-display-lg mt-8 mb-4">Luxor y el Valle de los Reyes</h3>
+    <p>
+        Cruzando el río Nilo, nos adentramos en la antigua Tebas, hoy conocida como Luxor. Aquí se concentra la mayor densidad de monumentos del mundo. Caminar por las colosales salas hipóstilas del Templo de Karnak, con sus imponentes columnas talladas en bajorrelieve, te hace sentir el verdadero peso de la devoción y el poder faraónico. Y al cruzar a la orilla occidental, el Valle de los Reyes resguarda en sus profundidades las tumbas policromadas de los gobernantes del Imperio Nuevo, cuyos colores y detalles siguen tan vivos hoy como hace tres mil años.
+    </p>
+    
+    <blockquote class="border-l-4 border-secondary pl-6 my-8 italic text-lg text-primary font-medium">
+        "Navegar el Nilo en una Dahabiya tradicional es como deslizarse silenciosamente a través de un lienzo vivo de palmeras, templos antiguos y puestas de sol eternas."
+    </blockquote>
+    
+    <h3 class="text-2xl font-bold text-primary font-display-lg mt-8 mb-4">El Nilo: El Alma de Egipto</h3>
+    <p>
+        El verdadero ritmo de Egipto se comprende desde sus aguas. Recomiendo siempre huir de los grandes cruceros masificados y optar por una Dahabiya, la embarcación tradicional a vela. Esta experiencia nos permite detenernos en pequeños pueblos ribereños, visitar templos menos conocidos como Silsila y disfrutar de la hospitalidad nubia más auténtica sin prisas, sintiendo la brisa que ha guiado a navegantes desde los albores de la civilización.
+    </p>
+    
+    <p>
+        Planificar un viaje aquí requiere delicadeza y conocimiento local para evitar las trampas turísticas y capturar la verdadera esencia del destino. Si estás listo para dejarte cautivar por la magia de Egipto, estaré encantada de guiarte y diseñar un itinerario a tu medida.
+    </p>`,
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 'turquia',
+    title: 'Turquía: Un Puente de Culturas y Colores',
+    tag: 'Inspiración',
+    excerpt: 'Desde el bullicio de los bazares de Estambul hasta los valles lunares de Capadocia. Un viaje visual y sensorial a través de tierras de leyendas.',
+    author: 'Jessica Lagos',
+    authorRole: 'Operadora para Sueño Travel Chile • Especialista en Destinos Clásicos',
+    authorAvatar: 'Imagenes/JessicaLagos.jfif',
+    headerImage: 'Imagenes/turquia-mar-cerdeira.webp',
+    content: `<p>
+        Turquía es un destino de contrastes deslumbrantes. Situado físicamente entre Europa y Asia, no es solo un puente geográfico, sino también un punto de encuentro donde Oriente y Occidente se fusionan en la arquitectura, la gastronomía y las tradiciones cotidianas. En cada uno de mis viajes, Turquía me ha sorprendido con su vitalidad y hospitalidad sin límites.
+    </p>
+    
+    <h3 class="text-2xl font-bold text-primary font-display-lg mt-8 mb-4">Estambul: La Joya del Bósforo</h3>
+    <p>
+        Ningún viaje a Turquía está completo sin perderse en las calles de Estambul. Contemplar la silueta de la Mezquita Azul y Santa Sofía recortadas contra el atardecer es simplemente inolvidable. Cruzar el Estrecho del Bósforo en un transbordador público, oliendo el aroma de las castañas asadas y escuchando el llamado a la oración, te envuelve en una atmósfera de magia pura. Y para los amantes de las compras, el Gran Bazar y el Bazar de las Especias son un laberinto de colores, aromas a té de manzana y regateos amistosos que despiertan todos los sentidos.
+    </p>
+    
+    <h3 class="text-2xl font-bold text-primary font-display-lg mt-8 mb-4">Capadocia: Un Sueño Geológico</h3>
+    <p>
+        Si hay un lugar que parece sacado de un cuento de hadas, es Capadocia. Sus famosas "chimeneas de hadas", formadas por la erosión del viento y el agua sobre la roca volcánica suave, crean un paisaje verdaderamente lunar. Ver el amanecer suspendido en un globo aerostático junto a cientos de otros globos pintando el cielo de colores pastel es una experiencia que te quita el aliento. Recomiendo siempre alojarse en un hotel cueva tradicional restaurado para vivir la experiencia al máximo.
+    </p>
+    
+    <blockquote class="border-l-4 border-secondary pl-6 my-8 italic text-lg text-primary font-medium">
+        "En Turquía, cada taza de té turco (çay) o café es una invitación a la conversación, al descanso y a conectar de verdad con la calidez de su gente."
+    </blockquote>
+    
+    <h3 class="text-2xl font-bold text-primary font-display-lg mt-8 mb-4">Éfeso: El Esplendor del Pasado</h3>
+    <p>
+        Cerca de la costa egea se alza Éfeso, una de las ciudades grecorromanas mejor conservadas del Mediterráneo. Al caminar por sus antiguas calzadas de mármol y contemplar la fachada reconstruida de la magnífica Biblioteca de Celso, uno puede casi escuchar el eco de los filósofos y senadores romanos que alguna vez la habitaron. Es un testimonio majestuoso del paso del tiempo y la historia viva.
+    </p>
+    
+    <p>
+        Turquía es un destino seguro, vibrante y lleno de historias listas para ser descubiertas. Ya sea que busques el lujo de un resort en el mar Egeo o la aventura en los valles de Capadocia, puedo asesorarte para crear el viaje perfecto que combine confort y descubrimiento real.
+    </p>`,
+    createdAt: new Date().toISOString()
+  }
+];
+
 // ─────────────────────────────────────────────────────────────
 //  LOCALSTORAGE ADAPTER (fallback offline)
 // ─────────────────────────────────────────────────────────────

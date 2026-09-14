@@ -12,6 +12,9 @@ const formatOptionLabel = (loc) => {
 };
 
 export default function TravelFormEditor({ formData, setFormData, locations = [], departures = [], travels = [], onSaveQuickDeparture }) {
+  // Estado de Idioma de Edición
+  const [editingLang, setEditingLang] = useState('es');
+  
   // Modal de Salida Rápida
   const [showDepartureModal, setShowDepartureModal] = useState(false);
   const [quickDeparture, setQuickDeparture] = useState({
@@ -378,7 +381,14 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
 
   const handleServiceIncludedItemChange = (serviceIdx, itemIdx, val) => {
     const nextServices = [...servicesIncluded];
-    nextServices[serviceIdx].items[itemIdx] = val;
+    if (editingLang === 'en') {
+      if (!nextServices[serviceIdx].items_en) {
+        nextServices[serviceIdx].items_en = [...(nextServices[serviceIdx].items || [])];
+      }
+      nextServices[serviceIdx].items_en[itemIdx] = val;
+    } else {
+      nextServices[serviceIdx].items[itemIdx] = val;
+    }
     setFormData({ ...formData, servicesIncludedList: nextServices });
   };
 
@@ -386,9 +396,15 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
   const servicesExcludedList = formData.servicesExcludedList || [''];
 
   const handleServiceExcludedChange = (idx, val) => {
-    const nextExcluded = [...servicesExcludedList];
-    nextExcluded[idx] = val;
-    setFormData({ ...formData, servicesExcludedList: nextExcluded });
+    if (editingLang === 'en') {
+      const nextExcludedEn = [...(formData.servicesExcludedList_en || formData.servicesExcludedList || [])];
+      nextExcludedEn[idx] = val;
+      setFormData({ ...formData, servicesExcludedList_en: nextExcludedEn });
+    } else {
+      const nextExcluded = [...servicesExcludedList];
+      nextExcluded[idx] = val;
+      setFormData({ ...formData, servicesExcludedList: nextExcluded });
+    }
   };
 
   const addServiceExcluded = () => {
@@ -551,6 +567,24 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
 
   return (
     <div className="space-y-8 max-w-full overflow-hidden">
+      <div className="flex justify-end mb-4">
+        <div className="bg-[var(--surface-container-high)] p-1 rounded-lg inline-flex shadow-sm border border-[var(--outline-variant)]">
+          <button
+            type="button"
+            className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-colors ${editingLang === 'es' ? 'bg-[var(--primary)] text-[var(--on-primary)] shadow' : 'text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-highest)]'}`}
+            onClick={() => setEditingLang('es')}
+          >
+            🇪🇸 Español
+          </button>
+          <button
+            type="button"
+            className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-colors ${editingLang === 'en' ? 'bg-[var(--primary)] text-[var(--on-primary)] shadow' : 'text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-highest)]'}`}
+            onClick={() => setEditingLang('en')}
+          >
+            🇺🇸 English
+          </button>
+        </div>
+      </div>
       <input
         type="file"
         ref={fileInputRef}
@@ -562,7 +596,7 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
       <section id="sec-travel-details" className="glass-panel p-8 max-w-full overflow-hidden">
         <h2 className="font-headline-sm mb-6 flex items-center gap-2" style={{ color: 'var(--on-surface)' }}>
           <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>flight_takeoff</span>
-          Detalles del Plan de Viaje
+          Detalles del Plan de Viaje {editingLang === 'en' && <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded ml-2">Editando Traducción</span>}
         </h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div className="flex flex-col gap-2">
@@ -570,8 +604,8 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
             <input
               type="text"
               required
-              value={formData.title || ''}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              value={formData[editingLang === 'en' ? 'title_en' : 'title'] || ''}
+              onChange={(e) => setFormData({ ...formData, [editingLang === 'en' ? 'title_en' : 'title']: e.target.value })}
               placeholder="Ej: Plan de Viaje: Egipto Clásico & Turquía Atractiva"
               className="form-input"
             />
@@ -581,8 +615,8 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
             <input
               type="text"
               required
-              value={formData.flavorText || formData.agency || ''}
-              onChange={(e) => setFormData({ ...formData, flavorText: e.target.value })}
+              value={editingLang === 'en' ? (formData.flavorText_en || '') : (formData.flavorText || formData.agency || '')}
+              onChange={(e) => setFormData({ ...formData, [editingLang === 'en' ? 'flavorText_en' : 'flavorText']: e.target.value })}
               placeholder="Ej: Misterio Milenario"
               className="form-input"
             />
@@ -590,8 +624,8 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
           <div className="md:col-span-2 flex flex-col gap-2">
             <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Descripción General del Viaje (Overview)</label>
             <textarea
-              value={formData.description || ''}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              value={formData[editingLang === 'en' ? 'description_en' : 'description'] || ''}
+              onChange={(e) => setFormData({ ...formData, [editingLang === 'en' ? 'description_en' : 'description']: e.target.value })}
               rows={4}
               placeholder="Escribe una introducción detallada que se mostrará como el resumen o 'overview' del viaje en la web..."
               className="form-input"
@@ -759,8 +793,8 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
                           <label className="font-label-md" style={{ color: 'var(--on-surface-variant)' }}>Título del Día (ej: Estambul - ciudad antigua)</label>
                           <input
                             type="text"
-                            value={day.dayTitle || ''}
-                            onChange={(e) => handleItineraryChange(idx, 'dayTitle', e.target.value)}
+                            value={editingLang === 'en' ? (day.dayTitle_en || '') : (day.dayTitle || '')}
+                            onChange={(e) => handleItineraryChange(idx, editingLang === 'en' ? 'dayTitle_en' : 'dayTitle', e.target.value)}
                             placeholder="Ej: Estambul - Ciudad Antigua"
                             className="form-input w-full"
                           />
@@ -772,8 +806,8 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
                           <input
                             type="text"
                             list={`accommodation-options-${idx}`}
-                            value={day.accommodationType || ''}
-                            onChange={(e) => handleItineraryChange(idx, 'accommodationType', e.target.value)}
+                            value={editingLang === 'en' ? (day.accommodationType_en || '') : (day.accommodationType || '')}
+                            onChange={(e) => handleItineraryChange(idx, editingLang === 'en' ? 'accommodationType_en' : 'accommodationType', e.target.value)}
                             placeholder="Selecciona o escribe el tipo de alojamiento/régimen..."
                             className="form-input w-full"
                           />
@@ -840,6 +874,7 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
                                     }}
                                     placeholder="Ej: Por la mañana..."
                                     className="form-input text-xs w-full"
+                                    disabled={editingLang === 'en'}
                                   />
                                   <datalist id={`activity-moment-options-${idx}-${actIdx}`}>
                                     <option value="Desayuno" />
@@ -870,6 +905,7 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
                                     }}
                                     placeholder="Ubicación (opcional)"
                                     className="form-input text-xs w-full"
+                                    disabled={editingLang === 'en'}
                                   />
                                   <datalist id={`activity-location-options-${idx}-${actIdx}`}>
                                     {locations.map(loc => (
@@ -881,9 +917,9 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
                               {/* Detalle */}
                               <div className="flex-1 w-full">
                                 <textarea
-                                  value={activity.description || ''}
+                                  value={editingLang === 'en' ? (activity.description_en || '') : (activity.description || '')}
                                   onChange={(e) => {
-                                    handleDayActivityChange(idx, actIdx, 'description', e.target.value);
+                                    handleDayActivityChange(idx, actIdx, editingLang === 'en' ? 'description_en' : 'description', e.target.value);
                                     e.target.style.height = 'auto';
                                     e.target.style.height = e.target.scrollHeight + 'px';
                                   }}
@@ -905,14 +941,16 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
                                 />
                               </div>
 
-                              <button
-                                type="button"
-                                onClick={() => removeDayActivity(idx, actIdx)}
-                                className="btn-icon text-[var(--error)] shrink-0 self-center"
-                                title="Remover actividad"
-                              >
-                                <span className="material-symbols-outlined text-sm">close</span>
-                              </button>
+                              {editingLang === 'es' && (
+                                <button
+                                  type="button"
+                                  onClick={() => removeDayActivity(idx, actIdx)}
+                                  className="btn-icon text-[var(--error)] shrink-0 self-center"
+                                  title="Remover actividad"
+                                >
+                                  <span className="material-symbols-outlined text-sm">close</span>
+                                </button>
+                              )}
                             </div>
                           ))}
 
@@ -920,25 +958,27 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
                             <p className="text-xs text-[var(--on-surface-variant)] italic">No hay actividades configuradas para este día.</p>
                           )}
 
-                          <div className="flex justify-between items-center pt-4 border-t border-[var(--outline-variant)]">
-                            <button
-                              type="button"
-                              onClick={() => addDayActivity(idx)}
-                              className="text-xs text-[var(--primary)] hover:underline flex items-center gap-1 border-none bg-transparent cursor-pointer font-bold"
-                            >
-                              <span className="material-symbols-outlined text-xs">add</span> Añadir Actividad
-                            </button>
+                          {editingLang === 'es' && (
+                            <div className="flex justify-between items-center pt-4 border-t border-[var(--outline-variant)]">
+                              <button
+                                type="button"
+                                onClick={() => addDayActivity(idx)}
+                                className="text-xs text-[var(--primary)] hover:underline flex items-center gap-1 border-none bg-transparent cursor-pointer font-bold"
+                              >
+                                <span className="material-symbols-outlined text-xs">add</span> Añadir Actividad
+                              </button>
 
-                            <HoldToConfirmButton
-                              onConfirm={() => removeItineraryDay(idx)}
-                              className="btn-text text-[var(--error)] flex items-center gap-1.5 text-xs font-bold"
-                              title="Mantén presionado 2s para eliminar este día completo"
-                              duration={2000}
-                            >
-                              <span className="material-symbols-outlined text-sm">delete</span>
-                              Eliminar Día {day.dayNumber}
-                            </HoldToConfirmButton>
-                          </div>
+                              <HoldToConfirmButton
+                                onConfirm={() => removeItineraryDay(idx)}
+                                className="btn-text text-[var(--error)] flex items-center gap-1.5 text-xs font-bold"
+                                title="Mantén presionado 2s para eliminar este día completo"
+                                duration={2000}
+                              >
+                                <span className="material-symbols-outlined text-sm">delete</span>
+                                Eliminar Día {day.dayNumber}
+                              </HoldToConfirmButton>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -950,16 +990,18 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
         </div>
 
         {/* Añadir Día */}
-        <div className="flex justify-center pt-6 border-t border-[var(--outline-variant)]">
-          <button
-            type="button"
-            onClick={addItineraryDay}
-            className="btn-secondary text-sm flex items-center gap-1"
-            style={{ padding: '8px 24px' }}
-          >
-            <span className="material-symbols-outlined text-sm">add</span> Añadir Día de Itinerario
-          </button>
-        </div>
+        {editingLang === 'es' && (
+          <div className="flex justify-center pt-6 border-t border-[var(--outline-variant)]">
+            <button
+              type="button"
+              onClick={addItineraryDay}
+              className="btn-secondary text-sm flex items-center gap-1"
+              style={{ padding: '8px 24px' }}
+            >
+              <span className="material-symbols-outlined text-sm">add</span> Añadir Día de Itinerario
+            </button>
+          </div>
+        )}
       </section>
 
       {/* Services Included Section */}
@@ -972,92 +1014,102 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
         </div>
 
         <div className="space-y-6 divide-y divide-[var(--outline-variant)]">
-          {servicesIncluded.map((group, serviceIdx) => (
-            <div key={serviceIdx} className="pt-6 first:pt-0 space-y-4">
-              <div className="flex items-center gap-3 justify-between">
-                <div className="flex gap-2 flex-1 items-center">
-                  <label className="font-label-md text-sm whitespace-nowrap" style={{ color: 'var(--on-surface-variant)' }}>Ubicación / Destino:</label>
-                  <input
-                    type="text"
-                    list={`service-location-options-${serviceIdx}`}
-                    value={group.customLocationName || (locations.find(l => l.id === group.locationId)?.name || '')}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      const matchedLoc = locations.find(l => `${l.name} (${l.city}, {loc.country})` === val || l.name === val);
-                      if (matchedLoc) {
-                        handleServiceIncludedChange(serviceIdx, 'locationId', matchedLoc.id);
-                        handleServiceIncludedChange(serviceIdx, 'customLocationName', '');
-                      } else {
-                        handleServiceIncludedChange(serviceIdx, 'locationId', 'custom');
-                        handleServiceIncludedChange(serviceIdx, 'customLocationName', val);
-                      }
-                    }}
-                    placeholder="Selecciona o escribe la ubicación..."
-                    className="form-input max-w-xs"
-                  />
-                  <datalist id={`service-location-options-${serviceIdx}`}>
-                    {locations.map(loc => (
-                      <option key={loc.id} value={`${loc.name} (${loc.city}, {loc.country})`} />
-                    ))}
-                  </datalist>
-                </div>
-                
-                <HoldToConfirmButton
-                  onConfirm={() => removeServiceIncluded(serviceIdx)}
-                  className="btn-icon text-[var(--error)]"
-                  title="Mantén presionado 2s para eliminar"
-                  duration={2000}
-                >
-                  <span className="material-symbols-outlined text-sm">delete</span>
-                </HoldToConfirmButton>
-              </div>
-
-              <div className="space-y-3 pl-4 border-l-2 border-[var(--primary)]">
-                {(group.items || []).map((bullet, bulletIdx) => (
-                  <div key={bulletIdx} className="flex gap-2 items-center">
-                    <span className="text-[var(--primary)] font-bold">•</span>
+          {servicesIncluded.map((group, serviceIdx) => {
+            const items = editingLang === 'en' ? (group.items_en || group.items || []) : (group.items || []);
+            return (
+              <div key={serviceIdx} className="pt-6 first:pt-0 space-y-4">
+                <div className="flex items-center gap-3 justify-between">
+                  <div className="flex gap-2 flex-1 items-center">
+                    <label className="font-label-md text-sm whitespace-nowrap" style={{ color: 'var(--on-surface-variant)' }}>Ubicación / Destino:</label>
                     <input
                       type="text"
-                      value={bullet}
-                      onChange={(e) => handleServiceIncludedItemChange(serviceIdx, bulletIdx, e.target.value)}
-                      placeholder="Ej: Traslado aeropuerto - hotel incluido en servicio privado"
-                      className="form-input flex-1"
+                      list={`service-location-options-${serviceIdx}`}
+                      value={group.customLocationName || (locations.find(l => l.id === group.locationId)?.name || '')}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const matchedLoc = locations.find(l => `${l.name} (${l.city}, ${l.country})` === val || l.name === val);
+                        if (matchedLoc) {
+                          handleServiceIncludedChange(serviceIdx, 'locationId', matchedLoc.id);
+                          handleServiceIncludedChange(serviceIdx, 'customLocationName', '');
+                        } else {
+                          handleServiceIncludedChange(serviceIdx, 'locationId', 'custom');
+                          handleServiceIncludedChange(serviceIdx, 'customLocationName', val);
+                        }
+                      }}
+                      placeholder="Selecciona o escribe la ubicación..."
+                      className="form-input max-w-xs"
+                      disabled={editingLang === 'en'}
                     />
-                    {group.items.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeServiceIncludedItem(serviceIdx, bulletIdx)}
-                        className="btn-icon text-[var(--error)]"
-                        title="Eliminar este punto"
-                      >
-                        <span className="material-symbols-outlined text-xs">close</span>
-                      </button>
-                    )}
+                    <datalist id={`service-location-options-${serviceIdx}`}>
+                      {locations.map(loc => (
+                        <option key={loc.id} value={`${loc.name} (${loc.city}, ${loc.country})`} />
+                      ))}
+                    </datalist>
                   </div>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => addServiceIncludedItem(serviceIdx)}
-                  className="text-xs text-[var(--primary)] hover:underline flex items-center gap-1 border-none bg-transparent cursor-pointer font-bold mt-2"
-                >
-                  <span className="material-symbols-outlined text-xs">add</span> Añadir Punto de Servicio
-                </button>
+                  
+                  {editingLang === 'es' && (
+                    <HoldToConfirmButton
+                      onConfirm={() => removeServiceIncluded(serviceIdx)}
+                      className="btn-icon text-[var(--error)]"
+                      title="Mantén presionado 2s para eliminar"
+                      duration={2000}
+                    >
+                      <span className="material-symbols-outlined text-sm">delete</span>
+                    </HoldToConfirmButton>
+                  )}
+                </div>
+
+                <div className="space-y-3 pl-4 border-l-2 border-[var(--primary)]">
+                  {items.map((bullet, bulletIdx) => (
+                    <div key={bulletIdx} className="flex gap-2 items-center">
+                      <span className="text-[var(--primary)] font-bold">•</span>
+                      <input
+                        type="text"
+                        value={bullet}
+                        onChange={(e) => handleServiceIncludedItemChange(serviceIdx, bulletIdx, e.target.value)}
+                        placeholder="Ej: Traslado aeropuerto - hotel incluido en servicio privado"
+                        className="form-input flex-1"
+                      />
+                      {items.length > 1 && editingLang === 'es' && (
+                        <button
+                          type="button"
+                          onClick={() => removeServiceIncludedItem(serviceIdx, bulletIdx)}
+                          className="btn-icon text-[var(--error)]"
+                          title="Eliminar este punto"
+                        >
+                          <span className="material-symbols-outlined text-xs">close</span>
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {editingLang === 'es' && (
+                    <button
+                      type="button"
+                      onClick={() => addServiceIncludedItem(serviceIdx)}
+                      className="text-xs text-[var(--primary)] hover:underline flex items-center gap-1 border-none bg-transparent cursor-pointer font-bold mt-2"
+                    >
+                      <span className="material-symbols-outlined text-xs">add</span> Añadir Punto de Servicio
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Añadir Grupo por Destino ubicado al final */}
-        <div className="flex justify-center pt-4 border-t border-[var(--outline-variant)]">
-          <button
-            type="button"
-            onClick={addServiceIncluded}
-            className="btn-secondary text-sm flex items-center gap-1"
-            style={{ padding: '8px 24px' }}
-          >
-            <span className="material-symbols-outlined text-sm">add</span> Añadir Grupo de Servicios por Destino
-          </button>
-        </div>
+        {editingLang === 'es' && (
+          <div className="flex justify-center pt-4 border-t border-[var(--outline-variant)]">
+            <button
+              type="button"
+              onClick={addServiceIncluded}
+              className="btn-secondary text-sm flex items-center gap-1"
+              style={{ padding: '8px 24px' }}
+            >
+              <span className="material-symbols-outlined text-sm">add</span> Añadir Grupo de Servicios por Destino
+            </button>
+          </div>
+        )}
       </section>
 
       {/* Services Excluded Section */}
@@ -1070,7 +1122,7 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
         </div>
 
         <div className="space-y-3">
-          {servicesExcludedList.map((bullet, idx) => (
+          {(editingLang === 'en' ? (formData.servicesExcludedList_en || formData.servicesExcludedList || []) : servicesExcludedList).map((bullet, idx) => (
             <div key={idx} className="flex gap-2 items-center">
               <span className="text-[var(--error)] font-bold">•</span>
               <input
@@ -1080,7 +1132,7 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
                 placeholder="Ej: Tasas hoteleras o propinas a guías locales"
                 className="form-input flex-1"
               />
-              {servicesExcludedList.length > 1 && (
+              {servicesExcludedList.length > 1 && editingLang === 'es' && (
                 <button
                   type="button"
                   onClick={() => removeServiceExcluded(idx)}
@@ -1095,16 +1147,18 @@ export default function TravelFormEditor({ formData, setFormData, locations = []
         </div>
 
         {/* Añadir punto No Incluido ubicado al final */}
-        <div className="flex justify-center pt-4 border-t border-[var(--outline-variant)]">
-          <button
-            type="button"
-            onClick={addServiceExcluded}
-            className="btn-secondary text-sm flex items-center gap-1"
-            style={{ padding: '8px 24px' }}
-          >
-            <span className="material-symbols-outlined text-sm">add</span> Añadir Servicio Excluido
-          </button>
-        </div>
+        {editingLang === 'es' && (
+          <div className="flex justify-center pt-4 border-t border-[var(--outline-variant)]">
+            <button
+              type="button"
+              onClick={addServiceExcluded}
+              className="btn-secondary text-sm flex items-center gap-1"
+              style={{ padding: '8px 24px' }}
+            >
+              <span className="material-symbols-outlined text-sm">add</span> Añadir Servicio Excluido
+            </button>
+          </div>
+        )}
       </section>
 
       {/* Hotels Planned (Previstos) Section */}

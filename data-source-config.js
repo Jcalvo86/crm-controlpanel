@@ -94,7 +94,8 @@
     const config = Config.getConfig();
 
     if (!config || config.provider === 'localStorage') {
-      window.DataSource = new window.Glosaurio.LocalStorageAdapter();
+      console.error('[Glosaurio] El uso de LocalStorage como base de datos ha sido deshabilitado.');
+      window.DataSource = null;
     } else if (config.provider === 'supabase' && 
         config.supabase?.url && 
         config.supabase?.anonKey &&
@@ -104,8 +105,8 @@
     } else if (config.provider === 'firebase' && config.firebase?.apiKey && config.firebase?.projectId) {
       window.DataSource = new window.Glosaurio.FirebaseAdapter(config.firebase);
     } else {
-      console.warn('[Glosaurio] Config incompleta, usando localStorage como fallback.');
-      window.DataSource = new window.Glosaurio.LocalStorageAdapter();
+      console.error('[Glosaurio] Configuración incompleta o inválida. No se pudo conectar a la base de datos.');
+      window.DataSource = null;
     }
 
     // Consulta asíncrona en segundo plano para obtener la config de la base de datos

@@ -64,7 +64,7 @@ export default function AppHeader({
           </button>
 
           <a
-            href={guessSetupUrl()}
+            href={guessSetupUrl().replace('setup.html', 'settings.html')}
             className="btn-secondary flex items-center gap-2"
             style={{ padding: '10px 20px', fontSize: '0.8rem', textDecoration: 'none' }}
           >

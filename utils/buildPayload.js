@@ -8,10 +8,17 @@ import { normalizeTaxonomies } from './formDefaults.js';
  */
 export const buildTravelPayload = (formData, isDraft) => ({
   title: formData.title,
+  title_en: formData.title_en || '',
   description: formData.description || '',
+  description_en: formData.description_en || '',
   subtitle: formData.subtitle || '',
+  subtitle_en: formData.subtitle_en || '',
+  overview: formData.overview || '',
+  overview_en: formData.overview_en || '',
+  destination_en: formData.destination_en || '',
   agency: formData.agency || 'Sueño Travel Chile',
   flavor_text: formData.flavorText || formData.agency || '',
+  flavor_text_en: formData.flavorText_en || '',
   duration_days: parseInt(formData.durationDays) || 0,
   duration_nights: parseInt(formData.durationNights) || 0,
   allow_private: formData.allowPrivate || false,
@@ -21,6 +28,9 @@ export const buildTravelPayload = (formData, isDraft) => ({
   destinations_summary: typeof formData.destinationsSummary === 'string'
     ? formData.destinationsSummary.split(',').map(x => x.trim()).filter(Boolean)
     : formData.destinationsSummary || [],
+  destinations_summary_en: typeof formData.destinationsSummary_en === 'string'
+    ? formData.destinationsSummary_en.split(',').map(x => x.trim()).filter(Boolean)
+    : formData.destinationsSummary_en || [],
   pricing_and_notes: {
     visaCostUSD: parseFloat(formData.visaCostUSD) || 0,
     hotelTaxUSD: parseFloat(formData.hotelTaxUSD) || 0,
@@ -43,6 +53,7 @@ export const buildTravelPayload = (formData, isDraft) => ({
   itinerary: formData.itinerary || [],
   services_included_list: formData.servicesIncludedList || [],
   services_excluded_list: (formData.servicesExcludedList || []).map(x => x.trim()).filter(Boolean),
+  services_excluded_list_en: (formData.servicesExcludedList_en || []).map(x => x.trim()).filter(Boolean),
   hotels_planned: formData.hotelsPlanned || [],
   
   // Image properties
@@ -178,5 +189,25 @@ export const buildDeparturePayload = (formData, isDraft) => ({
   price_override: formData.priceOverride ? parseFloat(formData.priceOverride) : null,
   status: formData.status || 'open',
   is_draft: isDraft
+});
+
+/**
+ * Builds the payload object for the 'blog' module.
+ * @param {Object} formData
+ * @param {boolean} isDraft
+ * @returns {Object}
+ */
+export const buildBlogPayload = (formData, isDraft) => ({
+  title: formData.title || '',
+  slug: formData.slug || '',
+  author: formData.author || '',
+  category: formData.category || '',
+  read_time: parseInt(formData.readTime) || 0,
+  summary: formData.summary || '',
+  cover_image: formData.coverImage || '',
+  tags: formData.tags || [],
+  content: formData.content || '',
+  is_draft: isDraft,
+  created_at: new Date().toISOString()
 });
 
